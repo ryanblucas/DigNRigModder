@@ -8,9 +8,11 @@
 #include "file.h"
 #include "types.h"
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <Windows.h>
 
+#define SCREEN_FONT L"digfont9"
 #define RUNTIME_ASSERT(cond) if (!(cond)) exit(-1);
 
 struct sprite
@@ -72,7 +74,7 @@ void screen_initialize(screen_events_t _events)
 	cfi.dwFontSize = (COORD){ TARGET_CELL_SIZE - 1, TARGET_CELL_SIZE };
 	cfi.FontFamily = FF_DONTCARE;
 	cfi.nFont = 0;
-	memset(cfi.FaceName, 0, sizeof cfi.FaceName);
+	swprintf(cfi.FaceName, sizeof cfi.FaceName / sizeof * cfi.FaceName, SCREEN_FONT);
 
 	RUNTIME_ASSERT(SetCurrentConsoleFontEx(out, FALSE, &cfi));
 
@@ -83,6 +85,13 @@ void screen_initialize(screen_events_t _events)
 	
 	screen_initialize_cursor();
 	events = _events;
+
+	RUNTIME_ASSERT(GetCurrentConsoleFontEx(out, FALSE, &cfi));
+
+	if (wcsncmp(cfi.FaceName, SCREEN_FONT, sizeof cfi.FaceName / sizeof * cfi.FaceName) != 0)
+	{
+		debug_format("Failed to locate Dig-N-Rig's font!\n");
+	}
 }
 
 void screen_destroy(void)

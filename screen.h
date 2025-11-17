@@ -21,7 +21,9 @@ void screen_initialize(screen_events_t events);
 void screen_destroy(void);
 void screen_loop(void);
 void screen_repaint(void);
+
 void screen_change_title(const char* title);
+void screen_change_color_palette(int id);
 
 sprite_t screen_sprite_create(int width, int height, char* text, attribute_t* attrib);
 void screen_sprite_destroy(sprite_t sprite);

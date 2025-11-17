@@ -39,15 +39,9 @@ static void screen_initialize_output()
 	csbi.srWindow.Right = csbi.dwSize.X - 1;
 	csbi.srWindow.Bottom = csbi.dwSize.Y - 1;
 
-	for (int i = 0; i < 16; i++)
-	{
-		int intensity = !!(i & 8) * 128 + 127;
-		csbi.ColorTable[i] = RGB(!!(i & 4) * intensity, !!(i & 2) * intensity, !!(i & 1) * intensity);
-	}
-	csbi.ColorTable[LIGHT_GRAY] = RGB(192, 192, 192);
-	csbi.ColorTable[DARK_GRAY] = RGB(128, 128, 128);
-
 	RUNTIME_ASSERT(SetConsoleScreenBufferInfoEx(out, &csbi));
+
+	screen_change_color_palette(1);
 }
 
 static void screen_initialize_cursor(void)
@@ -156,6 +150,45 @@ void screen_repaint(void)
 void screen_change_title(const char* title)
 {
 	RUNTIME_ASSERT(SetConsoleTitleA(title));
+}
+
+void screen_change_color_palette(int id)
+{
+	CONSOLE_SCREEN_BUFFER_INFOEX csbi = { .cbSize = sizeof csbi };
+	RUNTIME_ASSERT(GetConsoleScreenBufferInfoEx(out, &csbi));
+
+	switch (id)
+	{
+	case 0: /* default color palette */
+		for (int i = 0; i < 16; i++)
+		{
+			int intensity = !!(i & 8) * 128 + 127;
+			csbi.ColorTable[i] = RGB(!!(i & 4) * intensity, !!(i & 2) * intensity, !!(i & 1) * intensity);
+		}
+		csbi.ColorTable[LIGHT_GRAY] = RGB(192, 192, 192);
+		csbi.ColorTable[DARK_GRAY] = RGB(128, 128, 128);
+		break;
+	case 1: /* dig-n-rig main color palette */
+		csbi.ColorTable[0] = RGB(0, 0, 0);
+		csbi.ColorTable[1] = RGB(67, 52, 172);
+		csbi.ColorTable[2] = RGB(44, 109, 67);
+		csbi.ColorTable[3] = RGB(45, 97, 143);
+		csbi.ColorTable[4] = RGB(129, 14, 44);
+		csbi.ColorTable[5] = RGB(97, 32, 121);
+		csbi.ColorTable[6] = RGB(149, 100, 66);
+		csbi.ColorTable[7] = RGB(161, 159, 159);
+		csbi.ColorTable[8] = RGB(97, 95, 115);
+		csbi.ColorTable[9] = RGB(78, 131, 255);
+		csbi.ColorTable[10] = RGB(155, 230, 91);
+		csbi.ColorTable[11] = RGB(132, 205, 241);
+		csbi.ColorTable[12] = RGB(235, 40, 57);
+		csbi.ColorTable[13] = RGB(221, 140, 239);
+		csbi.ColorTable[14] = RGB(252, 236, 84);
+		csbi.ColorTable[15] = RGB(232, 232, 238);
+		break;
+	}
+
+	RUNTIME_ASSERT(SetConsoleScreenBufferInfoEx(out, &csbi));
 }
 
 sprite_t screen_sprite_create(int width, int height, char* text, attribute_t* attrib)

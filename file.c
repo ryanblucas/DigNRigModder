@@ -198,7 +198,7 @@ sprite_t file_load_sprite(const char* directory)
 		MATCH_TOKEN(pfile, curr, TOKEN_STRING);
 		if (strncmp(curr.data.str, "Width", DATA_STRING_MAX_SIZE) == 0)
 		{
-			MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_STRING);
+			file_next(pfile, &curr);
 			MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_NEWLINE);
 
 			ENSURE_CONDITION(pfile, curr.type == TOKEN_INTEGER);
@@ -207,7 +207,7 @@ sprite_t file_load_sprite(const char* directory)
 		}
 		else if (strncmp(curr.data.str, "Height", DATA_STRING_MAX_SIZE) == 0)
 		{
-			MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_STRING);
+			file_next(pfile, &curr);
 			MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_NEWLINE);
 
 			ENSURE_CONDITION(pfile, curr.type == TOKEN_INTEGER);
@@ -216,7 +216,7 @@ sprite_t file_load_sprite(const char* directory)
 		}
 		else if (strncmp(curr.data.str, "Image", DATA_STRING_MAX_SIZE) == 0)
 		{
-			MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_STRING);
+			file_next(pfile, &curr);
 			MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_NEWLINE);
 
 			ENSURE_CONDITION(pfile, width != 0 && height != 0);
@@ -238,7 +238,7 @@ sprite_t file_load_sprite(const char* directory)
 		}
 		else if (strncmp(curr.data.str, "Color", DATA_STRING_MAX_SIZE) == 0)
 		{
-			MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_STRING);
+			file_next(pfile, &curr);
 			MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_NEWLINE);
 
 			ENSURE_CONDITION(pfile, width != 0 && height != 0);
@@ -258,9 +258,15 @@ sprite_t file_load_sprite(const char* directory)
 				MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_NEWLINE);
 			}
 		}
+		else if (strncmp(curr.data.str, "PaletteColor", DATA_STRING_MAX_SIZE) == 0)
+		{
+			file_next(pfile, &curr);
+			MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_NEWLINE);
+			debug_format("Palette ID %i requested\n", curr.data.integer);
+			MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_INTEGER);
+		}
 		else if (strncmp(curr.data.str, "TileType", DATA_STRING_MAX_SIZE) == 0
 			|| strncmp(curr.data.str, "X weather", DATA_STRING_MAX_SIZE) == 0
-			|| strncmp(curr.data.str, "PaletteColor", DATA_STRING_MAX_SIZE) == 0
 			|| strncmp(curr.data.str, "Transparency", DATA_STRING_MAX_SIZE) == 0)
 		{
 			/* skip to next header */

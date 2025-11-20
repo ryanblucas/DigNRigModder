@@ -110,14 +110,7 @@ void screen_loop(void)
 			{
 				break;
 			}
-			else if (ker.wVirtualKeyCode == VK_LEFT)
-			{
-				events.left();
-			}
-			else if (ker.wVirtualKeyCode == VK_RIGHT)
-			{
-				events.right();
-			}
+			events.keyboard(ker.wVirtualKeyCode);
 		}
 		else if (ir.EventType == WINDOW_BUFFER_SIZE_EVENT)
 		{

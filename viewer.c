@@ -4,19 +4,30 @@
 	Views all Dig-N-Rig sprites found in the game's directory.
 */
 
+#include <assert.h>
 #include "file.h"
 #include "screen.h"
 #include <stdio.h>
 #include <Windows.h>
 
+#define COUNT_OF(arr) (sizeof (arr) / sizeof * (arr))
+
 /* Temporary, you'd need to actually find this programatically but it'll work most of the time */
 #define DIG_N_RIG_SPRITE_PATH "C:\\Program Files (x86)\\DigiPen\\Dig-N-Rig\\Sprites\\"
 #define DIG_N_RIG_LAYER_PATH "C:\\Program Files (x86)\\DigiPen\\Dig-N-Rig\\Layers\\"
 
+enum viewer_mode
+{
+	MODE_SCROLL_LAYERS,
+	MODE_VIEW_LAYERS,
+	MODE_VIEW_SPRITES,
+	MODE_COUNT
+} mode;
+
+/* for MODE_SCROLL_LAYERS, this variable is not used. */
 static sprite_t current;
 
 static int index;
-static bool is_viewing_sprites;
 
 /* there are 472 sprites in Dig-N-Rig, but just to be safe, we'll do 512... */
 static char* sprite_directories[512];
@@ -25,11 +36,50 @@ static int sprite_directory_count;
 static char* layer_directories[64];
 static int layer_directory_count;
 
+static const char* vanilla_layers[] =
+{
+	"luna.layer",
+	"sta2_done.layer",
+	"sta1_done.layer",
+	"blank.layer",
+	"surface.layer",
+	"caverns.layer",
+	"forest.layer",
+	"ruins.layer",
+	"whispy.layer",
+	"city.layer",
+	"treasuretemple.layer",
+	"dino_den.layer",
+	"magma.layer",
+	"core.layer",
+};
+
+static struct layer
+{
+	char directory[MAX_PATH];
+	sprite_t sprite;
+} layer_list[COUNT_OF(vanilla_layers)];
+
 static void viewer_reload_sprite(void)
 {
-	char** directories = is_viewing_sprites ? sprite_directories : layer_directories;
-	sprite_t next = file_load_sprite(directories[index]);
 	char buf[MAX_PATH + 27];
+	if (mode == MODE_SCROLL_LAYERS)
+	{
+		int scroll = TARGET_HEIGHT - index % TARGET_HEIGHT;
+		int layer_index = index / TARGET_HEIGHT;
+		if (scroll < TARGET_HEIGHT / 2)
+		{
+			layer_index++;
+		}
+		snprintf(buf, sizeof buf, "\"%s\" - Scrolling base game layers", vanilla_layers[layer_index]);
+		screen_change_title(buf);
+		screen_change_dirt_color(screen_sprite_palette_id(layer_list[layer_index].sprite));
+		screen_repaint();
+		return;
+	}
+
+	char** directories = mode == MODE_VIEW_SPRITES ? sprite_directories : layer_directories;
+	sprite_t next = file_load_sprite(directories[index]);
 	if (!next)
 	{
 		snprintf(buf, sizeof buf, "\"%s\" - Failed to load!", directories[index]);
@@ -43,28 +93,44 @@ static void viewer_reload_sprite(void)
 	screen_change_title(buf);
 	screen_clear();
 	screen_change_dirt_color(screen_sprite_palette_id(current));
+	screen_repaint();
 }
 
 void viewer_handle_repaint()
 {
+	if (mode == MODE_SCROLL_LAYERS)
+	{
+		int top = index / TARGET_HEIGHT;
+		int bottom = index / TARGET_HEIGHT + 1;
+		screen_sprite_render(0, -index % TARGET_HEIGHT, layer_list[top].sprite);
+		screen_sprite_render(0, TARGET_HEIGHT - index % TARGET_HEIGHT, layer_list[bottom].sprite);
+		return;
+	}
 	screen_sprite_render(TARGET_WIDTH / 2 - screen_sprite_width(current) / 2, TARGET_HEIGHT / 2 - screen_sprite_height(current) / 2, current);
 }
 
 void viewer_handle_keyboard(virtual_key_t vk)
 {
-	int dir_count = is_viewing_sprites ? sprite_directory_count : layer_directory_count;
+	assert(COUNT_OF(vanilla_layers) > 1);
+	int dir_count = mode == MODE_VIEW_SPRITES ? sprite_directory_count : 
+		(mode == MODE_VIEW_LAYERS ? layer_directory_count : (TARGET_HEIGHT * (COUNT_OF(vanilla_layers) - 1)));
 	switch (vk)
 	{
-	case VK_LEFT:
+	case VK_UP:
 		index = ((index + dir_count) - 1) % dir_count;
 		viewer_reload_sprite();
 		break;
-	case VK_RIGHT:
+	case VK_DOWN:
 		index = (index + 1) % dir_count;
 		viewer_reload_sprite();
 		break;
-	case 'S':
-		is_viewing_sprites = !is_viewing_sprites;
+	case VK_LEFT:
+		mode = ((mode + MODE_COUNT) - 1) % MODE_COUNT;
+		index = 0;
+		viewer_reload_sprite();
+		break;
+	case VK_RIGHT:
+		mode = (mode + 1) % MODE_COUNT;
 		index = 0;
 		viewer_reload_sprite();
 		break;
@@ -110,8 +176,21 @@ static int viewer_initialize_directories(const char* base, char** directories, s
 
 static void viewer_initialize(void)
 {
+	debug_format("Initializing sprite directories...\n");
 	sprite_directory_count = viewer_initialize_directories(DIG_N_RIG_SPRITE_PATH, sprite_directories, sizeof sprite_directories / sizeof * sprite_directories);
 	layer_directory_count = viewer_initialize_directories(DIG_N_RIG_LAYER_PATH, layer_directories, sizeof layer_directories / sizeof * layer_directories);
+
+	debug_format("Loading base game's layers...\n");
+	for (int i = 0; i < COUNT_OF(layer_list); i++)
+	{
+		snprintf(layer_list[i].directory, sizeof layer_list[i].directory, "%s%s", DIG_N_RIG_LAYER_PATH, vanilla_layers[i]);
+		layer_list[i].sprite = file_load_sprite(layer_list[i].directory);
+		if (!layer_list[i].sprite)
+		{
+			exit(-1);
+			return;
+		}
+	}
 
 	viewer_reload_sprite();
 }
@@ -122,6 +201,14 @@ static void viewer_destroy(void)
 	for (int i = 0; i < sizeof sprite_directories / sizeof * sprite_directories; i++)
 	{
 		free(sprite_directories[i]);
+	}
+	for (int i = 0; i < sizeof layer_directories / sizeof * layer_directories; i++)
+	{
+		free(layer_directories[i]);
+	}
+	for (int i = 0; i < COUNT_OF(layer_list); i++)
+	{
+		screen_sprite_destroy(layer_list[i].sprite);
 	}
 }
 

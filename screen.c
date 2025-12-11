@@ -37,8 +37,8 @@ static void screen_initialize_output()
 
 	csbi.srWindow.Left = 0;
 	csbi.srWindow.Top = 0;
-	csbi.srWindow.Right = csbi.dwSize.X - 1;
-	csbi.srWindow.Bottom = csbi.dwSize.Y - 1;
+	csbi.srWindow.Right = csbi.dwSize.X;
+	csbi.srWindow.Bottom = csbi.dwSize.Y;
 
 	RUNTIME_ASSERT(SetConsoleScreenBufferInfoEx(out, &csbi));
 
@@ -117,6 +117,9 @@ void screen_loop(void)
 		{
 			HWND console_window = GetConsoleWindow();
 
+			RECT to_compare;
+			GetWindowRect(console_window, &to_compare);
+
 			RECT fitted = (RECT){ .right = TARGET_WIDTH * TARGET_CELL_SIZE, .bottom = TARGET_HEIGHT * TARGET_CELL_SIZE };
 			RUNTIME_ASSERT(AdjustWindowRectEx(&fitted, GetWindowLongW(console_window, GWL_STYLE), FALSE, GetWindowLongW(console_window, GWL_EXSTYLE)));
 
@@ -172,6 +175,9 @@ void screen_change_dirt_color(uint32_t rgb)
 	csbi.ColorTable[13] = RGB(221, 140, 239);
 	csbi.ColorTable[14] = RGB(252, 236, 84);
 	csbi.ColorTable[15] = RGB(232, 232, 238);
+
+	/* why is this needed? */
+	csbi.srWindow.Bottom = csbi.dwSize.Y;
 
 	RUNTIME_ASSERT(SetConsoleScreenBufferInfoEx(out, &csbi));
 }

@@ -28,6 +28,7 @@ enum viewer_mode
 static sprite_t current;
 
 static int index;
+static int scroll_speed = 1;
 
 /* there are 472 sprites in Dig-N-Rig, but just to be safe, we'll do 512... */
 static char* sprite_directories[512];
@@ -117,11 +118,25 @@ void viewer_handle_keyboard(virtual_key_t vk)
 	switch (vk)
 	{
 	case VK_UP:
-		index = ((index + dir_count) - 1) % dir_count;
+		if (mode == MODE_SCROLL_LAYERS)
+		{
+			index = max(index - scroll_speed, 0);
+		}
+		else
+		{
+			index = (index + dir_count - 1) % dir_count;
+		}
 		viewer_reload_sprite();
 		break;
 	case VK_DOWN:
-		index = (index + 1) % dir_count;
+		if (mode == MODE_SCROLL_LAYERS)
+		{
+			index = min(index + scroll_speed, dir_count - 1);
+		}
+		else
+		{
+			index = (index + 1) % dir_count;
+		}
 		viewer_reload_sprite();
 		break;
 	case VK_LEFT:
@@ -135,6 +150,12 @@ void viewer_handle_keyboard(virtual_key_t vk)
 		viewer_reload_sprite();
 		break;
 	}
+}
+
+void viewer_handle_mouse_wheel(int direction)
+{
+	scroll_speed += direction;
+	scroll_speed = min(max(scroll_speed, 1), 15);
 }
 
 static int viewer_initialize_directories(const char* base, char** directories, size_t directory_count)
@@ -214,7 +235,7 @@ static void viewer_destroy(void)
 
 int main()
 {
-	screen_initialize((screen_events_t) { viewer_handle_repaint, viewer_handle_keyboard });
+	screen_initialize((screen_events_t) { viewer_handle_repaint, viewer_handle_keyboard, viewer_handle_mouse_wheel });
 	viewer_initialize();
 	
 	screen_loop();

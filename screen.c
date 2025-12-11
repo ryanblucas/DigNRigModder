@@ -15,6 +15,8 @@
 #define SCREEN_FONT L"digfont9"
 #define RUNTIME_ASSERT(cond) if (!(cond)) exit(-1);
 
+#define RAISE_EVENT(ev, ...) if (ev) ev(__VA_ARGS__);
+
 struct sprite
 {
 	int width, height;
@@ -75,7 +77,7 @@ void screen_initialize(screen_events_t _events)
 
 	RUNTIME_ASSERT(SetConsoleActiveScreenBuffer(out));
 
-	RUNTIME_ASSERT(SetConsoleMode(in, ENABLE_WINDOW_INPUT | ENABLE_MOUSE_INPUT));
+	RUNTIME_ASSERT(SetConsoleMode(in, ENABLE_EXTENDED_FLAGS | ENABLE_WINDOW_INPUT | ENABLE_MOUSE_INPUT));
 	RUNTIME_ASSERT(SetConsoleMode(out, 0));
 	
 	screen_initialize_cursor();
@@ -111,7 +113,16 @@ void screen_loop(void)
 			{
 				break;
 			}
-			events.keyboard(ker.wVirtualKeyCode);
+			RAISE_EVENT(events.keyboard, ker.wVirtualKeyCode);
+		}
+		else if (ir.EventType == MOUSE_EVENT)
+		{
+			MOUSE_EVENT_RECORD mer = ir.Event.MouseEvent;
+			if (mer.dwEventFlags == MOUSE_WHEELED)
+			{
+				WORD scroll = HIWORD(mer.dwButtonState);
+				RAISE_EVENT(events.mouse_wheel, (signed short)scroll / WHEEL_DELTA);
+			}
 		}
 		else if (ir.EventType == WINDOW_BUFFER_SIZE_EVENT)
 		{
@@ -125,7 +136,7 @@ void screen_loop(void)
 
 			RUNTIME_ASSERT(SetWindowPos(console_window, NULL, 0, 0, fitted.right - fitted.left, fitted.bottom - fitted.top, SWP_NOMOVE));
 			screen_initialize_cursor();
-			events.repaint();
+			RAISE_EVENT(events.repaint);
 
 			CONSOLE_SCREEN_BUFFER_INFOEX csbi = { .cbSize = sizeof csbi };
 			RUNTIME_ASSERT(GetConsoleScreenBufferInfoEx(out, &csbi));
@@ -140,7 +151,7 @@ void screen_loop(void)
 void screen_repaint(void)
 {
 	screen_clear();
-	events.repaint();
+	RAISE_EVENT(events.repaint);
 }
 
 void screen_clear(void)

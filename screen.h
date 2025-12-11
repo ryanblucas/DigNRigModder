@@ -126,6 +126,7 @@ void screen_initialize(screen_events_t events);
 void screen_destroy(void);
 void screen_loop(void);
 void screen_repaint(void);
+void screen_clear(void);
 
 void screen_change_title(const char* title);
 void screen_change_dirt_color(uint32_t rgb);

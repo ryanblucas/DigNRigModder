@@ -41,11 +41,12 @@ static void viewer_reload_sprite(void)
 
 	snprintf(buf, sizeof buf, "\"%s\" - Width: %i, Height: %i", directories[index], screen_sprite_width(current), screen_sprite_height(current));
 	screen_change_title(buf);
-	screen_repaint();
+	screen_change_dirt_color(screen_sprite_palette_id(current));
 }
 
 void viewer_handle_repaint()
 {
+	debug_format("repaint\n");
 	screen_sprite_render(TARGET_WIDTH / 2 - screen_sprite_width(current) / 2, TARGET_HEIGHT / 2 - screen_sprite_height(current) / 2, current);
 }
 

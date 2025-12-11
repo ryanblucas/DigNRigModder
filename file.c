@@ -12,7 +12,7 @@
 
 #define DATA_STRING_MAX_SIZE 16
 
-#define _UNEXPECTED_TOKEN_MESSAGE(file, tok, etype) debug_format("(%i) Unexpected token %i, expected %i at line %i, col %i\n", __LINE__, tok.type, etype, (file)->line, (file)->col);
+#define _UNEXPECTED_TOKEN_MESSAGE(file, tok, etype) debug_format("(%s, %i) Unexpected token %i, expected %i at line %i, col %i\n", directory, __LINE__, tok.type, etype, (file)->line, (file)->col);
 #define MATCH_AND_ADVANCE_TOKEN(file, tok, etype) if (tok.type != (etype)) { _UNEXPECTED_TOKEN_MESSAGE(file, tok, etype); goto cleanup; } else { file_next(file, &tok); }
 #define MATCH_TOKEN(file, tok, etype) if (tok.type != (etype)) { _UNEXPECTED_TOKEN_MESSAGE(file, tok, etype); goto cleanup; }
 #define ENSURE_CONDITION(file, cond) if (!(cond)) { debug_format("(%i) Failed condition " #cond " at line %i, col %i\n", __LINE__, (file)->line, (file)->col); goto cleanup; }
@@ -181,14 +181,16 @@ sprite_t file_load_sprite(const char* directory)
 		"Color" - 2-D array of attributes with size WidthXHeight
 		"TileType" - 2-D array of unknown type with size WidthXHeight
 		"X weather" - Two integers and one decimal number, determining what weather effects to show
-		"PaletteColor" - Number to identify which color palette the console will render it with.
+		"PaletteColor" - RGB value (0xBBGGRR) to determine color of dirt
 		"Transparency" - 2-D array of unknown type with size WidthXHeight
-		"Z" - Unknown purpose, but both in-game sprites have multiple image and color headings and are for the scientist.
+		"Z" - Just means the file is in "editor format"
 	*/
 
 	int width = 0, height = 0;
 	char* text = NULL;
+	uint32_t palette_id = DEFAULT_DIRT_COLOR;
 	attribute_t* color = NULL;
+	sprite_t res = NULL;
 
 	struct token curr;
 	file_next(pfile, &curr);
@@ -263,6 +265,7 @@ sprite_t file_load_sprite(const char* directory)
 			file_next(pfile, &curr);
 			MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_NEWLINE);
 			debug_format("Palette ID %i requested\n", curr.data.integer);
+			palette_id = curr.data.integer;
 			MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_INTEGER);
 		}
 		else if (strncmp(curr.data.str, "TileType", DATA_STRING_MAX_SIZE) == 0
@@ -282,14 +285,10 @@ sprite_t file_load_sprite(const char* directory)
 	ENSURE_CONDITION(pfile, text);
 	ENSURE_CONDITION(pfile, color);
 
-	fclose(file.handle);
-	sprite_t res = screen_sprite_create(width, height, text, color);
-	free(text);
-	free(color);
-	return res;
+	res = screen_sprite_create(width, height, palette_id, text, color);
 cleanup:
 	free(text);
 	free(color);
 	fclose(file.handle);
-	return NULL;
+	return res;
 }

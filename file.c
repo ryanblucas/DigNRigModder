@@ -264,7 +264,6 @@ sprite_t file_load_sprite(const char* directory)
 		{
 			file_next(pfile, &curr);
 			MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_NEWLINE);
-			debug_format("Palette ID %i requested\n", curr.data.integer);
 			palette_id = curr.data.integer;
 			MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_INTEGER);
 		}

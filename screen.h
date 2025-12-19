@@ -133,10 +133,10 @@ void screen_clear(void);
 void screen_change_title(const char* title);
 void screen_change_dirt_color(uint32_t rgb);
 
-sprite_t screen_sprite_create(int width, int height, uint32_t palette_id, char* text, attribute_t* attrib);
+sprite_t screen_sprite_create(int width, int height, uint32_t dirt_color, char* text, attribute_t* attrib);
 void screen_sprite_destroy(sprite_t sprite);
 void screen_sprite_render(int x, int y, sprite_t sprite);
 
 int screen_sprite_width(sprite_t sprite);
 int screen_sprite_height(sprite_t sprite);
-uint32_t screen_sprite_palette_id(sprite_t sprite);
+uint32_t screen_sprite_dirt_color(sprite_t sprite);

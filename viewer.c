@@ -72,9 +72,9 @@ static void viewer_reload_sprite(void)
 		{
 			layer_index++;
 		}
-		snprintf(buf, sizeof buf, "\"%s\" - Scrolling base game layers", vanilla_layers[layer_index]);
+		snprintf(buf, sizeof buf, "\"%s\" @ %i - Scrolling base game layers", vanilla_layers[layer_index], index);
 		screen_change_title(buf);
-		screen_change_dirt_color(screen_sprite_palette_id(layer_list[layer_index].sprite));
+		screen_change_dirt_color(screen_sprite_dirt_color(layer_list[layer_index].sprite));
 		screen_repaint();
 		return;
 	}
@@ -93,7 +93,7 @@ static void viewer_reload_sprite(void)
 	snprintf(buf, sizeof buf, "\"%s\" - Width: %i, Height: %i", directories[index], screen_sprite_width(current), screen_sprite_height(current));
 	screen_change_title(buf);
 	screen_clear();
-	screen_change_dirt_color(screen_sprite_palette_id(current));
+	screen_change_dirt_color(screen_sprite_dirt_color(current));
 	screen_repaint();
 }
 

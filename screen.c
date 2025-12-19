@@ -20,7 +20,7 @@
 struct sprite
 {
 	int width, height;
-	uint32_t palette_id;
+	uint32_t dirt_color;
 	CHAR_INFO* data;
 };
 
@@ -193,13 +193,13 @@ void screen_change_dirt_color(uint32_t rgb)
 	RUNTIME_ASSERT(SetConsoleScreenBufferInfoEx(out, &csbi));
 }
 
-sprite_t screen_sprite_create(int width, int height, uint32_t palette_id, char* text, attribute_t* attrib)
+sprite_t screen_sprite_create(int width, int height, uint32_t dirt_color, char* text, attribute_t* attrib)
 {
 	RUNTIME_ASSERT(text && attrib);
 	sprite_t res = dig_malloc(sizeof * res);
 	res->width = width;
 	res->height = height;
-	res->palette_id = palette_id;
+	res->dirt_color = dirt_color;
 	res->data = dig_malloc(width * height * sizeof * res->data);
 	for (int i = 0; i < width * height; i++)
 	{
@@ -238,8 +238,8 @@ int screen_sprite_height(sprite_t sprite)
 	return sprite->height;
 }
 
-uint32_t screen_sprite_palette_id(sprite_t sprite)
+uint32_t screen_sprite_dirt_color(sprite_t sprite)
 {
 	RUNTIME_ASSERT(sprite);
-	return sprite->palette_id;
+	return sprite->dirt_color;
 }

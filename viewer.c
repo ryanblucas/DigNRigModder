@@ -152,6 +152,22 @@ void viewer_handle_keyboard(virtual_key_t vk)
 	}
 }
 
+void viewer_handle_mouse_button(int x, int y)
+{
+	if (mode == MODE_SCROLL_LAYERS)
+	{
+		debug_format("%i, %i\n", x, y + index);
+		return;
+	}
+
+	int sprite_x = TARGET_WIDTH / 2 - screen_sprite_width(current) / 2;
+	int sprite_y = TARGET_HEIGHT / 2 - screen_sprite_height(current) / 2;
+	if (x >= sprite_x && y >= sprite_y && x < sprite_x + screen_sprite_width(current) && y < sprite_y + screen_sprite_height(current))
+	{
+		debug_format("%i, %i\n", x - sprite_x, y - sprite_y);
+	}
+}
+
 void viewer_handle_mouse_wheel(int direction)
 {
 	scroll_speed += direction;
@@ -235,7 +251,7 @@ static void viewer_destroy(void)
 
 int main()
 {
-	screen_initialize((screen_events_t) { viewer_handle_repaint, viewer_handle_keyboard, viewer_handle_mouse_wheel });
+	screen_initialize((screen_events_t) { viewer_handle_repaint, viewer_handle_keyboard, viewer_handle_mouse_button, viewer_handle_mouse_wheel });
 	viewer_initialize();
 	
 	screen_loop();

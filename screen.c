@@ -123,6 +123,14 @@ void screen_loop(void)
 				WORD scroll = HIWORD(mer.dwButtonState);
 				RAISE_EVENT(events.mouse_wheel, (signed short)scroll / WHEEL_DELTA);
 			}
+			else if (mer.dwEventFlags == 0) /* release or click */
+			{
+				static DWORD previous_button_state = 0;
+				if (mer.dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED && previous_button_state ^ FROM_LEFT_1ST_BUTTON_PRESSED)
+				{
+					RAISE_EVENT(events.mouse_button, mer.dwMousePosition.X, mer.dwMousePosition.Y);
+				}
+			}
 		}
 		else if (ir.EventType == WINDOW_BUFFER_SIZE_EVENT)
 		{

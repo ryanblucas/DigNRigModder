@@ -114,13 +114,15 @@ typedef int virtual_key_t;
 #endif
 
 typedef void (*screen_handle_repaint_t)();
-typedef void (*screen_handle_key_t)(virtual_key_t);
-typedef void (*screen_handle_mouse_wheel_t)(int);
+typedef void (*screen_handle_key_t)(virtual_key_t key);
+typedef void (*screen_handle_mouse_button_t)(int x, int y);
+typedef void (*screen_handle_mouse_wheel_t)(int delta);
 
 typedef struct screen_events
 {
 	screen_handle_repaint_t repaint;
 	screen_handle_key_t keyboard;
+	screen_handle_mouse_button_t mouse_button;
 	screen_handle_mouse_wheel_t mouse_wheel;
 } screen_events_t;
 

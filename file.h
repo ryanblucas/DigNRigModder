@@ -6,6 +6,8 @@
 
 #include "types.h"
 
+#define SAVE_BLOCK_STRUCT_SIZE 0x54
+
 typedef struct save
 {
 	float x_spawn, y_spawn;

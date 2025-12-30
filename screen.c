@@ -18,10 +18,6 @@
 
 #define RAISE_EVENT(ev, ...) if (ev) ev(__VA_ARGS__);
 
-/* this is the average dimensions of every sprite in Dig-N-Rig rounded up. This does not include layers. */
-#define AVERAGE_SPRITE_WIDTH 15
-#define AVERAGE_SPRITE_HEIGHT 12
-
 struct sprite
 {
 	int width, height;
@@ -29,17 +25,9 @@ struct sprite
 	CHAR_INFO data[];
 };
 
-struct sprite_list
-{
-	int length;
-	size_t used_bytes;
-	size_t reserved_bytes;
-	struct sprite* data;
-};
-
 static HANDLE in, out;
 static screen_events_t events;
-static CHAR_INFO blank[TARGET_WIDTH * TARGET_HEIGHT];
+static CHAR_INFO target[TARGET_WIDTH * TARGET_HEIGHT];
 
 static void screen_initialize_output()
 {
@@ -165,6 +153,7 @@ void screen_loop(void)
 			{
 				screen_initialize_output();
 			}
+			screen_invalidate();
 		}
 	}
 }
@@ -172,12 +161,18 @@ void screen_loop(void)
 void screen_repaint(void)
 {
 	RAISE_EVENT(events.repaint);
+	screen_invalidate();
+}
+
+void screen_invalidate(void)
+{
+	SMALL_RECT window_size = { .Top = 0, .Left = 0, .Right = TARGET_WIDTH, .Bottom = TARGET_HEIGHT };
+	WriteConsoleOutputA(out, target, (COORD) { TARGET_WIDTH, TARGET_HEIGHT }, (COORD) { 0, 0 }, & window_size);
 }
 
 void screen_clear(void)
 {
-	SMALL_RECT window_size = { .Top = 0, .Left = 0, .Right = TARGET_WIDTH, .Bottom = TARGET_HEIGHT };
-	WriteConsoleOutputW(out, blank, (COORD) { TARGET_WIDTH, TARGET_HEIGHT }, (COORD) { 0, 0 }, & window_size);
+	memset(target, 0, sizeof target);
 }
 
 void screen_change_title(const char* title)
@@ -213,6 +208,92 @@ void screen_change_dirt_color(uint32_t rgb)
 	RUNTIME_ASSERT(SetConsoleScreenBufferInfoEx(out, &csbi));
 }
 
+/* these functions are essentially the same logic, but it's more expensive to put it all in one function since they will all need to adapt to it */
+
+void screen_set_char_region(const char* in, int x, int y, int wx, int wy)
+{
+	int top = max(y, 0),
+		bottom = min(y + wy, TARGET_HEIGHT);
+	int left = max(x, 0),
+		right = min(x + wx, TARGET_WIDTH);
+	if (right < left || bottom < top)
+	{
+		return;
+	}
+	for (int cy = top; cy < bottom; cy++)
+	{
+		/* test if SIMD is faster */
+		for (int i = 0; i < right - left; i++)
+		{
+			(target + (left + cy * TARGET_WIDTH) + i)->Char.AsciiChar = *(in + (cy - y) * wx + i);
+		}
+	}
+}
+
+void screen_set_attrib_region(const attribute_t* in, int x, int y, int wx, int wy)
+{
+	int top = max(y, 0),
+		bottom = min(y + wy, TARGET_HEIGHT);
+	int left = max(x, 0),
+		right = min(x + wx, TARGET_WIDTH);
+	if (right < left || bottom < top)
+	{
+		return;
+	}
+	for (int cy = top; cy < bottom; cy++)
+	{
+		/* test if SIMD is faster */
+		for (int i = 0; i < right - left; i++)
+		{
+			(target + (left + cy * TARGET_WIDTH) + i)->Attributes = *(in + (cy - y) * wx + i);
+		}
+	}
+}
+
+int screen_get_char_region(char* out, int x, int y, int wx, int wy)
+{
+	memset(out, 0, wx * wy * sizeof * out);
+	int top = max(y, 0),
+		bottom = min(y + wy, TARGET_HEIGHT);
+	int left = max(x, 0),
+		right = min(x + wx, TARGET_WIDTH);
+	if (right < left || bottom < top)
+	{
+		return;
+	}
+	for (int cy = top; cy < bottom; cy++)
+	{
+		/* test if SIMD is faster */
+		for (int i = 0; i < right - left; i++)
+		{
+			*(out + (cy - y) * wx + i) = (target + (left + cy * TARGET_WIDTH) + i)->Char.AsciiChar;
+		}
+	}
+	return (bottom - top) * (right - left);
+}
+
+int screen_get_attrib_region(attribute_t* out, int x, int y, int wx, int wy)
+{
+	memset(out, 0, wx * wy * sizeof * out);
+	int top = max(y, 0),
+		bottom = min(y + wy, TARGET_HEIGHT);
+	int left = max(x, 0),
+		right = min(x + wx, TARGET_WIDTH);
+	if (right < left || bottom < top)
+	{
+		return;
+	}
+	for (int cy = top; cy < bottom; cy++)
+	{
+		/* test if SIMD is faster */
+		for (int i = 0; i < right - left; i++)
+		{
+			*(out + (cy - y) * wx + i) = (target + (left + cy * TARGET_WIDTH) + i)->Attributes;
+		}
+	}
+	return (bottom - top) * (right - left);
+}
+
 sprite_t screen_sprite_create(int width, int height, uint32_t dirt_color, char* text, attribute_t* attrib)
 {
 	RUNTIME_ASSERT(text && attrib);
@@ -236,8 +317,18 @@ void screen_sprite_destroy(sprite_t sprite)
 void screen_sprite_render(int x, int y, const sprite_t sprite)
 {
 	RUNTIME_ASSERT(sprite);
-	SMALL_RECT write_region = { .Left = x, .Top = y, .Right = x + sprite->width, .Bottom = y + sprite->height };
-	WriteConsoleOutputA(out, sprite->data, (COORD) { sprite->width, sprite->height }, (COORD) { 0, 0 }, & write_region);
+	int top = max(y, 0),
+		bottom = min(y + sprite->height, TARGET_HEIGHT);
+	int left = max(x, 0),
+		right = min(x + sprite->width, TARGET_WIDTH);
+	if (right < left || bottom < top)
+	{
+		return;
+	}
+	for (int cy = top; cy < bottom; cy++)
+	{
+		memcpy(target + (left + cy * TARGET_WIDTH), sprite->data + (cy - y) * sprite->width, (right - left) * sizeof * sprite->data);
+	}
 }
 
 int screen_sprite_width(const sprite_t sprite)

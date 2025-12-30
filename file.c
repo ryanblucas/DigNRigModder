@@ -304,12 +304,19 @@ save_t* file_load_save(const char* directory)
 	}
 
 	sprite_t image_res[14] = { 0 };
+	uint32_t palettes[14] = { 0 };
 	char* char_curr = NULL;
 	attribute_t* attrib_curr = NULL;
 	float x_spawn, y_spawn;
 
-	fseek(file, 0xAC, SEEK_SET);
+	fseek(file, 0x3C, SEEK_SET);
 	BINARY_ENSURE_CONDITION(!feof(file));
+
+	for (int i = 0; i < 14; i++)
+	{
+		fseek(file, 0x14, SEEK_CUR);
+		BINARY_ENSURE_CONDITION(fread(&palettes[i], 1, 4, file) == 4);
+	}
 
 	fseek(file, 0x01FC, SEEK_SET);
 	BINARY_ENSURE_CONDITION(!feof(file));
@@ -351,7 +358,7 @@ save_t* file_load_save(const char* directory)
 				*(temp_attrib + y * TARGET_WIDTH + x) = *(attrib_curr + y + x * TARGET_HEIGHT * 14 + i * TARGET_HEIGHT);
 			}
 		}
-		image_res[i] = screen_sprite_create(TARGET_WIDTH, TARGET_HEIGHT, DEFAULT_DIRT_COLOR, temp_char, temp_attrib);
+		image_res[i] = screen_sprite_create(TARGET_WIDTH, TARGET_HEIGHT, palettes[i], temp_char, temp_attrib);
 		free(temp_char);
 		free(temp_attrib);
 	}

@@ -27,6 +27,9 @@
     <ClCompile Include="viewer.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="save_viewer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="types.h">

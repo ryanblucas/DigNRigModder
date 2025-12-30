@@ -7,6 +7,7 @@
 #include "debug.h"
 #include "file.h"
 #include "types.h"
+#include <stdalign.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,11 +18,23 @@
 
 #define RAISE_EVENT(ev, ...) if (ev) ev(__VA_ARGS__);
 
+/* this is the average dimensions of every sprite in Dig-N-Rig rounded up. This does not include layers. */
+#define AVERAGE_SPRITE_WIDTH 15
+#define AVERAGE_SPRITE_HEIGHT 12
+
 struct sprite
 {
 	int width, height;
 	uint32_t dirt_color;
-	CHAR_INFO* data;
+	CHAR_INFO data[];
+};
+
+struct sprite_list
+{
+	int length;
+	size_t used_bytes;
+	size_t reserved_bytes;
+	struct sprite* data;
 };
 
 static HANDLE in, out;
@@ -158,7 +171,6 @@ void screen_loop(void)
 
 void screen_repaint(void)
 {
-	screen_clear();
 	RAISE_EVENT(events.repaint);
 }
 
@@ -204,11 +216,10 @@ void screen_change_dirt_color(uint32_t rgb)
 sprite_t screen_sprite_create(int width, int height, uint32_t dirt_color, char* text, attribute_t* attrib)
 {
 	RUNTIME_ASSERT(text && attrib);
-	sprite_t res = dig_malloc(sizeof * res);
+	sprite_t res = dig_malloc(sizeof * res + width * height * sizeof * res->data);
 	res->width = width;
 	res->height = height;
 	res->dirt_color = dirt_color;
-	res->data = dig_malloc(width * height * sizeof * res->data);
 	for (int i = 0; i < width * height; i++)
 	{
 		res->data[i].Char.AsciiChar = text[i];
@@ -219,34 +230,29 @@ sprite_t screen_sprite_create(int width, int height, uint32_t dirt_color, char* 
 
 void screen_sprite_destroy(sprite_t sprite)
 {
-	if (!sprite)
-	{
-		return;
-	}
-	free(sprite->data);
 	free(sprite);
 }
 
-void screen_sprite_render(int x, int y, sprite_t sprite)
+void screen_sprite_render(int x, int y, const sprite_t sprite)
 {
 	RUNTIME_ASSERT(sprite);
 	SMALL_RECT write_region = { .Left = x, .Top = y, .Right = x + sprite->width, .Bottom = y + sprite->height };
 	WriteConsoleOutputA(out, sprite->data, (COORD) { sprite->width, sprite->height }, (COORD) { 0, 0 }, & write_region);
 }
 
-int screen_sprite_width(sprite_t sprite)
+int screen_sprite_width(const sprite_t sprite)
 {
 	RUNTIME_ASSERT(sprite);
 	return sprite->width;
 }
 
-int screen_sprite_height(sprite_t sprite)
+int screen_sprite_height(const sprite_t sprite)
 {
 	RUNTIME_ASSERT(sprite);
 	return sprite->height;
 }
 
-uint32_t screen_sprite_dirt_color(sprite_t sprite)
+uint32_t screen_sprite_dirt_color(const sprite_t sprite)
 {
 	RUNTIME_ASSERT(sprite);
 	return sprite->dirt_color;

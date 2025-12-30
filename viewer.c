@@ -2,7 +2,11 @@
 	viewer.c ~ RL
 
 	Views all Dig-N-Rig sprites found in the game's directory.
+	TO DO: rewrite a majority of this to support a main window on the side 
+		that controls what happens here and so its easier to add more states
 */
+
+#if 0
 
 #include <assert.h>
 #include "file.h"
@@ -260,3 +264,5 @@ int main()
 
 	return 0;
 }
+
+#endif

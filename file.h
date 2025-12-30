@@ -6,4 +6,13 @@
 
 #include "types.h"
 
+typedef struct save
+{
+	float x_spawn, y_spawn;
+	int layer_count;
+	sprite_t layer_images[];
+} save_t;
+
 sprite_t file_load_sprite(const char* directory);
+save_t* file_load_save(const char* directory);
+void file_unload_save(save_t* save);

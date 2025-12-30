@@ -16,6 +16,7 @@
 #define MATCH_AND_ADVANCE_TOKEN(file, tok, etype) if (tok.type != (etype)) { _UNEXPECTED_TOKEN_MESSAGE(file, tok, etype); goto cleanup; } else { file_next(file, &tok); }
 #define MATCH_TOKEN(file, tok, etype) if (tok.type != (etype)) { _UNEXPECTED_TOKEN_MESSAGE(file, tok, etype); goto cleanup; }
 #define ENSURE_CONDITION(file, cond) if (!(cond)) { debug_format("(%i) Failed condition " #cond " at line %i, col %i\n", __LINE__, (file)->line, (file)->col); goto cleanup; }
+#define BINARY_ENSURE_CONDITION(cond) if (!(cond)) { debug_format("(%i) Failed condition " #cond " in binary file.\n", __LINE__); goto cleanup; }
 
 enum token_type
 {
@@ -291,4 +292,100 @@ cleanup:
 	free(color);
 	fclose(file.handle);
 	return res;
+}
+
+save_t* file_load_save(const char* directory)
+{
+	FILE* file = fopen(directory, "rb");
+	if (!file)
+	{
+		debug_format("Save directory \"%s\" does not exist.\n", directory);
+		return NULL;
+	}
+
+	sprite_t image_res[14] = { 0 };
+	char* char_curr = NULL;
+	attribute_t* attrib_curr = NULL;
+	float x_spawn, y_spawn;
+
+	fseek(file, 0xAC, SEEK_SET);
+	BINARY_ENSURE_CONDITION(!feof(file));
+
+	fseek(file, 0x01FC, SEEK_SET);
+	BINARY_ENSURE_CONDITION(!feof(file));
+
+	BINARY_ENSURE_CONDITION(fread(&x_spawn, 1, sizeof x_spawn, file) == sizeof x_spawn);
+	BINARY_ENSURE_CONDITION(fread(&y_spawn, 1, sizeof y_spawn, file) == sizeof y_spawn);
+
+	fseek(file, 0x0318, SEEK_SET);
+	BINARY_ENSURE_CONDITION(!feof(file));
+
+	/* game stores its blocks vertically. As in, instead of 0x0-TARGET_WIDTH as the first 
+		row of blocks, its 0x0-(TARGET_HEIGHT*14) is the first column of blocks */
+
+	/* all temporary/proof of concept */
+
+	char_curr = dig_malloc(TARGET_WIDTH * TARGET_HEIGHT * sizeof * char_curr * 14);
+	attrib_curr = dig_malloc(TARGET_WIDTH * TARGET_HEIGHT * sizeof * attrib_curr * 14);
+
+	for (int i = 0; i < TARGET_WIDTH * TARGET_HEIGHT * 14; i++)
+	{
+		fseek(file, 0x18, SEEK_CUR);
+		BINARY_ENSURE_CONDITION(fread(char_curr + i, 1, 1, file) == 1);
+		fseek(file, 0x01, SEEK_CUR);
+		BINARY_ENSURE_CONDITION(fread(attrib_curr + i, 1, 2, file) == 2);
+		fseek(file, 0x38, SEEK_CUR);
+	}
+
+	fclose(file);
+
+	for (int i = 0; i < 14; i++)
+	{
+		char* temp_char = dig_malloc(TARGET_WIDTH * TARGET_HEIGHT);
+		attribute_t* temp_attrib = dig_malloc(TARGET_WIDTH * TARGET_HEIGHT * 2);
+		for (int x = 0; x < TARGET_WIDTH; x++)
+		{
+			for (int y = 0; y < TARGET_HEIGHT; y++)
+			{
+				*(temp_char + y * TARGET_WIDTH + x) = *(char_curr + y + x * TARGET_HEIGHT * 14 + i * TARGET_HEIGHT);
+				*(temp_attrib + y * TARGET_WIDTH + x) = *(attrib_curr + y + x * TARGET_HEIGHT * 14 + i * TARGET_HEIGHT);
+			}
+		}
+		image_res[i] = screen_sprite_create(TARGET_WIDTH, TARGET_HEIGHT, DEFAULT_DIRT_COLOR, temp_char, temp_attrib);
+		free(temp_char);
+		free(temp_attrib);
+	}
+
+	free(char_curr);
+	free(attrib_curr);
+
+	save_t* res = dig_malloc(sizeof * res + sizeof * res->layer_images * 14);
+	memcpy(res->layer_images, image_res, sizeof image_res);
+	res->layer_count = 14;
+	res->x_spawn = x_spawn;
+	res->y_spawn = y_spawn;
+
+	return res;
+cleanup:
+	for (int i = 0; i < sizeof image_res / sizeof * image_res; i++)
+	{
+		free(image_res[i]);
+	}
+	free(char_curr);
+	free(attrib_curr);
+	fclose(file);
+	return NULL;
+}
+
+void file_unload_save(save_t* save)
+{
+	if (!save)
+	{
+		return;
+	}
+	for (int i = 0; i < save->layer_count; i++)
+	{
+		screen_sprite_destroy(save->layer_images[i]);
+	}
+	free(save);
 }

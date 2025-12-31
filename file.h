@@ -7,6 +7,8 @@
 #include "types.h"
 
 #define SAVE_BLOCK_STRUCT_SIZE 0x54
+#define SAVE_MINERAL_STRUCT_SIZE 0x34
+#define SAVE_MINERAL_MAX_COUNT 0xC350
 
 typedef struct save
 {

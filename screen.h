@@ -150,6 +150,16 @@ sprite_t screen_sprite_create(int width, int height, uint32_t dirt_color, char* 
 void screen_sprite_destroy(sprite_t sprite);
 void screen_sprite_render(int x, int y, const sprite_t sprite);
 
+void screen_sprite_set_char_region(sprite_t sprite, const char* in, int x, int y, int wx, int wy);
+void screen_sprite_set_attrib_region(sprite_t sprite, const attribute_t* in, int x, int y, int wx, int wy);
+
+/* out must be wx * wy bytes long. Returns how many bytes were written from sprite data.
+	If there are cells outside of the region provided, the result will still be in wx*wy dimensions. */
+int screen_sprite_get_char_region(const sprite_t sprite, char* out, int x, int y, int wx, int wy);
+/* out must be wx * wy bytes long. Returns how many bytes were written from sprite data.
+	If there are cells outside of the region provided, the result will still be in wx*wy dimensions. */
+int screen_sprite_get_attrib_region(const sprite_t sprite, attribute_t* out, int x, int y, int wx, int wy);
+
 int screen_sprite_width(const sprite_t sprite);
 int screen_sprite_height(const sprite_t sprite);
 uint32_t screen_sprite_dirt_color(const sprite_t sprite);

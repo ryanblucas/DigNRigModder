@@ -294,6 +294,101 @@ cleanup:
 	return res;
 }
 
+/* to do: put this out of the block loop. It makes it way faster without all the file seeking */
+
+static int file_find_mineral(FILE* file, int index)
+{
+	if (index == 0xFFFFFFFF)
+	{
+		return -1;
+	}
+
+	long start = ftell(file);
+	int result = -1;
+
+	fseek(file, 0x010D2D58 + index * 0x34, SEEK_SET);
+	BINARY_ENSURE_CONDITION(!feof(file));
+
+	float x, y;
+	BINARY_ENSURE_CONDITION(fread(&x, 1, 4, file) == 4);
+	BINARY_ENSURE_CONDITION(fread(&y, 1, 4, file) == 4);
+	short size, type;
+	BINARY_ENSURE_CONDITION(fread(&size, 1, 2, file) == 2);
+	BINARY_ENSURE_CONDITION(fread(&type, 1, 2, file) == 2);
+	int exists;
+	BINARY_ENSURE_CONDITION(fread(&exists, 1, 4, file) == 4);
+	if (!exists)
+	{
+		int x = index / (TARGET_HEIGHT * 14);
+		int y = index % (TARGET_HEIGHT * 14);
+		debug_format("Mineral at location (%i, %i) is marked as non-existent, yet the block at this location directs to it and says it exists.\n", x, y);
+	}
+	fseek(file, start, SEEK_SET);
+	result = type | (size << 16);
+cleanup:
+	return result;
+}
+
+static bool file_parse_blocks(FILE* file, sprite_t image_res[14], uint32_t palettes[14])
+{
+	/* game stores its blocks vertically. As in, instead of 0x0-TARGET_WIDTH as the first
+	row of blocks, its 0x0-(TARGET_HEIGHT*14) is the first column of blocks */
+
+	char* char_curr = dig_malloc(TARGET_WIDTH * TARGET_HEIGHT * sizeof * char_curr * 14);
+	attribute_t* attrib_curr = dig_malloc(TARGET_WIDTH * TARGET_HEIGHT * sizeof * attrib_curr * 14);
+	char* temp_char = dig_malloc(TARGET_WIDTH * TARGET_HEIGHT);
+	attribute_t* temp_attrib = dig_malloc(TARGET_WIDTH * TARGET_HEIGHT * 2);
+
+	bool success = false;
+
+	fseek(file, 0x0318, SEEK_SET);
+	BINARY_ENSURE_CONDITION(!feof(file));
+
+	for (int i = 0; i < TARGET_WIDTH * TARGET_HEIGHT * 14; i++)
+	{
+		fseek(file, 0x18, SEEK_CUR);
+		BINARY_ENSURE_CONDITION(fread(char_curr + i, 1, 1, file) == 1);
+		fseek(file, 0x01, SEEK_CUR);
+		BINARY_ENSURE_CONDITION(fread(attrib_curr + i, 1, 2, file) == 2);
+		fseek(file, 0x8, SEEK_CUR);
+		int mineral, has_mineral;
+		BINARY_ENSURE_CONDITION(fread(&mineral, 1, 4, file) == 4);
+		fseek(file, 0x8, SEEK_CUR);
+		BINARY_ENSURE_CONDITION(fread(&has_mineral, 1, 4, file) == 4);
+		fseek(file, 0x20, SEEK_CUR);
+
+		if (has_mineral)
+		{
+			int code = file_find_mineral(file, mineral);
+			short type = code & 0xFFFF,
+				size = (code >> 16) & 0xFFFF;
+			*(char_curr + i) = size;
+			*(attrib_curr + i) = *(attrib_curr + i) & 0xF0 | (type & 0x0F);
+		}
+	}
+
+	for (int i = 0; i < 14; i++)
+	{
+		for (int x = 0; x < TARGET_WIDTH; x++)
+		{
+			for (int y = 0; y < TARGET_HEIGHT; y++)
+			{
+				*(temp_char + y * TARGET_WIDTH + x) = *(char_curr + y + x * TARGET_HEIGHT * 14 + i * TARGET_HEIGHT);
+				*(temp_attrib + y * TARGET_WIDTH + x) = *(attrib_curr + y + x * TARGET_HEIGHT * 14 + i * TARGET_HEIGHT);
+			}
+		}
+		image_res[i] = screen_sprite_create(TARGET_WIDTH, TARGET_HEIGHT, palettes[i], temp_char, temp_attrib);
+	}
+
+	success = true;
+cleanup:
+	free(temp_char);
+	free(temp_attrib);
+	free(char_curr);
+	free(attrib_curr);
+	return success;
+}
+
 save_t* file_load_save(const char* directory)
 {
 	FILE* file = fopen(directory, "rb");
@@ -305,8 +400,6 @@ save_t* file_load_save(const char* directory)
 
 	sprite_t image_res[14] = { 0 };
 	uint32_t palettes[14] = { 0 };
-	char* char_curr = NULL;
-	attribute_t* attrib_curr = NULL;
 	float x_spawn, y_spawn;
 
 	fseek(file, 0x3C, SEEK_SET);
@@ -324,47 +417,7 @@ save_t* file_load_save(const char* directory)
 	BINARY_ENSURE_CONDITION(fread(&x_spawn, 1, sizeof x_spawn, file) == sizeof x_spawn);
 	BINARY_ENSURE_CONDITION(fread(&y_spawn, 1, sizeof y_spawn, file) == sizeof y_spawn);
 
-	fseek(file, 0x0318, SEEK_SET);
-	BINARY_ENSURE_CONDITION(!feof(file));
-
-	/* game stores its blocks vertically. As in, instead of 0x0-TARGET_WIDTH as the first 
-		row of blocks, its 0x0-(TARGET_HEIGHT*14) is the first column of blocks */
-
-	/* all temporary/proof of concept */
-
-	char_curr = dig_malloc(TARGET_WIDTH * TARGET_HEIGHT * sizeof * char_curr * 14);
-	attrib_curr = dig_malloc(TARGET_WIDTH * TARGET_HEIGHT * sizeof * attrib_curr * 14);
-
-	for (int i = 0; i < TARGET_WIDTH * TARGET_HEIGHT * 14; i++)
-	{
-		fseek(file, 0x18, SEEK_CUR);
-		BINARY_ENSURE_CONDITION(fread(char_curr + i, 1, 1, file) == 1);
-		fseek(file, 0x01, SEEK_CUR);
-		BINARY_ENSURE_CONDITION(fread(attrib_curr + i, 1, 2, file) == 2);
-		fseek(file, 0x38, SEEK_CUR);
-	}
-
-	fclose(file);
-
-	for (int i = 0; i < 14; i++)
-	{
-		char* temp_char = dig_malloc(TARGET_WIDTH * TARGET_HEIGHT);
-		attribute_t* temp_attrib = dig_malloc(TARGET_WIDTH * TARGET_HEIGHT * 2);
-		for (int x = 0; x < TARGET_WIDTH; x++)
-		{
-			for (int y = 0; y < TARGET_HEIGHT; y++)
-			{
-				*(temp_char + y * TARGET_WIDTH + x) = *(char_curr + y + x * TARGET_HEIGHT * 14 + i * TARGET_HEIGHT);
-				*(temp_attrib + y * TARGET_WIDTH + x) = *(attrib_curr + y + x * TARGET_HEIGHT * 14 + i * TARGET_HEIGHT);
-			}
-		}
-		image_res[i] = screen_sprite_create(TARGET_WIDTH, TARGET_HEIGHT, palettes[i], temp_char, temp_attrib);
-		free(temp_char);
-		free(temp_attrib);
-	}
-
-	free(char_curr);
-	free(attrib_curr);
+	BINARY_ENSURE_CONDITION(file_parse_blocks(file, image_res, palettes));
 
 	save_t* res = dig_malloc(sizeof * res + sizeof * res->layer_images * 14);
 	memcpy(res->layer_images, image_res, sizeof image_res);
@@ -378,8 +431,6 @@ cleanup:
 	{
 		free(image_res[i]);
 	}
-	free(char_curr);
-	free(attrib_curr);
 	fclose(file);
 	return NULL;
 }

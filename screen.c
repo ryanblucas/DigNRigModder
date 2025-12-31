@@ -210,12 +210,12 @@ void screen_change_dirt_color(uint32_t rgb)
 
 /* these functions are essentially the same logic, but it's more expensive to put it all in one function since they will all need to adapt to it */
 
-void screen_set_char_region(const char* in, int x, int y, int wx, int wy)
+static inline void screen_buffer_set_char_region(CHAR_INFO* buffer, int bwx, int bwy, const char* in, int x, int y, int wx, int wy)
 {
 	int top = max(y, 0),
-		bottom = min(y + wy, TARGET_HEIGHT);
+		bottom = min(y + wy, bwy);
 	int left = max(x, 0),
-		right = min(x + wx, TARGET_WIDTH);
+		right = min(x + wx, bwx);
 	if (right < left || bottom < top)
 	{
 		return;
@@ -225,17 +225,48 @@ void screen_set_char_region(const char* in, int x, int y, int wx, int wy)
 		/* test if SIMD is faster */
 		for (int i = 0; i < right - left; i++)
 		{
-			(target + (left + cy * TARGET_WIDTH) + i)->Char.AsciiChar = *(in + (cy - y) * wx + i);
+			(buffer + (left + cy * bwx) + i)->Char.AsciiChar = *(in + (cy - y) * wx + i);
 		}
 	}
+}
+
+static inline void screen_buffer_set_attrib_region(CHAR_INFO* buffer, int bwx, int bwy, const attribute_t* in, int x, int y, int wx, int wy)
+{
+	int top = max(y, 0),
+		bottom = min(y + wy, bwy);
+	int left = max(x, 0),
+		right = min(x + wx, bwx);
+	if (right < left || bottom < top)
+	{
+		return;
+	}
+	for (int cy = top; cy < bottom; cy++)
+	{
+		/* test if SIMD is faster */
+		for (int i = 0; i < right - left; i++)
+		{
+			(buffer + (left + cy * bwx) + i)->Attributes = *(in + (cy - y) * wx + i);
+		}
+	}
+}
+
+void screen_set_char_region(const char* in, int x, int y, int wx, int wy)
+{
+	screen_buffer_set_char_region(target, TARGET_WIDTH, TARGET_HEIGHT, in, x, y, wx, wy);
 }
 
 void screen_set_attrib_region(const attribute_t* in, int x, int y, int wx, int wy)
 {
+	screen_buffer_set_attrib_region(target, TARGET_WIDTH, TARGET_HEIGHT, in, x, y, wx, wy);
+}
+
+static inline int screen_buffer_get_char_region(const CHAR_INFO* buffer, int bwx, int bwy, char* out, int x, int y, int wx, int wy)
+{
+	memset(out, 0, wx * wy * sizeof * out);
 	int top = max(y, 0),
-		bottom = min(y + wy, TARGET_HEIGHT);
+		bottom = min(y + wy, bwy);
 	int left = max(x, 0),
-		right = min(x + wx, TARGET_WIDTH);
+		right = min(x + wx, bwx);
 	if (right < left || bottom < top)
 	{
 		return;
@@ -245,53 +276,42 @@ void screen_set_attrib_region(const attribute_t* in, int x, int y, int wx, int w
 		/* test if SIMD is faster */
 		for (int i = 0; i < right - left; i++)
 		{
-			(target + (left + cy * TARGET_WIDTH) + i)->Attributes = *(in + (cy - y) * wx + i);
+			*(out + (cy - y) * wx + i) = (buffer + (left + cy * bwx) + i)->Char.AsciiChar;
 		}
 	}
+	return (bottom - top) * (right - left);
+}
+
+static inline int screen_buffer_get_attrib_region(const CHAR_INFO* buffer, int bwx, int bwy, attribute_t* out, int x, int y, int wx, int wy)
+{
+	memset(out, 0, wx * wy * sizeof * out);
+	int top = max(y, 0),
+		bottom = min(y + wy, bwy);
+	int left = max(x, 0),
+		right = min(x + wx, bwx);
+	if (right < left || bottom < top)
+	{
+		return;
+	}
+	for (int cy = top; cy < bottom; cy++)
+	{
+		/* test if SIMD is faster */
+		for (int i = 0; i < right - left; i++)
+		{
+			*(out + (cy - y) * wx + i) = (buffer + (left + cy * bwx) + i)->Attributes;
+		}
+	}
+	return (bottom - top) * (right - left);
 }
 
 int screen_get_char_region(char* out, int x, int y, int wx, int wy)
 {
-	memset(out, 0, wx * wy * sizeof * out);
-	int top = max(y, 0),
-		bottom = min(y + wy, TARGET_HEIGHT);
-	int left = max(x, 0),
-		right = min(x + wx, TARGET_WIDTH);
-	if (right < left || bottom < top)
-	{
-		return;
-	}
-	for (int cy = top; cy < bottom; cy++)
-	{
-		/* test if SIMD is faster */
-		for (int i = 0; i < right - left; i++)
-		{
-			*(out + (cy - y) * wx + i) = (target + (left + cy * TARGET_WIDTH) + i)->Char.AsciiChar;
-		}
-	}
-	return (bottom - top) * (right - left);
+	return screen_buffer_get_char_region(target, TARGET_WIDTH, TARGET_HEIGHT, out, x, y, wx, wy);
 }
 
 int screen_get_attrib_region(attribute_t* out, int x, int y, int wx, int wy)
 {
-	memset(out, 0, wx * wy * sizeof * out);
-	int top = max(y, 0),
-		bottom = min(y + wy, TARGET_HEIGHT);
-	int left = max(x, 0),
-		right = min(x + wx, TARGET_WIDTH);
-	if (right < left || bottom < top)
-	{
-		return;
-	}
-	for (int cy = top; cy < bottom; cy++)
-	{
-		/* test if SIMD is faster */
-		for (int i = 0; i < right - left; i++)
-		{
-			*(out + (cy - y) * wx + i) = (target + (left + cy * TARGET_WIDTH) + i)->Attributes;
-		}
-	}
-	return (bottom - top) * (right - left);
+	return screen_buffer_get_attrib_region(target, TARGET_WIDTH, TARGET_HEIGHT, out, x, y, wx, wy);
 }
 
 sprite_t screen_sprite_create(int width, int height, uint32_t dirt_color, char* text, attribute_t* attrib)
@@ -329,6 +349,26 @@ void screen_sprite_render(int x, int y, const sprite_t sprite)
 	{
 		memcpy(target + (left + cy * TARGET_WIDTH), sprite->data + (cy - y) * sprite->width, (right - left) * sizeof * sprite->data);
 	}
+}
+
+void screen_sprite_set_char_region(sprite_t sprite, const char* in, int x, int y, int wx, int wy)
+{
+	screen_buffer_set_char_region(sprite->data, sprite->width, sprite->height, in, x, y, wx, wy);
+}
+
+void screen_sprite_set_attrib_region(sprite_t sprite, const attribute_t* in, int x, int y, int wx, int wy)
+{
+	screen_buffer_set_attrib_region(sprite->data, sprite->width, sprite->height, in, x, y, wx, wy);
+}
+
+int screen_sprite_get_char_region(const sprite_t sprite, char* out, int x, int y, int wx, int wy)
+{
+	return screen_buffer_get_char_region(sprite->data, sprite->width, sprite->height, out, x, y, wx, wy);
+}
+
+int screen_sprite_get_attrib_region(const sprite_t sprite, attribute_t* out, int x, int y, int wx, int wy)
+{
+	return screen_buffer_get_attrib_region(sprite->data, sprite->width, sprite->height, out, x, y, wx, wy);
 }
 
 int screen_sprite_width(const sprite_t sprite)

@@ -357,13 +357,13 @@ static bool file_parse_blocks(FILE* file, sprite_t image_res[14], uint32_t palet
 		BINARY_ENSURE_CONDITION(fread(&has_mineral, 1, 4, file) == 4);
 		fseek(file, 0x20, SEEK_CUR);
 
-		if (has_mineral)
+		if (has_mineral && char_curr[i] == ' ')
 		{
 			int code = file_find_mineral(file, mineral);
 			short type = code & 0xFFFF,
 				size = (code >> 16) & 0xFFFF;
-			*(char_curr + i) = size;
-			*(attrib_curr + i) = *(attrib_curr + i) & 0xF0 | (type & 0x0F);
+			char_curr[i] = size;
+			attrib_curr[i] = attrib_curr[i] & 0xF0 | (type & 0x0F);
 		}
 	}
 

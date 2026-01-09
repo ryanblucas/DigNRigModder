@@ -351,11 +351,22 @@ static bool file_parse_blocks(FILE* file, sprite_t image_res[14], uint32_t palet
 		fseek(file, 0x01, SEEK_CUR);
 		BINARY_ENSURE_CONDITION(fread(attrib_curr + i, 1, 2, file) == 2);
 		fseek(file, 0x8, SEEK_CUR);
-		int mineral, has_mineral;
+
+		int mineral, has_mineral, rig_type;
 		BINARY_ENSURE_CONDITION(fread(&mineral, 1, 4, file) == 4);
 		fseek(file, 0x8, SEEK_CUR);
 		BINARY_ENSURE_CONDITION(fread(&has_mineral, 1, 4, file) == 4);
-		fseek(file, 0x20, SEEK_CUR);
+		BINARY_ENSURE_CONDITION(fread(&rig_type, 1, 4, file) == 4);
+		fseek(file, 0x1C, SEEK_CUR);
+
+		if (rig_type == 0xA)
+		{
+			attrib_curr[i] = DARK_RED << 4;
+		}
+		else if (rig_type == 0xB)
+		{
+			attrib_curr[i] = DARK_BLUE << 4;
+		}
 
 		if (has_mineral && char_curr[i] == ' ')
 		{

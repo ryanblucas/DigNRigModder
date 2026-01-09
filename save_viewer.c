@@ -82,7 +82,8 @@ void save_viewer_handle_mouse_button(int x, int y)
 	screen_repaint();
 
 	debug_format("%i, %i\n", selected_x, selected_y);
-	debug_format("Cheat Engine block offset: \"Dig-N-Rig.exe\"+%X\n", (selected_x * TARGET_HEIGHT * 14 + selected_y) * SAVE_BLOCK_STRUCT_SIZE + 0x661E00);
+	debug_format("Cheat Engine block: \"Dig-N-Rig.exe\"+%X 0x54 array size\n", (selected_x * TARGET_HEIGHT * 14 + selected_y) * SAVE_BLOCK_STRUCT_SIZE + 0x661E00);
+	debug_format("Cheat Engine screen: \"Dig-N-Rig.exe\"+65C5CC pointer with offset 0x%X\n", (x + y * TARGET_WIDTH) * 4);
 }
 
 void save_viewer_handle_mouse_wheel(int delta)

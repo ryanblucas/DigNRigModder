@@ -55,6 +55,12 @@ void save_viewer_handle_keyboard(virtual_key_t vk)
 		debug_format("Reloading save...\n");
 		file_state_unload(save);
 		save = file_state_load("C:\\Users\\fcsto\\OneDrive\\Documents\\DigiPen\\Dig-N-Rig\\profile1.sav");
+
+		for (int i = 0; i < LAYER_COUNT; i++)
+		{
+			cache[i] = file_state_spritify(save, i);
+		}
+
 		screen_repaint();
 	}
 	else if (vk == VK_UP)

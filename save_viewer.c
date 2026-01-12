@@ -37,7 +37,7 @@ void save_viewer_handle_repaint()
 	screen_sprite_render(0, -y_pos % TARGET_HEIGHT, cache[top]);
 	screen_sprite_render(0, TARGET_HEIGHT - y_pos % TARGET_HEIGHT, cache[bottom]);
 
-	if (save->player.x_spawn > top * TARGET_HEIGHT && save->player.y_spawn < (bottom + 1) * TARGET_HEIGHT)
+	if (save->player.y_spawn > top * TARGET_HEIGHT && save->player.y_spawn < (bottom + 1) * TARGET_HEIGHT)
 	{
 		screen_sprite_render((int)save->player.x_spawn, (int)save->player.y_spawn - y_pos, flag);
 	}
@@ -121,7 +121,7 @@ int main()
 		cache[i] = file_state_spritify(save, i);
 	}
 
-	screen_change_dirt_color(screen_sprite_dirt_color(cache[0]));
+	save_viewer_move_window(TARGET_HEIGHT / 2 - save->player.y_spawn);
 	screen_loop();
 
 	screen_sprite_destroy(flag);

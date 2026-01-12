@@ -14,7 +14,6 @@
 #include <Windows.h>
 
 #define SCREEN_FONT L"digfont9"
-#define RUNTIME_ASSERT(cond) if (!(cond)) exit(-1);
 
 #define RAISE_EVENT(ev, ...) if (ev) ev(__VA_ARGS__);
 
@@ -269,7 +268,7 @@ static inline int screen_buffer_get_char_region(const CHAR_INFO* buffer, int bwx
 		right = min(x + wx, bwx);
 	if (right < left || bottom < top)
 	{
-		return;
+		return 0;
 	}
 	for (int cy = top; cy < bottom; cy++)
 	{
@@ -291,7 +290,7 @@ static inline int screen_buffer_get_attrib_region(const CHAR_INFO* buffer, int b
 		right = min(x + wx, bwx);
 	if (right < left || bottom < top)
 	{
-		return;
+		return 0;
 	}
 	for (int cy = top; cy < bottom; cy++)
 	{

@@ -9,7 +9,8 @@
 #include "screen.h"
 
 static sprite_t flag;
-static save_t* save;
+static sprite_t cache[LAYER_COUNT];
+static dnr_state_t* save;
 static int y_pos;
 
 static int selected_x = -1, selected_y = -1;
@@ -23,7 +24,7 @@ static void save_viewer_move_window(int addend)
 	int mid = (y_pos + TARGET_HEIGHT / 2) / TARGET_HEIGHT;
 	if (prev_mid != mid)
 	{
-		screen_change_dirt_color(screen_sprite_dirt_color(save->layer_images[mid]));
+		screen_change_dirt_color(screen_sprite_dirt_color(cache[mid]));
 	}
 	prev_mid = mid;
 	screen_repaint();
@@ -33,12 +34,12 @@ void save_viewer_handle_repaint()
 {
 	int top = y_pos / TARGET_HEIGHT;
 	int bottom = y_pos / TARGET_HEIGHT + 1;
-	screen_sprite_render(0, -y_pos % TARGET_HEIGHT, save->layer_images[top]);
-	screen_sprite_render(0, TARGET_HEIGHT - y_pos % TARGET_HEIGHT, save->layer_images[bottom]);
+	screen_sprite_render(0, -y_pos % TARGET_HEIGHT, cache[top]);
+	screen_sprite_render(0, TARGET_HEIGHT - y_pos % TARGET_HEIGHT, cache[bottom]);
 
-	if (save->y_spawn > top * TARGET_HEIGHT && save->y_spawn < (bottom + 1) * TARGET_HEIGHT)
+	if (save->player.x_spawn > top * TARGET_HEIGHT && save->player.y_spawn < (bottom + 1) * TARGET_HEIGHT)
 	{
-		screen_sprite_render((int)save->x_spawn, (int)save->y_spawn - y_pos, flag);
+		screen_sprite_render((int)save->player.x_spawn, (int)save->player.y_spawn - y_pos, flag);
 	}
 
 	attribute_t selected;
@@ -52,8 +53,8 @@ void save_viewer_handle_keyboard(virtual_key_t vk)
 	if (vk == 'R')
 	{
 		debug_format("Reloading save...\n");
-		file_unload_save(save);
-		save = file_load_save("C:\\Users\\fcsto\\OneDrive\\Documents\\DigiPen\\Dig-N-Rig\\profile1.sav");
+		file_state_unload(save);
+		save = file_state_load("C:\\Users\\fcsto\\OneDrive\\Documents\\DigiPen\\Dig-N-Rig\\profile1.sav");
 		screen_repaint();
 	}
 	else if (vk == VK_UP)
@@ -102,18 +103,23 @@ int main()
 	});
 
 	/* temporary */
-	save = file_load_save("C:\\Users\\fcsto\\OneDrive\\Documents\\DigiPen\\Dig-N-Rig\\profile1.sav");
-	flag = file_load_sprite("C:\\Program Files (x86)\\DigiPen\\Dig-N-Rig\\Sprites\\Checkpoint.sprite");
+	save = file_state_load("C:\\Users\\fcsto\\OneDrive\\Documents\\DigiPen\\Dig-N-Rig\\profile1.sav");
+	flag = file_sprite_load("C:\\Program Files (x86)\\DigiPen\\Dig-N-Rig\\Sprites\\Checkpoint.sprite");
 	if (!save || !flag)
 	{
 		return 1;
 	}
 
-	screen_change_dirt_color(screen_sprite_dirt_color(save->layer_images[0]));
+	for (int i = 0; i < LAYER_COUNT; i++)
+	{
+		cache[i] = file_state_spritify(save, i);
+	}
+
+	screen_change_dirt_color(screen_sprite_dirt_color(cache[0]));
 	screen_loop();
 
 	screen_sprite_destroy(flag);
-	file_unload_save(save);
+	file_state_unload(save);
 	screen_destroy();
 
 	return 0;

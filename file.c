@@ -163,7 +163,7 @@ static void file_serialize_and_print_token(struct token* token)
 	}
 }
 
-sprite_t file_load_sprite(const char* directory)
+sprite_t file_sprite_load(const char* directory)
 {
 	struct file file;
 	struct file* pfile = &file;
@@ -294,167 +294,98 @@ cleanup:
 	return res;
 }
 
-/* to do: put this out of the block loop. It makes it way faster without all the file seeking */
-
-static int file_find_mineral(FILE* file, int index)
-{
-	if (index == 0xFFFFFFFF)
-	{
-		return -1;
-	}
-
-	long start = ftell(file);
-	int result = -1;
-
-	fseek(file, 0x010D2D58 + index * 0x34, SEEK_SET);
-	BINARY_ENSURE_CONDITION(!feof(file));
-
-	float x, y;
-	BINARY_ENSURE_CONDITION(fread(&x, 1, 4, file) == 4);
-	BINARY_ENSURE_CONDITION(fread(&y, 1, 4, file) == 4);
-	short size, type;
-	BINARY_ENSURE_CONDITION(fread(&size, 1, 2, file) == 2);
-	BINARY_ENSURE_CONDITION(fread(&type, 1, 2, file) == 2);
-	int exists;
-	BINARY_ENSURE_CONDITION(fread(&exists, 1, 4, file) == 4);
-	if (!exists)
-	{
-		int x = index / (TARGET_HEIGHT * 14);
-		int y = index % (TARGET_HEIGHT * 14);
-		debug_format("Mineral at location (%i, %i) is marked as non-existent, yet the block at this location directs to it and says it exists.\n", x, y);
-	}
-	fseek(file, start, SEEK_SET);
-	result = type | (size << 16);
-cleanup:
-	return result;
-}
-
-static bool file_parse_blocks(FILE* file, sprite_t image_res[14], uint32_t palettes[14])
-{
-	/* game stores its blocks vertically. As in, instead of 0x0-TARGET_WIDTH as the first
-	row of blocks, its 0x0-(TARGET_HEIGHT*14) is the first column of blocks */
-
-	char* char_curr = dig_malloc(TARGET_WIDTH * TARGET_HEIGHT * sizeof * char_curr * 14);
-	attribute_t* attrib_curr = dig_malloc(TARGET_WIDTH * TARGET_HEIGHT * sizeof * attrib_curr * 14);
-	char* temp_char = dig_malloc(TARGET_WIDTH * TARGET_HEIGHT);
-	attribute_t* temp_attrib = dig_malloc(TARGET_WIDTH * TARGET_HEIGHT * 2);
-
-	bool success = false;
-
-	fseek(file, 0x0318, SEEK_SET);
-	BINARY_ENSURE_CONDITION(!feof(file));
-
-	for (int i = 0; i < TARGET_WIDTH * TARGET_HEIGHT * 14; i++)
-	{
-		fseek(file, 0x18, SEEK_CUR);
-		BINARY_ENSURE_CONDITION(fread(char_curr + i, 1, 1, file) == 1);
-		fseek(file, 0x01, SEEK_CUR);
-		BINARY_ENSURE_CONDITION(fread(attrib_curr + i, 1, 2, file) == 2);
-		fseek(file, 0x8, SEEK_CUR);
-
-		int mineral, has_mineral, rig_type;
-		BINARY_ENSURE_CONDITION(fread(&mineral, 1, 4, file) == 4);
-		fseek(file, 0x8, SEEK_CUR);
-		BINARY_ENSURE_CONDITION(fread(&has_mineral, 1, 4, file) == 4);
-		BINARY_ENSURE_CONDITION(fread(&rig_type, 1, 4, file) == 4);
-		fseek(file, 0x1C, SEEK_CUR);
-
-		if (rig_type == 0xA)
-		{
-			attrib_curr[i] = DARK_RED << 4;
-		}
-		else if (rig_type == 0xB)
-		{
-			attrib_curr[i] = DARK_BLUE << 4;
-		}
-
-		if (has_mineral && char_curr[i] == ' ')
-		{
-			int code = file_find_mineral(file, mineral);
-			short type = code & 0xFFFF,
-				size = (code >> 16) & 0xFFFF;
-			char_curr[i] = size;
-			attrib_curr[i] = attrib_curr[i] & 0xF0 | (type & 0x0F);
-		}
-	}
-
-	for (int i = 0; i < 14; i++)
-	{
-		for (int x = 0; x < TARGET_WIDTH; x++)
-		{
-			for (int y = 0; y < TARGET_HEIGHT; y++)
-			{
-				*(temp_char + y * TARGET_WIDTH + x) = *(char_curr + y + x * TARGET_HEIGHT * 14 + i * TARGET_HEIGHT);
-				*(temp_attrib + y * TARGET_WIDTH + x) = *(attrib_curr + y + x * TARGET_HEIGHT * 14 + i * TARGET_HEIGHT);
-			}
-		}
-		image_res[i] = screen_sprite_create(TARGET_WIDTH, TARGET_HEIGHT, palettes[i], temp_char, temp_attrib);
-	}
-
-	success = true;
-cleanup:
-	free(temp_char);
-	free(temp_attrib);
-	free(char_curr);
-	free(attrib_curr);
-	return success;
-}
-
-save_t* file_load_save(const char* directory)
+dnr_state_t* file_state_load(const char* directory)
 {
 	FILE* file = fopen(directory, "rb");
 	if (!file)
 	{
-		debug_format("Save directory \"%s\" does not exist.\n", directory);
+		debug_format("File \"%s\" does not exist\n", directory);
 		return NULL;
 	}
 
-	sprite_t image_res[14] = { 0 };
-	uint32_t palettes[14] = { 0 };
-	float x_spawn, y_spawn;
+	dnr_state_t* res = dig_malloc(sizeof * res + sizeof * res->stalactites * DEFAULT_STALACTITE_COUNT);
+	res->stalactite_count = DEFAULT_STALACTITE_COUNT;
+	res->stalactites = (stalactite_t*)(res + 1);
 
-	fseek(file, 0x3C, SEEK_SET);
-	BINARY_ENSURE_CONDITION(!feof(file));
+	/* read up to stalactites */
+	BINARY_ENSURE_CONDITION(fread(res, offsetof(dnr_state_t, stalactites), 1, file) == 1);
 
-	for (int i = 0; i < 14; i++)
+	for (int i = 0; i < res->stalactite_count; i++)
 	{
-		fseek(file, 0x14, SEEK_CUR);
-		BINARY_ENSURE_CONDITION(fread(&palettes[i], 1, 4, file) == 4);
+		BINARY_ENSURE_CONDITION(fread(&res->stalactites[i].exists, 1, 4, file) == 4);
+		BINARY_ENSURE_CONDITION(fread(&res->stalactites[i].x, 1, 4, file) == 4);
+		BINARY_ENSURE_CONDITION(fread(&res->stalactites[i].y, 1, 4, file) == 4);
+		BINARY_ENSURE_CONDITION(fread(&res->stalactites[i].falling, 1, 4, file) == 4);
+		BINARY_ENSURE_CONDITION(fread(&res->stalactites[i].activation_radius_2, 1, 4, file) == 4);
+		BINARY_ENSURE_CONDITION(fread(&res->stalactites[i].speed, 1, 4, file) == 4);
 	}
 
-	fseek(file, 0x01FC, SEEK_SET);
-	BINARY_ENSURE_CONDITION(!feof(file));
+	/* read up to end */
+	BINARY_ENSURE_CONDITION(fread(&res->reserved3, sizeof * res->reserved3, 1, file) == 1);
+	BINARY_ENSURE_CONDITION(fread(&res->has_liquid_resistance, sizeof res->has_liquid_resistance, 1, file) == 1);
 
-	BINARY_ENSURE_CONDITION(fread(&x_spawn, 1, sizeof x_spawn, file) == sizeof x_spawn);
-	BINARY_ENSURE_CONDITION(fread(&y_spawn, 1, sizeof y_spawn, file) == sizeof y_spawn);
-
-	BINARY_ENSURE_CONDITION(file_parse_blocks(file, image_res, palettes));
-
-	save_t* res = dig_malloc(sizeof * res + sizeof * res->layer_images * 14);
-	memcpy(res->layer_images, image_res, sizeof image_res);
-	res->layer_count = 14;
-	res->x_spawn = x_spawn;
-	res->y_spawn = y_spawn;
-
-	return res;
-cleanup:
-	for (int i = 0; i < sizeof image_res / sizeof * image_res; i++)
-	{
-		free(image_res[i]);
-	}
 	fclose(file);
+	return res;
+
+cleanup:
+	fclose(file);
+	free(res);
 	return NULL;
 }
 
-void file_unload_save(save_t* save)
+void file_state_unload(dnr_state_t* save)
 {
-	if (!save)
-	{
-		return;
-	}
-	for (int i = 0; i < save->layer_count; i++)
-	{
-		screen_sprite_destroy(save->layer_images[i]);
-	}
 	free(save);
+}
+
+void file_state_save(const char* directory, dnr_state_t* save)
+{
+
+}
+
+sprite_t file_state_spritify(dnr_state_t* save, int layer_index)
+{
+	RUNTIME_ASSERT(save && layer_index >= 0 && layer_index < LAYER_COUNT);
+
+	char* text = dig_malloc(TARGET_WIDTH * TARGET_HEIGHT * sizeof * text);
+	attribute_t* attrib = dig_malloc(TARGET_WIDTH * TARGET_HEIGHT * sizeof * attrib);
+
+	for (int x = 0; x < TARGET_WIDTH; x++)
+	{
+		for (int y = 0; y < TARGET_HEIGHT; y++)
+		{
+			dnr_block_t* curr = &save->blocks[x * LAYER_COUNT * TARGET_HEIGHT + y + layer_index * TARGET_HEIGHT];
+			char final_char = curr->visual.Char.AsciiChar;
+			attribute_t final_attrib = curr->visual.Attributes;
+
+			if (curr->rig_type == RIG_LAVA)
+			{
+				final_attrib = DARK_RED << 4;
+			}
+			else if (curr->rig_type == RIG_WATER)
+			{
+				final_attrib = DARK_BLUE << 4;
+			}
+
+			if (curr->mineral_exists && final_char == ' ')
+			{
+				RUNTIME_ASSERT(curr->mineral_index >= 0 && curr->mineral_index < sizeof save->minerals / sizeof * save->minerals);
+				dnr_mineral_t* mineral = &save->minerals[curr->mineral_index];
+				if (mineral->exists)
+				{
+					final_char = (char)mineral->size;
+					final_attrib = final_attrib & 0xF0 | (mineral->type & 0x0F);
+				}
+			}
+
+			text[x + y * TARGET_WIDTH] = final_char;
+			attrib[x + y * TARGET_WIDTH] = final_attrib;
+		}
+	}
+
+	sprite_t res = screen_sprite_create(TARGET_WIDTH, TARGET_HEIGHT, save->layer_headers[layer_index].dirt_color, text, attrib);
+
+	free(text);
+	free(attrib);
+	return res;
 }

@@ -1,5 +1,6 @@
 /*
 	screen.c ~ RL
+	Handles console screen
 */
 
 #include "screen.h"
@@ -108,10 +109,6 @@ void screen_loop(void)
 			if (!ker.bKeyDown)
 			{
 				continue;
-			}
-			if (ker.wVirtualKeyCode == VK_ESCAPE)
-			{
-				break;
 			}
 			RAISE_EVENT(events.keyboard, ker.wVirtualKeyCode);
 		}

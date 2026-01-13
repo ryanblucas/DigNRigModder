@@ -1,5 +1,6 @@
 /*
 	screen.h ~ RL
+	Handles console screen
 */
 
 #pragma once

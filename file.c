@@ -303,21 +303,21 @@ dnr_state_t* file_state_load(const char* directory)
 		return NULL;
 	}
 
-	dnr_state_t* res = dig_malloc(sizeof * res + sizeof * res->stalactites * DEFAULT_STALACTITE_COUNT);
+	dnr_state_t* res = dig_malloc(sizeof * res + sizeof * res->stalactite_array * DEFAULT_STALACTITE_COUNT);
 	res->stalactite_count = DEFAULT_STALACTITE_COUNT;
-	res->stalactites = (stalactite_t*)(res + 1);
+	res->stalactite_array = (stalactite_t*)(res + 1);
 
 	/* read up to stalactites */
-	BINARY_ENSURE_CONDITION(fread(res, offsetof(dnr_state_t, stalactites), 1, file) == 1);
+	BINARY_ENSURE_CONDITION(fread(res, offsetof(dnr_state_t, stalactite_array), 1, file) == 1);
 
 	for (int i = 0; i < res->stalactite_count; i++)
 	{
-		BINARY_ENSURE_CONDITION(fread(&res->stalactites[i].exists, 1, 4, file) == 4);
-		BINARY_ENSURE_CONDITION(fread(&res->stalactites[i].x, 1, 4, file) == 4);
-		BINARY_ENSURE_CONDITION(fread(&res->stalactites[i].y, 1, 4, file) == 4);
-		BINARY_ENSURE_CONDITION(fread(&res->stalactites[i].falling, 1, 4, file) == 4);
-		BINARY_ENSURE_CONDITION(fread(&res->stalactites[i].activation_radius_2, 1, 4, file) == 4);
-		BINARY_ENSURE_CONDITION(fread(&res->stalactites[i].speed, 1, 4, file) == 4);
+		BINARY_ENSURE_CONDITION(fread(&res->stalactite_array[i].exists, 1, 4, file) == 4);
+		BINARY_ENSURE_CONDITION(fread(&res->stalactite_array[i].x, 1, 4, file) == 4);
+		BINARY_ENSURE_CONDITION(fread(&res->stalactite_array[i].y, 1, 4, file) == 4);
+		BINARY_ENSURE_CONDITION(fread(&res->stalactite_array[i].falling, 1, 4, file) == 4);
+		BINARY_ENSURE_CONDITION(fread(&res->stalactite_array[i].activation_radius_2, 1, 4, file) == 4);
+		BINARY_ENSURE_CONDITION(fread(&res->stalactite_array[i].speed, 1, 4, file) == 4);
 	}
 
 	/* read up to end */
@@ -338,12 +338,12 @@ void file_state_unload(dnr_state_t* save)
 	free(save);
 }
 
-void file_state_save(const char* directory, dnr_state_t* save)
+void file_state_save(const char* directory, const dnr_state_t* save)
 {
 
 }
 
-sprite_t file_state_spritify(dnr_state_t* save, int layer_index)
+sprite_t file_state_spritify(const dnr_state_t* save, int layer_index)
 {
 	RUNTIME_ASSERT(save && layer_index >= 0 && layer_index < LAYER_COUNT);
 

@@ -108,6 +108,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>Comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -129,13 +130,14 @@
   <ItemGroup>
     <ClCompile Include="debug.c" />
     <ClCompile Include="file.c" />
+    <ClCompile Include="info_box.c" />
     <ClCompile Include="save_viewer.c" />
     <ClCompile Include="screen.c" />
-    <ClCompile Include="viewer.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug.h" />
     <ClInclude Include="file.h" />
+    <ClInclude Include="info_box.h" />
     <ClInclude Include="screen.h" />
     <ClInclude Include="types.h" />
   </ItemGroup>

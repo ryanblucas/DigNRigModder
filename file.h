@@ -158,7 +158,7 @@ typedef struct dnr_state
 	int32_t reserved2[0x10];
 	CHAR_INFO vac_pak_contents[1000];
 	
-	stalactite_t* stalactites;
+	stalactite_t* stalactite_array;
 	int stalactite_count;
 
 	uint8_t reserved3[0x6AC];
@@ -169,6 +169,6 @@ sprite_t file_sprite_load(const char* directory);
 
 dnr_state_t* file_state_load(const char* directory);
 void file_state_unload(dnr_state_t* save);
-void file_state_save(const char* directory, dnr_state_t* save);
+void file_state_save(const char* directory, const dnr_state_t* save);
 
-sprite_t file_state_spritify(dnr_state_t* save, int layer_index);
+sprite_t file_state_spritify(const dnr_state_t* save, int layer_index);

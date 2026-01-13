@@ -1,11 +1,10 @@
 /*
 	save_viewer.c ~ RL
-
 	Views save files
 */
 
-#if 1
 #include "file.h"
+#include "info_box.h"
 #include "screen.h"
 
 static sprite_t flag;
@@ -108,6 +107,14 @@ int main()
 		.mouse_wheel = save_viewer_handle_mouse_wheel
 	});
 
+	screen_change_title("Dig-N-Rig Display");
+
+	info_section_t sections[] =
+	{
+		{.title = "Save" }
+	};
+	info_initialize(sections, sizeof sections / sizeof * sections);
+
 	/* temporary */
 	save = file_state_load("C:\\Users\\fcsto\\OneDrive\\Documents\\DigiPen\\Dig-N-Rig\\profile1.sav");
 	flag = file_sprite_load("C:\\Program Files (x86)\\DigiPen\\Dig-N-Rig\\Sprites\\Checkpoint.sprite");
@@ -121,13 +128,13 @@ int main()
 		cache[i] = file_state_spritify(save, i);
 	}
 
-	save_viewer_move_window(TARGET_HEIGHT / 2 - save->player.y_spawn);
+	save_viewer_move_window(TARGET_HEIGHT / 2 - (int)save->player.y_spawn);
 	screen_loop();
 
 	screen_sprite_destroy(flag);
 	file_state_unload(save);
+	info_destroy();
 	screen_destroy();
 
 	return 0;
 }
-#endif

@@ -309,9 +309,10 @@ dnr_state_t* file_state_load(const char* directory)
 
 	/* read up to stalactites */
 	BINARY_ENSURE_CONDITION(fread(res, offsetof(dnr_state_t, stalactite_array), 1, file) == 1);
-
 	for (int i = 0; i < res->stalactite_count; i++)
 	{
+		res->stalactite_array[i].cell.Char.AsciiChar = 0x1F;
+		res->stalactite_array[i].cell.Attributes = 0x06;
 		BINARY_ENSURE_CONDITION(fread(&res->stalactite_array[i].exists, 1, 4, file) == 4);
 		BINARY_ENSURE_CONDITION(fread(&res->stalactite_array[i].x, 1, 4, file) == 4);
 		BINARY_ENSURE_CONDITION(fread(&res->stalactite_array[i].y, 1, 4, file) == 4);
@@ -321,7 +322,7 @@ dnr_state_t* file_state_load(const char* directory)
 	}
 
 	/* read up to end */
-	BINARY_ENSURE_CONDITION(fread(&res->reserved3, sizeof * res->reserved3, 1, file) == 1);
+	BINARY_ENSURE_CONDITION(fread(&res->reserved2, sizeof * res->reserved2, 1, file) == 1);
 	BINARY_ENSURE_CONDITION(fread(&res->has_liquid_resistance, sizeof res->has_liquid_resistance, 1, file) == 1);
 
 	fclose(file);
@@ -343,6 +344,46 @@ void file_state_save(const char* directory, const dnr_state_t* save)
 
 }
 
+static CHAR_INFO file_state_render_cell(const dnr_state_t* save, int x, int y)
+{
+	dnr_block_t* curr = &save->blocks[x * LAYER_COUNT * TARGET_HEIGHT + y];
+	CHAR_INFO final = curr->visual;
+
+	if (curr->rig_type == RIG_LAVA)
+	{
+		final.Attributes = DARK_RED << 4;
+	}
+	else if (curr->rig_type == RIG_WATER)
+	{
+		final.Attributes = DARK_BLUE << 4;
+	}
+	
+	if (final.Char.AsciiChar != ' ')
+	{
+		return final;
+	}
+
+	if (curr->mineral_exists)
+	{
+		RUNTIME_ASSERT(curr->mineral_index >= 0 && curr->mineral_index < sizeof save->minerals / sizeof * save->minerals);
+		dnr_mineral_t* mineral = &save->minerals[curr->mineral_index];
+		if (mineral->exists)
+		{
+			final.Char.AsciiChar = (char)mineral->size;
+			final.Attributes = final.Attributes & 0xF0 | (mineral->type & 0x0F);
+		}
+	}
+	for (int i = 0; i < save->stalactite_count; i++)
+	{
+		if ((int)save->stalactite_array[i].x == x && (int)save->stalactite_array[i].y == y && save->stalactite_array[i].exists)
+		{
+			final = save->stalactite_array[i].cell;
+			break;
+		}
+	}
+	return final;
+}
+
 sprite_t file_state_spritify(const dnr_state_t* save, int layer_index)
 {
 	RUNTIME_ASSERT(save && layer_index >= 0 && layer_index < LAYER_COUNT);
@@ -354,32 +395,10 @@ sprite_t file_state_spritify(const dnr_state_t* save, int layer_index)
 	{
 		for (int y = 0; y < TARGET_HEIGHT; y++)
 		{
-			dnr_block_t* curr = &save->blocks[x * LAYER_COUNT * TARGET_HEIGHT + y + layer_index * TARGET_HEIGHT];
-			char final_char = curr->visual.Char.AsciiChar;
-			attribute_t final_attrib = curr->visual.Attributes;
+			CHAR_INFO final = file_state_render_cell(save, x, y + layer_index * TARGET_HEIGHT);
 
-			if (curr->rig_type == RIG_LAVA)
-			{
-				final_attrib = DARK_RED << 4;
-			}
-			else if (curr->rig_type == RIG_WATER)
-			{
-				final_attrib = DARK_BLUE << 4;
-			}
-
-			if (curr->mineral_exists && final_char == ' ')
-			{
-				RUNTIME_ASSERT(curr->mineral_index >= 0 && curr->mineral_index < sizeof save->minerals / sizeof * save->minerals);
-				dnr_mineral_t* mineral = &save->minerals[curr->mineral_index];
-				if (mineral->exists)
-				{
-					final_char = (char)mineral->size;
-					final_attrib = final_attrib & 0xF0 | (mineral->type & 0x0F);
-				}
-			}
-
-			text[x + y * TARGET_WIDTH] = final_char;
-			attrib[x + y * TARGET_WIDTH] = final_attrib;
+			text[x + y * TARGET_WIDTH] = final.Char.AsciiChar;
+			attrib[x + y * TARGET_WIDTH] = final.Attributes;
 		}
 	}
 

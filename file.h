@@ -138,6 +138,7 @@ typedef struct stalactite
 	boolean32_t exists;
 } stalactite_t;
 
+#pragma pack(4)
 typedef struct dnr_state
 {
 	dnr_save_header_t header;
@@ -152,18 +153,16 @@ typedef struct dnr_state
 	dnr_mineral_t minerals[50000];
 	uint8_t reserved0[0x30CAA0];
 	boolean32_t elements_discovered[MINERAL_COUNT];
-	int32_t reserved1;
-	int32_t vac_pak_size;
-	boolean32_t has_remote_vac_pak;
-	int32_t reserved2[0x10];
+	uint8_t reserved1[0x1C];
 	CHAR_INFO vac_pak_contents[1000];
 	
 	stalactite_t* stalactite_array;
 	int stalactite_count;
 
-	uint8_t reserved3[0x6AC];
+	uint8_t reserved2[0x6AC];
 	boolean32_t has_liquid_resistance;
 } dnr_state_t;
+#pragma pack()
 
 sprite_t file_sprite_load(const char* directory);
 

@@ -131,6 +131,7 @@
     <ClCompile Include="debug.c" />
     <ClCompile Include="file.c" />
     <ClCompile Include="info_box.c" />
+    <ClCompile Include="mineral_control.c" />
     <ClCompile Include="save_viewer.c" />
     <ClCompile Include="screen.c" />
   </ItemGroup>
@@ -138,6 +139,7 @@
     <ClInclude Include="debug.h" />
     <ClInclude Include="file.h" />
     <ClInclude Include="info_box.h" />
+    <ClInclude Include="mineral_control.h" />
     <ClInclude Include="screen.h" />
     <ClInclude Include="types.h" />
   </ItemGroup>

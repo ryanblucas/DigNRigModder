@@ -13,7 +13,14 @@
 #define TARGET_HEIGHT	100
 #define TARGET_CELL_SIZE 8
 
+#define DNR_DIRT_INDEX 6
+#define DNR_DEFAULT_DIRT_COLOR 0x4175A4
+#define DNR_FONT L"digfont9"
+#define DNR_FONT_A "digfont9"
+
 #define CREATE_ATTRIBUTE(fg, bg) ((fg) | (bg) << 4)
+#define ATTRIBUTE_FOREGROUND(attrib) ((attrib) & 0x0F)
+#define ATTRIBUTE_BACKGROUND(attrib) (((attrib) >> 4) & 0x0F)
 
 /* 4-bit color, 0bIRGB */
 typedef enum color
@@ -35,6 +42,9 @@ typedef enum color
 	LIGHT_YELLOW,
 	LIGHT_WHITE
 } color_t;
+
+/* defined in screen.c */
+extern const uint32_t palette[16];
 
 typedef uint16_t attribute_t;
 

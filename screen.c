@@ -14,8 +14,6 @@
 #include <stdlib.h>
 #include <Windows.h>
 
-#define SCREEN_FONT L"digfont9"
-
 #define RAISE_EVENT(ev, ...) if (ev) ev(__VA_ARGS__);
 
 struct sprite
@@ -28,6 +26,26 @@ struct sprite
 static HANDLE in, out;
 static screen_events_t events;
 static CHAR_INFO target[TARGET_WIDTH * TARGET_HEIGHT];
+
+const uint32_t palette[16] =
+{
+	RGB(0, 0, 0),
+	RGB(67, 52, 172),
+	RGB(44, 109, 67),
+	RGB(45, 97, 143),
+	RGB(129, 14, 44),
+	RGB(97, 32, 121),
+	DNR_DEFAULT_DIRT_COLOR,
+	RGB(161, 159, 159),
+	RGB(97, 95, 115),
+	RGB(78, 131, 255),
+	RGB(155, 230, 91),
+	RGB(132, 205, 241),
+	RGB(235, 40, 57),
+	RGB(221, 140, 239),
+	RGB(252, 236, 84),
+	RGB(232, 232, 238),
+};
 
 static void screen_initialize_output()
 {
@@ -72,7 +90,7 @@ void screen_initialize(screen_events_t _events)
 	cfi.dwFontSize = (COORD){ TARGET_CELL_SIZE - 1, TARGET_CELL_SIZE };
 	cfi.FontFamily = FF_DONTCARE;
 	cfi.nFont = 0;
-	swprintf(cfi.FaceName, sizeof cfi.FaceName / sizeof * cfi.FaceName, SCREEN_FONT);
+	swprintf(cfi.FaceName, sizeof cfi.FaceName / sizeof * cfi.FaceName, DNR_FONT);
 
 	RUNTIME_ASSERT(SetCurrentConsoleFontEx(out, FALSE, &cfi));
 
@@ -86,7 +104,7 @@ void screen_initialize(screen_events_t _events)
 
 	RUNTIME_ASSERT(GetCurrentConsoleFontEx(out, FALSE, &cfi));
 
-	if (wcsncmp(cfi.FaceName, SCREEN_FONT, sizeof cfi.FaceName / sizeof * cfi.FaceName) != 0)
+	if (wcsncmp(cfi.FaceName, DNR_FONT, sizeof cfi.FaceName / sizeof * cfi.FaceName) != 0)
 	{
 		debug_format("Failed to locate Dig-N-Rig's font!\n");
 	}
@@ -171,6 +189,13 @@ void screen_clear(void)
 	memset(target, 0, sizeof target);
 }
 
+uint32_t screen_dirt_color(void)
+{
+	CONSOLE_SCREEN_BUFFER_INFOEX csbi = { .cbSize = sizeof csbi };
+	RUNTIME_ASSERT(GetConsoleScreenBufferInfoEx(out, &csbi));
+	return csbi.ColorTable[6];
+}
+
 void screen_change_title(const char* title)
 {
 	RUNTIME_ASSERT(SetConsoleTitleA(title));
@@ -181,22 +206,12 @@ void screen_change_dirt_color(uint32_t rgb)
 	CONSOLE_SCREEN_BUFFER_INFOEX csbi = { .cbSize = sizeof csbi };
 	RUNTIME_ASSERT(GetConsoleScreenBufferInfoEx(out, &csbi));
 
-	csbi.ColorTable[0] = RGB(0, 0, 0);
-	csbi.ColorTable[1] = RGB(67, 52, 172);
-	csbi.ColorTable[2] = RGB(44, 109, 67);
-	csbi.ColorTable[3] = RGB(45, 97, 143);
-	csbi.ColorTable[4] = RGB(129, 14, 44);
-	csbi.ColorTable[5] = RGB(97, 32, 121);
-	csbi.ColorTable[6] = rgb;
-	csbi.ColorTable[7] = RGB(161, 159, 159);
-	csbi.ColorTable[8] = RGB(97, 95, 115);
-	csbi.ColorTable[9] = RGB(78, 131, 255);
-	csbi.ColorTable[10] = RGB(155, 230, 91);
-	csbi.ColorTable[11] = RGB(132, 205, 241);
-	csbi.ColorTable[12] = RGB(235, 40, 57);
-	csbi.ColorTable[13] = RGB(221, 140, 239);
-	csbi.ColorTable[14] = RGB(252, 236, 84);
-	csbi.ColorTable[15] = RGB(232, 232, 238);
+	for (int i = 0; i < 16; i++)
+	{
+		csbi.ColorTable[i] = palette[i];
+	}
+
+	csbi.ColorTable[DNR_DIRT_INDEX] = rgb;
 
 	/* why is this needed? */
 	csbi.srWindow.Bottom = csbi.dwSize.Y;
@@ -204,7 +219,7 @@ void screen_change_dirt_color(uint32_t rgb)
 	RUNTIME_ASSERT(SetConsoleScreenBufferInfoEx(out, &csbi));
 }
 
-/* these functions are essentially the same logic, but it's more expensive to put it all in one function since they will all need to adapt to it */
+/* these functions are essentially the same logic, but it's more expensive to put it all in one function */
 
 static inline void screen_buffer_set_char_region(CHAR_INFO* buffer, int bwx, int bwy, const char* in, int x, int y, int wx, int wy)
 {

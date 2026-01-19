@@ -7,8 +7,6 @@
 
 #include "types.h"
 
-#define DEFAULT_DIRT_COLOR 0x4175A4
-
 typedef int virtual_key_t;
 #ifndef _WIN_USER_
 /* #define NOVIRTUALKEYCODES */
@@ -133,6 +131,8 @@ void screen_loop(void);
 void screen_repaint(void);
 void screen_invalidate(void);
 void screen_clear(void);
+
+uint32_t screen_dirt_color(void);
 
 void screen_change_title(const char* title);
 void screen_change_dirt_color(uint32_t rgb);

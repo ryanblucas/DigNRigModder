@@ -5,10 +5,21 @@
 
 #pragma once
 
-typedef struct info_section
-{
-	char* title;
-} info_section_t;
+#include "types.h"
 
-void info_initialize(const info_section_t* section_array, int section_count);
+typedef enum info_mode
+{
+	MODE_SAVE,
+	MODE_SPRITE,
+	MODE_LAYER,
+
+	MODE_COUNT
+} info_mode_t;
+
+typedef void (*info_handle_change_mode)(info_mode_t);
+
+void info_initialize(info_handle_change_mode handler);
 void info_destroy(void);
+info_mode_t info_get_current_mode(void);
+
+void info_set_current_cell(char character, attribute_t attrib, uint32_t dirt_color);

@@ -189,7 +189,7 @@ sprite_t file_sprite_load(const char* directory)
 
 	int width = 0, height = 0;
 	char* text = NULL;
-	uint32_t palette_id = DEFAULT_DIRT_COLOR;
+	uint32_t palette_id = DNR_DEFAULT_DIRT_COLOR;
 	attribute_t* color = NULL;
 	sprite_t res = NULL;
 
@@ -346,7 +346,7 @@ void file_state_save(const char* directory, const dnr_state_t* save)
 
 static CHAR_INFO file_state_render_cell(const dnr_state_t* save, int x, int y)
 {
-	dnr_block_t* curr = &save->blocks[x * LAYER_COUNT * TARGET_HEIGHT + y];
+	const dnr_block_t* curr = &save->blocks[x * LAYER_COUNT * TARGET_HEIGHT + y];
 	CHAR_INFO final = curr->visual;
 
 	if (curr->rig_type == RIG_LAVA)

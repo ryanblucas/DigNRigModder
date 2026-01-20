@@ -15,9 +15,5 @@
 #define PACK_CELL_CHARACTER(packed) ((packed) & 0xFF)
 #define PACK_CELL_ATTRIBUTE(packed) (((packed) >> 8) & 0xFFFF)
 
-#define MINERAL_CONTROL_MSG_SET_INFO (WM_USER + 0x11)
-#define MINERAL_CONTROL_SET_INFO(hwnd, info) SendMessage(hwnd, MINERAL_CONTROL_MSG_SET_INFO, (WPARAM)info, (LPARAM)(0))
-
 void mineral_control_initialize(void);
 void mineral_control_destroy(void);
-void mineral_control_set_info_f(HWND hwnd, const char* format, ...);

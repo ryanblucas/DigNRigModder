@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "file.h"
 #include "types.h"
 
 typedef enum info_mode
@@ -22,5 +23,6 @@ void info_initialize(info_handle_change_mode handler);
 void info_destroy(void);
 info_mode_t info_get_current_mode(void);
 
-void info_set_current_cell(char character, attribute_t attrib, uint32_t dirt_color);
-void info_set_current_message(const char* msg);
+dnr_state_t* info_state_get(void);
+void info_state_set(dnr_state_t* state);
+void info_cell_set_current(int x, int y);

@@ -13,8 +13,16 @@
 #define INFO_BOX_CLASS_NAME L"dnr_mod_info"
 #define INFO_BOX_WINDOW_STYLE (WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX)
 #define INFO_BOX_WINDOW_STYLE_EX (WS_EX_OVERLAPPEDWINDOW)
-#define INFO_BOX_START_CLIENT_WIDTH 300
-#define INFO_BOX_START_CLIENT_HEIGHT 400
+#define INFO_BOX_CLIENT_WIDTH 300
+#define INFO_BOX_CLIENT_HEIGHT 400
+#define INFO_BOX_CELL_SIZE 72
+
+enum child_window_index
+{
+	CWI_SAVE_TREEVIEW,
+	CWI_SAVE_CURRENT_CELL,
+	CWI_SAVE_PAINTER_CELL
+};
 
 static HFONT font_caption;
 static HFONT font_text;
@@ -29,6 +37,8 @@ static info_handle_change_mode change_mode_handler;
 static info_mode_t current_mode;
 static HWND child_windows[MODE_COUNT][4];
 
+static dnr_state_t* state;
+
 static inline void info_tab_create(const LPWSTR name, info_mode_t index)
 {
 	TCITEMW tab = { .mask = TCIF_TEXT, .pszText = name };
@@ -39,20 +49,21 @@ static void info_tab_save(void)
 {
 	if (!child_windows[MODE_SAVE][0])
 	{
-		RECT rect = { 0, 0, INFO_BOX_START_CLIENT_WIDTH, INFO_BOX_START_CLIENT_HEIGHT };
+		RECT rect = { 0, 0, INFO_BOX_CLIENT_WIDTH, INFO_BOX_CLIENT_HEIGHT };
 		TabCtrl_AdjustRect(tab_control, FALSE, &rect);
-		const int mineral_selection_height = (192 - rect.top) / 2;
 
-		child_windows[MODE_SAVE][0] = CreateWindowExW(0, WC_TREEVIEWW, NULL, WS_VISIBLE | WS_CHILD | WS_CLIPSIBLINGS | TVS_HASLINES, 2, 198, INFO_BOX_START_CLIENT_WIDTH - 4, 200, tab_control, NULL, NULL, NULL);
-		RUNTIME_ASSERT(child_windows[MODE_SAVE][0]);
+		int padding = ((198 - rect.top) - INFO_BOX_CELL_SIZE * 2) / 3;
 
-		child_windows[MODE_SAVE][1] = CreateWindowExW(0, MINERAL_CONTROL_CLASS_NAME, NULL, WS_VISIBLE | WS_CHILD, 2, rect.top + 2, INFO_BOX_START_CLIENT_WIDTH / 2, mineral_selection_height, tab_control, NULL, NULL, NULL);
-		RUNTIME_ASSERT(child_windows[MODE_SAVE][1]);
+		child_windows[MODE_SAVE][0] = CreateWindowExW(0, WC_TREEVIEWW, NULL, WS_VISIBLE | WS_CHILD | WS_CLIPSIBLINGS | TVS_HASLINES, 2, 198, INFO_BOX_CLIENT_WIDTH - 4, 200, tab_control, NULL, NULL, NULL);
+		RUNTIME_ASSERT(child_windows[MODE_SAVE][CWI_SAVE_TREEVIEW]);
 
-		child_windows[MODE_SAVE][2] = CreateWindowExW(0, MINERAL_CONTROL_CLASS_NAME, NULL, WS_VISIBLE | WS_CHILD, 2, rect.top + 2 + mineral_selection_height + 2, INFO_BOX_START_CLIENT_WIDTH / 2, mineral_selection_height, tab_control, NULL, NULL, NULL);
-		RUNTIME_ASSERT(child_windows[MODE_SAVE][2]);
+		child_windows[MODE_SAVE][1] = CreateWindowExW(0, MINERAL_CONTROL_CLASS_NAME, NULL, WS_VISIBLE | WS_CHILD, padding, rect.top + padding, INFO_BOX_CLIENT_WIDTH / 3 * 2, 72, tab_control, NULL, NULL, NULL);
+		RUNTIME_ASSERT(child_windows[MODE_SAVE][CWI_SAVE_CURRENT_CELL]);
 
-		SendMessageW(child_windows[MODE_SAVE][1], WM_SETFONT, font_text, FALSE);
+		child_windows[MODE_SAVE][2] = CreateWindowExW(0, MINERAL_CONTROL_CLASS_NAME, NULL, WS_VISIBLE | WS_CHILD, padding, rect.top + padding * 2 + INFO_BOX_CELL_SIZE, INFO_BOX_CLIENT_WIDTH / 3 * 2, 72, tab_control, NULL, NULL, NULL);
+		RUNTIME_ASSERT(child_windows[MODE_SAVE][CWI_SAVE_PAINTER_CELL]);
+
+		SendMessageW(child_windows[MODE_SAVE][1], WM_SETFONT, (WPARAM)font_text, (LPARAM)FALSE);
 	}
 }
 
@@ -72,7 +83,7 @@ static LRESULT info_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
 	{
 	case WM_CREATE:
 	{
-		tab_control = CreateWindowExW(0, WC_TABCONTROLW, NULL, WS_VISIBLE | WS_CHILD | WS_CLIPSIBLINGS, 0, 0, INFO_BOX_START_CLIENT_WIDTH, INFO_BOX_START_CLIENT_HEIGHT, hwnd, NULL, NULL, NULL);
+		tab_control = CreateWindowExW(0, WC_TABCONTROLW, NULL, WS_VISIBLE | WS_CHILD | WS_CLIPSIBLINGS, 0, 0, INFO_BOX_CLIENT_WIDTH, INFO_BOX_CLIENT_HEIGHT, hwnd, NULL, NULL, NULL);
 		RUNTIME_ASSERT(tab_control);
 
 		info_tab_create(L"Save", MODE_SAVE);
@@ -142,7 +153,7 @@ static void info_window_initialize(void)
 	int x = console_window_bounds.right + 5;
 	int y = console_window_bounds.top;
 
-	RECT info_window_bounds = { .right = INFO_BOX_START_CLIENT_WIDTH, .bottom = INFO_BOX_START_CLIENT_HEIGHT };
+	RECT info_window_bounds = { .right = INFO_BOX_CLIENT_WIDTH, .bottom = INFO_BOX_CLIENT_HEIGHT };
 	RUNTIME_ASSERT(AdjustWindowRectEx(&info_window_bounds, INFO_BOX_WINDOW_STYLE, FALSE, INFO_BOX_WINDOW_STYLE_EX));
 	int wx = info_window_bounds.right - info_window_bounds.left;
 	int wy = info_window_bounds.bottom - info_window_bounds.top;
@@ -217,12 +228,37 @@ info_mode_t info_get_current_mode(void)
 	return current_mode;
 }
 
-void info_set_current_cell(char character, attribute_t attrib, uint32_t dirt_color)
+dnr_state_t* info_state_get(void)
 {
-	MINERAL_CONTROL_SET_CELL(child_windows[MODE_SAVE][1], character, attrib, dirt_color);
+	return state;
 }
 
-void info_set_current_message(const char* msg)
+void info_state_set(dnr_state_t* _state)
 {
-	MINERAL_CONTROL_SET_INFO(child_windows[MODE_SAVE][1], msg);
+	state = _state;
+	if (current_mode == MODE_SAVE)
+	{
+		UpdateWindow(window);
+	}
+}
+
+void info_cell_set_current(int x, int y)
+{
+	if (!state)
+	{
+		debug_format("Tried to set current cell with no state\n");
+		return;
+	}
+
+	if (x == -1 && y == -1)
+	{
+		MINERAL_CONTROL_SET_CELL(child_windows[MODE_SAVE][CWI_SAVE_CURRENT_CELL], 0, 0, 0);
+		return;
+	}
+
+	RUNTIME_ASSERT(x >= 0 && y >= 0 && x < TARGET_WIDTH && y < TARGET_HEIGHT * LAYER_COUNT);
+
+	CHAR_INFO cell = file_state_spritify_cell(state, x, y);
+	int layer_index = y / TARGET_HEIGHT;
+	MINERAL_CONTROL_SET_CELL(child_windows[MODE_SAVE][CWI_SAVE_CURRENT_CELL], cell.Char.AsciiChar, cell.Attributes, state->layer_headers[layer_index].dirt_color);
 }

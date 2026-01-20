@@ -344,7 +344,7 @@ void file_state_save(const char* directory, const dnr_state_t* save)
 
 }
 
-static CHAR_INFO file_state_render_cell(const dnr_state_t* save, int x, int y)
+CHAR_INFO file_state_spritify_cell(const dnr_state_t* save, int x, int y)
 {
 	const dnr_block_t* curr = &save->blocks[x * LAYER_COUNT * TARGET_HEIGHT + y];
 	CHAR_INFO final = curr->visual;
@@ -366,7 +366,7 @@ static CHAR_INFO file_state_render_cell(const dnr_state_t* save, int x, int y)
 	if (curr->mineral_exists)
 	{
 		RUNTIME_ASSERT(curr->mineral_index >= 0 && curr->mineral_index < sizeof save->minerals / sizeof * save->minerals);
-		dnr_mineral_t* mineral = &save->minerals[curr->mineral_index];
+		const dnr_mineral_t* mineral = &save->minerals[curr->mineral_index];
 		if (mineral->exists)
 		{
 			final.Char.AsciiChar = (char)mineral->size;
@@ -395,7 +395,7 @@ sprite_t file_state_spritify(const dnr_state_t* save, int layer_index)
 	{
 		for (int y = 0; y < TARGET_HEIGHT; y++)
 		{
-			CHAR_INFO final = file_state_render_cell(save, x, y + layer_index * TARGET_HEIGHT);
+			CHAR_INFO final = file_state_spritify_cell(save, x, y + layer_index * TARGET_HEIGHT);
 
 			text[x + y * TARGET_WIDTH] = final.Char.AsciiChar;
 			attrib[x + y * TARGET_WIDTH] = final.Attributes;

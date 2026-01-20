@@ -76,22 +76,17 @@ void save_viewer_handle_mouse_button(int x, int y)
 {
 	int new_selected_x = x;
 	int new_selected_y = y + y_pos;
+
 	if (new_selected_x == selected_x && new_selected_y == selected_y)
 	{
-		info_set_current_cell(0, 0, screen_dirt_color());
-		info_set_current_message("Unselected");
 		selected_x = selected_y = -1;
+		info_cell_set_current(selected_x, selected_y);
 		screen_repaint();
 		return;
 	}
 	selected_x = new_selected_x;
 	selected_y = new_selected_y;
-
-	char character;
-	attribute_t attrib;
-	screen_get_char_region(&character, x, y, 1, 1);
-	screen_get_attrib_region(&attrib, x, y, 1, 1);
-	info_set_current_cell(character, attrib, screen_dirt_color());
+	info_cell_set_current(selected_x, selected_y);
 
 	screen_repaint();
 
@@ -126,6 +121,8 @@ int main()
 	{
 		return 1;
 	}
+
+	info_state_set(save);
 
 	for (int i = 0; i < LAYER_COUNT; i++)
 	{

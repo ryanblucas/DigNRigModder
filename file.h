@@ -37,6 +37,7 @@ typedef int32_t boolean32_t;
 
 #define ADD_SERIALIZABLE(type, name) type name;
 #define ADD_SERIALIZABLE_ARRAY(type, name, count) type name[count];
+#define ADD_SERIALIZABLE_ENUM(name, value) name = value,
 
 typedef struct stalactite
 {
@@ -117,8 +118,6 @@ typedef struct dnr_player
 SERIALIAZBLE_DNR_PLAYER
 } dnr_player_t;
 
-#define ADD_SERIALIZABLE_ENUM(name, value) name = value,
-
 typedef enum dnr_rig_type
 {
 #define SERIALIZABLE_DNR_RIG_TYPE \
@@ -190,6 +189,10 @@ SERIALIZABLE_DNR_STATE_1
 } dnr_state_t;
 
 #pragma pack()
+
+#undef ADD_SERIALIZABLE
+#undef ADD_SERIALIZABLE_ARRAY
+#undef ADD_SERIALIZABLE_ENUM
 
 sprite_t file_sprite_load(const char* directory);
 

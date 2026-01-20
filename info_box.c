@@ -242,6 +242,86 @@ void info_state_set(dnr_state_t* _state)
 	}
 }
 
+/* by running serialize_hash on each of the types as a string, you get this result. */
+
+#define TYPE_FLOAT 210624726069ULL
+#define TYPE_BOOLEAN32_T 13766221191973021547ULL
+#define TYPE_CHAR_INFO 249834764690065676ULL
+#define TYPE_INT32_T 229378475688636ULL
+#define TYPE_UINT32_T 7569686425136137ULL
+#define TYPE_DNR_POINTER_T 15207900801384124882ULL
+#define TYPE_UINT8_T 229384437135984ULL
+#define TYPE_DNR_SPRITE_T 11081697800589051136ULL
+#define TYPE_DNR_RIG_TYPE_T 3798355938377845426ULL
+#define TYPE_DNR_SAVE_HEADER_T 12164599792533459048ULL
+#define TYPE_DNR_LAYER_HEADER_T 663611519707857130ULL
+#define TYPE_DNR_PLAYER_T 11081698126627463866ULL
+#define TYPE_DNR_BLOCK_T 13751622877662047520ULL
+#define TYPE_DNR_MINERAL_T 15207893016492402041ULL
+
+extern inline uint64_t serialize_hash(const char* str)
+{
+	uint64_t hash = 5381;
+	do
+	{
+		hash = ((hash << 5) + hash) ^ *str;
+	} while (*++str);
+	return hash;
+}
+
+static void serialize_array(const char* type, const char* name, void* value, int count)
+{
+	uint64_t type_hash = serialize_hash(type);
+	while (count > 0)
+	{
+		switch (type_hash)
+		{
+		case TYPE_FLOAT:
+			debug_format("%s - %f\n", name, *(float*)value);
+			value = (float*)value + 1;
+			count--;
+			break;
+		case TYPE_BOOLEAN32_T:
+		case TYPE_INT32_T:
+			debug_format("%s - %i\n", name, *(int32_t*)value);
+			value = (int32_t*)value + 1;
+			count--;
+			break;
+		case TYPE_CHAR_INFO:
+		{
+			CHAR_INFO ci_value = *(CHAR_INFO*)value;
+			debug_format("%s - {char: %#04X, attributes: %#06X}\n", name, ci_value.Char.AsciiChar, ci_value.Attributes);
+			value = (CHAR_INFO*)value + 1;
+			count--;
+			break;
+		}
+		case TYPE_UINT32_T:
+		case TYPE_DNR_POINTER_T:
+			debug_format("%s - %ui\n", name, *(uint32_t*)value);
+			value = (uint32_t*)value + 1;
+			count--;
+			break;
+		case TYPE_UINT8_T:
+			debug_format("%s - %#02X\n", name, *(uint8_t*)value);
+			value = (uint8_t*)value + 1;
+			count--;
+			break;
+		case TYPE_DNR_RIG_TYPE_T:
+#define ADD_SERIALIZABLE_ENUM(enum_name, enum_value) case enum_value: debug_format("%s - " #enum_name "\n", name); break;
+			switch (*(dnr_rig_type_t*)value)
+			{
+				SERIALIZABLE_DNR_RIG_TYPE
+			}
+#undef ADD_SERIALIZABLE_ENUM
+			value = (dnr_rig_type_t*)value + 1;
+			count--;
+			break;
+		default:
+			RUNTIME_ASSERT(false);
+		}
+	}
+}
+
 void info_cell_set_current(int x, int y)
 {
 	if (!state)
@@ -261,4 +341,14 @@ void info_cell_set_current(int x, int y)
 	CHAR_INFO cell = file_state_spritify_cell(state, x, y);
 	int layer_index = y / TARGET_HEIGHT;
 	MINERAL_CONTROL_SET_CELL(child_windows[MODE_SAVE][CWI_SAVE_CURRENT_CELL], cell.Char.AsciiChar, cell.Attributes, state->layer_headers[layer_index].dirt_color);
+
+	dnr_block_t* block = &state->blocks[x * (TARGET_HEIGHT * LAYER_COUNT) + y];
+
+#define ADD_SERIALIZABLE(type, name) serialize_array(#type, #name, &block->name, 1);
+#define ADD_SERIALIZABLE_ARRAY(type, name, count) serialize_array(#type, #name, &block->name, count);
+
+	SERIALIZABLE_DNR_BLOCK
+
+#undef ADD_SERIALIZABLE
+#undef ADD_SERIALIZABLE_ARRAY
 }

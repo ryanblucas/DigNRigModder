@@ -5,6 +5,7 @@
 #include "mineral_control.h"
 #include "debug.h"
 #include "screen.h"
+#include <stdio.h>
 #include "types.h"
 #include <Windows.h>
 
@@ -14,6 +15,8 @@ struct mineral_control_internal
 	attribute_t attrib;
 	COLORREF dirt_color;
 	RECT rect;
+	HFONT msg_font;
+	char msg[2048];
 };
 
 static HFONT dnr_font;
@@ -65,7 +68,24 @@ static LRESULT mineral_control_window_proc(HWND hwnd, UINT msg, WPARAM wparam, L
 		DeleteObject(memory_bmp);
 		DeleteObject(memory_dc);
 
+		RECT region = { 0 };
+		region.left = size + 4;
+		region.right = mci->rect.right - 4;
+		region.top = 4;
+		region.bottom = mci->rect.bottom - 4;
+		SelectObject(ps.hdc, mci->msg_font);
+		DrawTextA(ps.hdc, mci->msg, -1, &region, DT_TOP | DT_LEFT);
+
 		EndPaint(hwnd, &ps);
+		return 0;
+	}
+	case WM_SETFONT:
+	{
+		mci->msg_font = (HFONT)wparam;
+		if (LOWORD(lparam) == TRUE)
+		{
+			InvalidateRect(hwnd, NULL, TRUE);
+		}
 		return 0;
 	}
 	case MINERAL_CONTROL_MSG_SET_CELL:
@@ -76,6 +96,12 @@ static LRESULT mineral_control_window_proc(HWND hwnd, UINT msg, WPARAM wparam, L
 		{
 			mci->dirt_color = (COLORREF)lparam;
 		}
+		InvalidateRect(hwnd, NULL, TRUE);
+		return 0;
+	}
+	case MINERAL_CONTROL_MSG_SET_INFO:
+	{
+		strncpy(mci->msg, (char*)wparam, sizeof mci->msg);
 		InvalidateRect(hwnd, NULL, TRUE);
 		return 0;
 	}
@@ -101,4 +127,16 @@ void mineral_control_destroy(void)
 {
 	UnregisterClassW(MINERAL_CONTROL_CLASS_NAME, NULL);
 	DeleteObject(dnr_font);
+}
+
+void mineral_control_set_info_f(HWND hwnd, const char* format, ...)
+{
+	char buf[2048];
+	va_list args;
+
+	va_start(args, format);
+	vsprintf(buf, format, args);
+	va_end(args);
+
+	MINERAL_CONTROL_SET_INFO(hwnd, buf);
 }

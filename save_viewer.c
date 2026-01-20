@@ -79,6 +79,7 @@ void save_viewer_handle_mouse_button(int x, int y)
 	if (new_selected_x == selected_x && new_selected_y == selected_y)
 	{
 		info_set_current_cell(0, 0, screen_dirt_color());
+		info_set_current_message("Unselected");
 		selected_x = selected_y = -1;
 		screen_repaint();
 		return;

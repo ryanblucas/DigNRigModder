@@ -23,3 +23,4 @@ void info_destroy(void);
 info_mode_t info_get_current_mode(void);
 
 void info_set_current_cell(char character, attribute_t attrib, uint32_t dirt_color);
+void info_set_current_message(const char* msg);

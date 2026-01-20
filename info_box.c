@@ -51,6 +51,8 @@ static void info_tab_save(void)
 
 		child_windows[MODE_SAVE][2] = CreateWindowExW(0, MINERAL_CONTROL_CLASS_NAME, NULL, WS_VISIBLE | WS_CHILD, 2, rect.top + 2 + mineral_selection_height + 2, INFO_BOX_START_CLIENT_WIDTH / 2, mineral_selection_height, tab_control, NULL, NULL, NULL);
 		RUNTIME_ASSERT(child_windows[MODE_SAVE][2]);
+
+		SendMessageW(child_windows[MODE_SAVE][1], WM_SETFONT, font_text, FALSE);
 	}
 }
 
@@ -183,8 +185,8 @@ void info_initialize(info_handle_change_mode handler)
 	RUNTIME_ASSERT(InitCommonControlsEx(&icc));
 	mineral_control_initialize();
 
-	font_caption = CreateFontW(16, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, FF_DONTCARE, L"Arial");
-	font_text = CreateFontW(11, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, FF_DONTCARE, L"Arial");
+	font_caption = CreateFontW(-12, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, FF_DONTCARE, L"Arial");
+	font_text = CreateFontW(-10, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, FF_DONTCARE, L"Arial");
 	RUNTIME_ASSERT(font_caption && font_text);
 
 	thread = CreateThread(NULL, 0, info_thread_proc, NULL, 0, &thread_id);
@@ -218,4 +220,9 @@ info_mode_t info_get_current_mode(void)
 void info_set_current_cell(char character, attribute_t attrib, uint32_t dirt_color)
 {
 	MINERAL_CONTROL_SET_CELL(child_windows[MODE_SAVE][1], character, attrib, dirt_color);
+}
+
+void info_set_current_message(const char* msg)
+{
+	MINERAL_CONTROL_SET_INFO(child_windows[MODE_SAVE][1], msg);
 }

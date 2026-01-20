@@ -36,6 +36,7 @@ static LRESULT mineral_control_window_proc(HWND hwnd, UINT msg, WPARAM wparam, L
 	{
 		CREATESTRUCT* cs = (CREATESTRUCT*)lparam;
 		mci = dig_malloc(sizeof * mci);
+		memset(mci, 0, sizeof * mci);
 		SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)mci);
 		mci->rect.right = cs->cx;
 		mci->rect.bottom = cs->cy;
@@ -48,10 +49,21 @@ static LRESULT mineral_control_window_proc(HWND hwnd, UINT msg, WPARAM wparam, L
 
 		Rectangle(ps.hdc, 0, 0, mci->rect.right, mci->rect.bottom);
 
-		SelectObject(ps.hdc, dnr_font);
-		SetTextColor(ps.hdc, mineral_control_get_color(mci, ATTRIBUTE_FOREGROUND(mci->attrib)));
-		SetBkColor(ps.hdc, mineral_control_get_color(mci, ATTRIBUTE_BACKGROUND(mci->attrib)));
-		TextOutA(ps.hdc, 16, 16, &mci->character, 1);
+		HDC memory_dc = CreateCompatibleDC(ps.hdc);
+		HBITMAP memory_bmp = CreateCompatibleBitmap(ps.hdc, mci->rect.right, mci->rect.bottom);
+
+		SelectObject(memory_dc, memory_bmp);
+
+		SelectObject(memory_dc, dnr_font);
+		SetTextColor(memory_dc, mineral_control_get_color(mci, ATTRIBUTE_FOREGROUND(mci->attrib)));
+		SetBkColor(memory_dc, mineral_control_get_color(mci, ATTRIBUTE_BACKGROUND(mci->attrib)));
+		TextOutA(memory_dc, 0, 0, &mci->character, 1);
+
+		int size = (mci->rect.bottom - 8) / 8 * 8;
+		StretchBlt(ps.hdc, 4, (mci->rect.bottom - size) / 2, size, size, memory_dc, 0, 0, 8, 8, SRCCOPY);
+
+		DeleteObject(memory_bmp);
+		DeleteObject(memory_dc);
 
 		EndPaint(hwnd, &ps);
 		return 0;

@@ -58,5 +58,11 @@ void debug_profiler_pop(const char* description)
 	QueryPerformanceCounter(&end);
 	QueryPerformanceFrequency(&freq);
 	current--;
+	if (current < 0)
+	{
+		current = 0;
+		debug_format("Popped too many times on profiling\n");
+		return;
+	}
 	debug_format("%s took %fs.\n", description, (end.QuadPart - starts[current].QuadPart) / (double)freq.QuadPart);
 }

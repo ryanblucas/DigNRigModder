@@ -375,7 +375,7 @@ CHAR_INFO file_state_spritify_cell(const dnr_state_t* save, int x, int y)
 	}
 	for (int i = 0; i < save->stalactite_count; i++)
 	{
-		if ((int)save->stalactite_array[i].x == x && (int)save->stalactite_array[i].y == y && save->stalactite_array[i].exists)
+		if (save->stalactite_array[i].exists && (int)save->stalactite_array[i].x == x && (int)save->stalactite_array[i].y == y)
 		{
 			final = save->stalactite_array[i].cell;
 			break;
@@ -387,7 +387,6 @@ CHAR_INFO file_state_spritify_cell(const dnr_state_t* save, int x, int y)
 sprite_t file_state_spritify(const dnr_state_t* save, int layer_index)
 {
 	RUNTIME_ASSERT(save && layer_index >= 0 && layer_index < LAYER_COUNT);
-
 	char* text = dig_malloc(TARGET_WIDTH * TARGET_HEIGHT * sizeof * text);
 	attribute_t* attrib = dig_malloc(TARGET_WIDTH * TARGET_HEIGHT * sizeof * attrib);
 

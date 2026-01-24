@@ -103,6 +103,7 @@ void save_viewer_handle_mouse_wheel(int delta)
 int main()
 {
 	debug_profiler_push();
+
 	screen_initialize((screen_events_t)
 	{
 		.repaint = save_viewer_handle_repaint,
@@ -115,22 +116,26 @@ int main()
 
 	info_initialize(NULL);
 
-	/* temporary */
+	debug_profiler_push();
+	/* paths are temporary */
 	save = file_state_load("C:\\Users\\fcsto\\OneDrive\\Documents\\DigiPen\\Dig-N-Rig\\profile1.sav");
 	flag = file_sprite_load("C:\\Program Files (x86)\\DigiPen\\Dig-N-Rig\\Sprites\\Checkpoint.sprite");
 	if (!save || !flag)
 	{
 		return 1;
 	}
+	debug_profiler_pop("Load assets");
 
-	info_state_set(save);
-
+	debug_profiler_push();
 	for (int i = 0; i < LAYER_COUNT; i++)
 	{
 		cache[i] = file_state_spritify(save, i);
 	}
+	debug_profiler_pop("Spritify all layers");
 
 	save_viewer_move_window(TARGET_HEIGHT / 2 - (int)save->player.y_spawn);
+	info_state_set(save); /* wait till last second to call so that there's not much waiting if any on this thread */
+
 	debug_profiler_pop("Application initialization");
 
 	screen_loop();

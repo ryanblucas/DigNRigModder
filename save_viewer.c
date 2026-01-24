@@ -102,6 +102,7 @@ void save_viewer_handle_mouse_wheel(int delta)
 
 int main()
 {
+	debug_profiler_push();
 	screen_initialize((screen_events_t)
 	{
 		.repaint = save_viewer_handle_repaint,
@@ -130,6 +131,8 @@ int main()
 	}
 
 	save_viewer_move_window(TARGET_HEIGHT / 2 - (int)save->player.y_spawn);
+	debug_profiler_pop("Application initialization");
+
 	screen_loop();
 
 	screen_sprite_destroy(flag);

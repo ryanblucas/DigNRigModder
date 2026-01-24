@@ -265,18 +265,14 @@ dnr_state_t* info_state_get(void)
 
 static void info_state_set_tree_view(dnr_state_t* user_state)
 {
-	LARGE_INTEGER frequency, start;
-	QueryPerformanceFrequency(&frequency);
-	QueryPerformanceCounter(&start);
-
+	debug_profiler_push();
 	dnr_state_t* item = user_state;
 
-	/* array is set to mininum of (count, 257) because you are essentially creating a preview of the array. 
-	   If everything is initialized from the beginning, it will take like 10 minutes and 4Gb.
-	   The specific number is just so that it's obvious when viewing that it's not the entire array */
+	/* array is set to mininum of 1 because you are essentially creating a preview of the array. 
+	   If everything is initialized from the beginning, it will take like 10 minutes and 4Gb. */
 
 #define ADD_SERIALIZABLE(type, name) serialize_single(#type, &item->name, #name, child_windows[CWI_SAVE_TREEVIEW], root);
-#define ADD_SERIALIZABLE_ARRAY(type, name, count) serialize_array(#type, &item->name, min(count, 257), #name, child_windows[CWI_SAVE_TREEVIEW], root);
+#define ADD_SERIALIZABLE_ARRAY(type, name, count) serialize_array(#type, &item->name, 1, #name, child_windows[CWI_SAVE_TREEVIEW], root);
 
 	HTREEITEM root = NULL;
 
@@ -313,9 +309,7 @@ static void info_state_set_tree_view(dnr_state_t* user_state)
 #undef ADD_SERIALIZABLE
 #undef ADD_SERIALIZABLE_ARRAY
 
-	LARGE_INTEGER end;
-	QueryPerformanceCounter(&end);
-	debug_format("Serializing base-level took %f seconds.\n", (double)(end.QuadPart - start.QuadPart) / frequency.QuadPart);
+	debug_profiler_pop("Serializing");
 }
 
 void info_state_set(dnr_state_t* _state)

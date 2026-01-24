@@ -7,6 +7,9 @@
 #include <strsafe.h>
 #include <Windows.h>
 
+static LARGE_INTEGER starts[16];
+static int current;
+
 void debug_format(const char* fmt, ...)
 {
 	static char* current_buffer = NULL;
@@ -37,4 +40,23 @@ void debug_format(const char* fmt, ...)
 	va_end(list);
 
 	OutputDebugStringA(current_buffer);
+}
+
+void debug_profiler_push(void)
+{
+	if (current >= 16)
+	{
+		debug_format("Out of profiling stack space... do not trust most recent times\n");
+		current = 15;
+	}
+	QueryPerformanceCounter(&starts[current++]);
+}
+
+void debug_profiler_pop(const char* description)
+{
+	LARGE_INTEGER end, freq;
+	QueryPerformanceCounter(&end);
+	QueryPerformanceFrequency(&freq);
+	current--;
+	debug_format("%s took %fs.\n", description, (end.QuadPart - starts[current].QuadPart) / (double)freq.QuadPart);
 }

@@ -33,6 +33,9 @@
     <ClCompile Include="mineral_control.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="serialize.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="types.h">
@@ -51,6 +54,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="mineral_control.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="serialize.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

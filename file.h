@@ -93,7 +93,7 @@ SERIALIZABLE_DNR_SPRITE
 
 typedef struct dnr_player
 {
-#define SERIALIAZBLE_DNR_PLAYER \
+#define SERIALIZABLE_DNR_PLAYER \
 	ADD_SERIALIZABLE(dnr_sprite_t, sprite) \
 	ADD_SERIALIZABLE_ARRAY(uint8_t, reserved0, 0x4C) \
 	ADD_SERIALIZABLE(int32_t, fall_height) \
@@ -115,12 +115,13 @@ typedef struct dnr_player
 	ADD_SERIALIZABLE(int32_t, scooper_count) \
 	ADD_SERIALIZABLE(int32_t, item_hud_length) \
 	ADD_SERIALIZABLE_ARRAY(uint8_t, reserved3, 0x30)
-SERIALIAZBLE_DNR_PLAYER
+SERIALIZABLE_DNR_PLAYER
 } dnr_player_t;
 
 typedef enum dnr_rig_type
 {
 #define SERIALIZABLE_DNR_RIG_TYPE \
+	ADD_SERIALIZABLE_ENUM(RIG_NONE, 0x00) \
 	ADD_SERIALIZABLE_ENUM(RIG_LADDER, 0x02) \
 	ADD_SERIALIZABLE_ENUM(RIG_SCOOPER, 0x04) \
 	ADD_SERIALIZABLE_ENUM(RIG_PLATFORM, 0x06) \

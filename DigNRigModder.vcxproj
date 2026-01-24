@@ -135,6 +135,7 @@
     <ClCompile Include="mineral_control.c" />
     <ClCompile Include="save_viewer.c" />
     <ClCompile Include="screen.c" />
+    <ClCompile Include="serialize.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug.h" />
@@ -142,6 +143,7 @@
     <ClInclude Include="info_box.h" />
     <ClInclude Include="mineral_control.h" />
     <ClInclude Include="screen.h" />
+    <ClInclude Include="serialize.h" />
     <ClInclude Include="types.h" />
   </ItemGroup>
   <ItemGroup>

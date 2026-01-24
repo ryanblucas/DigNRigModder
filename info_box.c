@@ -69,7 +69,6 @@ static void info_tab_save(void)
 
 		child_windows[CWI_SAVE_CURRENT_CELL] = CreateWindowExW(0, MINERAL_CONTROL_CLASS_NAME, NULL, WS_VISIBLE | WS_CHILD, padding, rect.top + padding, INFO_BOX_CLIENT_WIDTH / 3 * 2, 72, tab_control, NULL, NULL, NULL);
 		RUNTIME_ASSERT(child_windows[CWI_SAVE_CURRENT_CELL]);
-		SendMessageW(child_windows[CWI_SAVE_CURRENT_CELL], WM_SETFONT, (WPARAM)font_text, (LPARAM)FALSE);
 
 		child_windows[CWI_SAVE_PAINTER_CELL] = CreateWindowExW(0, MINERAL_CONTROL_CLASS_NAME, NULL, WS_VISIBLE | WS_CHILD, padding, rect.top + padding * 2 + INFO_BOX_CELL_SIZE, INFO_BOX_CLIENT_WIDTH / 3 * 2, 72, tab_control, NULL, NULL, NULL);
 		RUNTIME_ASSERT(child_windows[CWI_SAVE_PAINTER_CELL]);
@@ -95,6 +94,74 @@ static void info_tab_layer(void)
 
 }
 
+static LRESULT info_window_tab_control_proc(HWND hwnd, WPARAM wparam, LPARAM lparam)
+{
+	NMHDR* nmhdr = (NMHDR*)lparam;
+	if (nmhdr->code != TCN_SELCHANGE)
+	{
+		return 0;
+	}
+	current_mode = TabCtrl_GetCurSel(tab_control);
+	for (int i = 0; i < CWI_COUNT; i++)
+	{
+		ShowWindow(child_windows[i], SW_HIDE);
+	}
+	switch (current_mode)
+	{
+	case MODE_SAVE:
+		info_tab_save();
+		break;
+	case MODE_SPRITE:
+		info_tab_sprite();
+		break;
+	case MODE_LAYER:
+		info_tab_layer();
+		break;
+	default:
+		RUNTIME_ASSERT(false);
+		break;
+	}
+	if (change_mode_handler)
+	{
+		change_mode_handler(current_mode);
+	}
+	return 0;
+}
+
+static LRESULT info_window_save_tree_control_proc(HWND hwnd, WPARAM wparam, LPARAM lparam)
+{
+	NMTREEVIEWW* nmtv = (NMTREEVIEWW*)lparam;
+	if (nmtv->hdr.code != TVN_ITEMEXPANDING || nmtv->action != TVE_EXPAND)
+	{
+		return 0;
+	}
+	if (nmtv->itemNew.mask & TVIF_PARAM && nmtv->itemNew.lParam)
+	{
+		debug_profiler_push();
+
+		surface_array_t* sa = (surface_array_t*)nmtv->itemNew.lParam;
+		serialize_set_preview_mode(true);
+		char buf[128];
+		int res = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, sa->name, -1, buf, sizeof buf, NULL, NULL);
+		serialize_finish_array(sa, child_windows[CWI_SAVE_TREEVIEW], nmtv->itemNew.hItem);
+		serialize_set_preview_mode(false);
+
+		if (res)
+		{
+			debug_profiler_pop("Serializing %s", buf);
+		}
+		else
+		{
+			debug_profiler_pop("Post-serializing");
+		}
+
+		nmtv->itemNew.mask = TVIF_PARAM;
+		nmtv->itemNew.lParam = NULL;
+		TreeView_SetItem(child_windows[CWI_SAVE_TREEVIEW], &nmtv->itemNew);
+	}
+	return 0;
+}
+
 static LRESULT info_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
 	switch (msg)
@@ -117,33 +184,13 @@ static LRESULT info_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
 	case WM_NOTIFY:
 	{
 		NMHDR* nmhdr = (NMHDR*)lparam;
-		if (nmhdr->hwndFrom != tab_control || nmhdr->code != TCN_SELCHANGE)
+		if (nmhdr->hwndFrom == tab_control)
 		{
-			return 0;
+			return info_window_tab_control_proc(hwnd, wparam, lparam);
 		}
-		current_mode = TabCtrl_GetCurSel(tab_control);
-		for (int i = 0; i < CWI_COUNT; i++)
+		else if (nmhdr->hwndFrom == child_windows[CWI_SAVE_TREEVIEW])
 		{
-			ShowWindow(child_windows[i], SW_HIDE);
-		}
-		switch (current_mode)
-		{
-		case MODE_SAVE:
-			info_tab_save();
-			break;
-		case MODE_SPRITE:
-			info_tab_sprite();
-			break;
-		case MODE_LAYER:
-			info_tab_layer();
-			break;
-		default:
-			RUNTIME_ASSERT(false);
-			break;
-		}
-		if (change_mode_handler)
-		{
-			change_mode_handler(current_mode);
+			return info_window_save_tree_control_proc(hwnd, wparam, lparam);
 		}
 		return 0;
 	}
@@ -268,13 +315,12 @@ static void info_state_set_tree_view(dnr_state_t* user_state)
 	debug_profiler_push();
 	dnr_state_t* item = user_state;
 
-	/* array is set to mininum of 1 because you are essentially creating a preview of the array. 
-	   If everything is initialized from the beginning, it will take like 10 minutes and 4Gb. */
-
 #define ADD_SERIALIZABLE(type, name) serialize_single(#type, &item->name, #name, child_windows[CWI_SAVE_TREEVIEW], root);
-#define ADD_SERIALIZABLE_ARRAY(type, name, count) serialize_array(#type, &item->name, 1, #name, child_windows[CWI_SAVE_TREEVIEW], root);
+#define ADD_SERIALIZABLE_ARRAY(type, name, count) serialize_array(#type, &item->name, count, #name, child_windows[CWI_SAVE_TREEVIEW], root);
 
 	HTREEITEM root = NULL;
+
+	serialize_set_preview_mode(true);
 
 	SERIALIZABLE_DNR_STATE_0
 
@@ -305,6 +351,8 @@ static void info_state_set_tree_view(dnr_state_t* user_state)
 	root = NULL;
 
 	SERIALIZABLE_DNR_STATE_1
+
+	serialize_set_preview_mode(false);
 
 #undef ADD_SERIALIZABLE
 #undef ADD_SERIALIZABLE_ARRAY

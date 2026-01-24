@@ -9,4 +9,4 @@
 
 void debug_format(const char* fmt, ...);
 void debug_profiler_push(void);
-void debug_profiler_pop(const char* description);
+void debug_profiler_pop(const char* format, ...);

@@ -52,7 +52,7 @@ void debug_profiler_push(void)
 	QueryPerformanceCounter(&starts[current++]);
 }
 
-void debug_profiler_pop(const char* description)
+void debug_profiler_pop(const char* format, ...)
 {
 	LARGE_INTEGER end, freq;
 	QueryPerformanceCounter(&end);
@@ -64,5 +64,12 @@ void debug_profiler_pop(const char* description)
 		debug_format("Popped too many times on profiling\n");
 		return;
 	}
-	debug_format("%s took %fs.\n", description, (end.QuadPart - starts[current].QuadPart) / (double)freq.QuadPart);
+
+	va_list list;
+	va_start(list, format);
+	char buf[256];
+	vsnprintf(buf, sizeof buf, format, list);
+	va_end(list);
+
+	debug_format("%s took %fs.\n", buf, (end.QuadPart - starts[current].QuadPart) / (double)freq.QuadPart);
 }

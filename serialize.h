@@ -23,3 +23,5 @@ void serialize_finish_array(surface_array_t* sa, HWND tree_window, HTREEITEM tre
 
 void serialize_single(const char* type, void* value, const char* name, HWND tree_window, HTREEITEM tree_item);
 void serialize_array(const char* type, void* value, int count, const char* name, HWND tree_window, HTREEITEM tree_item);
+
+void serialize_delete(HWND tree_window);

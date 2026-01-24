@@ -338,3 +338,25 @@ void serialize_array(const char* type, void* value, int count, const char* name,
 	tree_item = TreeView_InsertItem(tree_window, &tvins);
 	serialize_array_internal(type_hash, value, 0, loop_count, wname, tree_window, tree_item);
 }
+
+void serialize_delete_internal(HWND tree_window, HTREEITEM item)
+{
+	if (!item)
+	{
+		return;
+	}
+	HTREEITEM curr = TreeView_GetChild(tree_window, item);
+	do
+	{
+		serialize_delete_internal(tree_window, TreeView_GetChild(tree_window, item));
+		TVITEMEXW item = { .mask = TVIF_PARAM };
+		TreeView_GetItem(tree_window, &item);
+		free((void*)item.lParam);
+	} while (curr = TreeView_GetNextSibling(tree_window, curr));
+}
+
+void serialize_delete(HWND tree_window)
+{
+	serialize_delete_internal(tree_window, TreeView_GetRoot(tree_window));
+	TreeView_DeleteAllItems(tree_window);
+}

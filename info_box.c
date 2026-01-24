@@ -200,6 +200,7 @@ static LRESULT info_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
 			SetWindowLongPtr(hwnd, GWLP_USERDATA, 1);
 			return 0;
 		}
+		serialize_delete(child_windows[CWI_SAVE_TREEVIEW]);
 		info_state_set_tree_view((dnr_state_t*)wparam);
 		return 0;
 	case WM_SIZE:

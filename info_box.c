@@ -139,11 +139,11 @@ static LRESULT info_window_save_tree_control_proc(HWND hwnd, WPARAM wparam, LPAR
 	{
 		debug_profiler_push();
 
-		surface_array_t* sa = (surface_array_t*)nmtv->itemNew.lParam;
+		surface_element_t* se = (surface_element_t*)nmtv->itemNew.lParam;
 		serialize_set_preview_mode(true);
 		char buf[128];
-		int res = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, sa->name, -1, buf, sizeof buf, NULL, NULL);
-		serialize_finish_array(sa, child_windows[CWI_SAVE_TREEVIEW], nmtv->itemNew.hItem);
+		int res = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, se->name, -1, buf, sizeof buf, NULL, NULL);
+		serialize_finalize(se, child_windows[CWI_SAVE_TREEVIEW], nmtv->itemNew.hItem);
 		serialize_set_preview_mode(false);
 
 		if (res)

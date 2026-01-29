@@ -138,6 +138,7 @@ int main()
 
 	debug_profiler_pop("Application initialization");
 
+	debug_format("%x\n", offsetof(dnr_state_t, blocks[998]));
 	screen_loop();
 
 	screen_sprite_destroy(flag);

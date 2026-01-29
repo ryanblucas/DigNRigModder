@@ -36,8 +36,40 @@ void serialize_set_preview_mode(bool mode)
 	is_surface = mode;
 }
 
+static inline size_t serialize_type_size(uint64_t type_hash)
+{
+	switch (type_hash)
+	{
+	case TYPE_UINT8_T:
+		return 1;
+	case TYPE_UINT16_T:
+		return 2;
+	case TYPE_FLOAT:
+	case TYPE_BOOLEAN32_T:
+	case TYPE_CHAR_INFO:
+	case TYPE_INT32_T:
+	case TYPE_UINT32_T:
+	case TYPE_DNR_POINTER_T:
+	case TYPE_DNR_RIG_TYPE_T:
+		return 4;
+	case TYPE_DNR_SPRITE_T:
+		return sizeof(dnr_sprite_t);
+	case TYPE_DNR_SAVE_HEADER_T:
+		return sizeof(dnr_save_header_t);
+	case TYPE_DNR_LAYER_HEADER_T:
+		return sizeof(dnr_layer_header_t);
+	case TYPE_DNR_PLAYER_T:
+		return sizeof(dnr_player_t);
+	case TYPE_DNR_BLOCK_T:
+		return sizeof(dnr_block_t);
+	case TYPE_DNR_MINERAL_T:
+		return sizeof(dnr_mineral_t);
+	}
+}
+
 static void serialize_array_internal(uint64_t type_hash, void* value, int start, int end, WCHAR* wname, HWND tree_window, HTREEITEM tree_item)
 {
+	value = (uint8_t*)value + serialize_type_size(type_hash) * (end - 1);
 	for (int i = end - 1; i >= start; i--)
 	{
 		TVINSERTSTRUCTW tvins = { 0 };
@@ -54,32 +86,32 @@ static void serialize_array_internal(uint64_t type_hash, void* value, int start,
 		{
 		case TYPE_FLOAT:
 			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%i - %f", i, *(float*)value);
-			value = (float*)value + 1;
+			value = (float*)value - 1;
 			break;
 		case TYPE_BOOLEAN32_T:
 		case TYPE_INT32_T:
 			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%i - %i", i, *(int32_t*)value);
-			value = (int32_t*)value + 1;
+			value = (int32_t*)value - 1;
 			break;
 		case TYPE_CHAR_INFO:
 		{
 			CHAR_INFO ci_value = *(CHAR_INFO*)value;
 			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%i - {char: %#04x, attributes: %#06x}", i, ci_value.Char.AsciiChar, ci_value.Attributes);
-			value = (CHAR_INFO*)value + 1;
+			value = (CHAR_INFO*)value - 1;
 			break;
 		}
 		case TYPE_UINT32_T:
 		case TYPE_DNR_POINTER_T:
 			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%i - %#010x", i, *(uint32_t*)value);
-			value = (uint32_t*)value + 1;
+			value = (uint32_t*)value - 1;
 			break;
 		case TYPE_UINT16_T:
 			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#06x", wname, *(uint16_t*)value);
-			value = (uint16_t*)value + 1;
+			value = (uint16_t*)value - 1;
 			break;
 		case TYPE_UINT8_T:
 			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%i - %#04x", i, *(uint8_t*)value);
-			value = (uint8_t*)value + 1;
+			value = (uint8_t*)value - 1;
 			break;
 		case TYPE_DNR_RIG_TYPE_T:
 #define ADD_SERIALIZABLE_ENUM(enum_name, enum_value) case enum_value: StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%i - " L#enum_name, i); break;
@@ -91,7 +123,7 @@ static void serialize_array_internal(uint64_t type_hash, void* value, int start,
 				break;
 			}
 #undef ADD_SERIALIZABLE_ENUM
-			value = (dnr_rig_type_t*)value + 1;
+			value = (dnr_rig_type_t*)value - 1;
 			break;
 
 #define ADD_SERIALIZABLE(type, name) serialize_single(#type, &item->name, #name, tree_window, next_tree_item);
@@ -102,7 +134,7 @@ static void serialize_array_internal(uint64_t type_hash, void* value, int start,
 			dnr_sprite_t* item = (dnr_sprite_t*)value;
 			HTREEITEM next_tree_item = TreeView_InsertItem(tree_window, &tvins);
 			SERIALIZABLE_DNR_SPRITE
-			value = item + 1;
+			value = item - 1;
 			break;
 		}
 
@@ -111,7 +143,7 @@ static void serialize_array_internal(uint64_t type_hash, void* value, int start,
 			dnr_save_header_t* item = (dnr_save_header_t*)value;
 			HTREEITEM next_tree_item = TreeView_InsertItem(tree_window, &tvins);
 			SERIALIZABLE_DNR_SAVE_HEADER
-			value = item + 1;
+			value = item - 1;
 			continue;
 		}
 
@@ -120,7 +152,7 @@ static void serialize_array_internal(uint64_t type_hash, void* value, int start,
 			dnr_layer_header_t* item = (dnr_layer_header_t*)value;
 			HTREEITEM next_tree_item = TreeView_InsertItem(tree_window, &tvins);
 			SERIALIZABLE_DNR_LAYER_HEADER
-			value = item + 1;
+			value = item - 1;
 			continue;
 		}
 
@@ -129,7 +161,7 @@ static void serialize_array_internal(uint64_t type_hash, void* value, int start,
 			dnr_player_t* item = (dnr_player_t*)value;
 			HTREEITEM next_tree_item = TreeView_InsertItem(tree_window, &tvins);
 			SERIALIZABLE_DNR_PLAYER
-			value = item + 1;
+			value = item - 1;
 			continue;
 		}
 
@@ -152,13 +184,13 @@ static void serialize_array_internal(uint64_t type_hash, void* value, int start,
 
 				TreeView_InsertItem(tree_window, &tvins);
 
-				value = item + 1;
+				value = item - 1;
 				continue;
 			}
 
 			HTREEITEM next_tree_item = TreeView_InsertItem(tree_window, &tvins);
 			SERIALIZABLE_DNR_BLOCK
-			value = item + 1;
+			value = item - 1;
 			continue;
 		}
 
@@ -181,13 +213,13 @@ static void serialize_array_internal(uint64_t type_hash, void* value, int start,
 
 				TreeView_InsertItem(tree_window, &tvins);
 
-				value = item + 1;
+				value = item - 1;
 				continue;
 			}
 
 			HTREEITEM next_tree_item = TreeView_InsertItem(tree_window, &tvins);
 			SERIALIZABLE_DNR_MINERAL
-			value = item + 1;
+			value = item - 1;
 			continue;
 		}
 
@@ -376,7 +408,7 @@ void serialize_array(const char* type, void* value, int count, const char* name,
 	TVINSERTSTRUCTW tvins = { 0 };
 
 	WCHAR buf[256];
-	StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %i\n", wname, count);
+	StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %i", wname, count);
 	tvins.itemex.pszText = buf;
 	tvins.itemex.cchTextMax = 0;
 	tvins.itemex.mask = TVIF_TEXT;
@@ -419,4 +451,30 @@ void serialize_delete(HWND tree_window)
 {
 	serialize_delete_internal(tree_window, TreeView_GetRoot(tree_window));
 	TreeView_DeleteAllItems(tree_window);
+}
+
+HTREEITEM serialize_tree_find_item(HWND tree_window, HTREEITEM root, const char* name)
+{
+	HTREEITEM curr = TreeView_GetChild(tree_window, root);
+	while (curr)
+	{
+		WCHAR wname[64], tname[64];
+		TVITEMEX tvix = { .mask = TVIF_TEXT, .pszText = tname, .cchTextMax = sizeof tname / sizeof * tname, .hItem = curr };
+		TreeView_GetItem(tree_window, &tvix);
+
+		RUNTIME_ASSERT(MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, name, -1, wname, sizeof wname / sizeof * wname));
+		
+		if (!tvix.pszText)
+		{
+			continue;
+		}
+
+		if (wcsncmp(wname, tvix.pszText, sizeof wname) == 0)
+		{
+			return curr;
+		}
+
+		curr = TreeView_GetNextSibling(tree_window, curr);
+	}
+	return curr;
 }

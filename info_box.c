@@ -326,9 +326,11 @@ static void info_state_set_tree_view(dnr_state_t* user_state)
 	SERIALIZABLE_DNR_STATE_0
 
 	TVINSERTSTRUCTW tvins;
+	WCHAR buf[32];
 
+	StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"stalactite_array - %i\n", user_state->stalactite_count);
 	tvins.hParent = TVI_ROOT;
-	tvins.itemex.pszText = L"stalactite_array";
+	tvins.itemex.pszText = buf;
 	tvins.itemex.mask = TVIF_TEXT;
 	tvins.hInsertAfter = TVI_LAST;
 	root = TreeView_InsertItem(child_windows[CWI_SAVE_TREEVIEW], &tvins);
@@ -340,7 +342,6 @@ static void info_state_set_tree_view(dnr_state_t* user_state)
 	{
 		stalactite_t* item = &user_state->stalactite_array[i];
 
-		WCHAR buf[8];
 		tvins.itemex.pszText = buf;
 		StringCchPrintfW(tvins.itemex.pszText, sizeof buf / sizeof * buf, L"%i\n", i);
 		root = TreeView_InsertItem(child_windows[CWI_SAVE_TREEVIEW], &tvins);
@@ -358,7 +359,7 @@ static void info_state_set_tree_view(dnr_state_t* user_state)
 #undef ADD_SERIALIZABLE
 #undef ADD_SERIALIZABLE_ARRAY
 
-	debug_profiler_pop("Serializing");
+	debug_profiler_pop("Surface level serializing");
 }
 
 void info_state_set(dnr_state_t* _state)

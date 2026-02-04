@@ -65,6 +65,7 @@ static inline size_t serialize_type_size(uint64_t type_hash)
 	case TYPE_DNR_MINERAL_T:
 		return sizeof(dnr_mineral_t);
 	}
+	return 0;
 }
 
 static void serialize_array_internal(uint64_t type_hash, void* value, int start, int end, WCHAR* wname, HWND tree_window, HTREEITEM tree_item)

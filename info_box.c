@@ -16,7 +16,7 @@
 #define INFO_BOX_CLASS_NAME L"dnr_mod_info"
 #define INFO_BOX_WINDOW_STYLE (WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX)
 #define INFO_BOX_WINDOW_STYLE_EX (WS_EX_OVERLAPPEDWINDOW)
-#define INFO_BOX_CLIENT_WIDTH 300
+#define INFO_BOX_CLIENT_WIDTH 400
 #define INFO_BOX_CLIENT_HEIGHT 400
 #define INFO_BOX_CELL_SIZE 72
 
@@ -28,18 +28,16 @@ enum child_window_index
 {
 	CWI_SAVE_TREEVIEW,
 	CWI_SAVE_CURRENT_CELL,
-	CWI_SAVE_PAINTER_CELL,
-	CWI_SAVE_GO_TO_BLOCK_BUTTON,
-	CWI_SAVE_GO_TO_MINERAL_BUTTON,
-	CWI_SAVE_GO_TO_STALACTITE_BUTTON,
+	CWI_SAVE_CURRENT_TREEVIEW,
+	CWI_SAVE_GO_TO_LAYER_BUTTON,
 
 	CWI_SAVE_START = CWI_SAVE_TREEVIEW,
-	CWI_SAVE_END = CWI_SAVE_GO_TO_STALACTITE_BUTTON,
+	CWI_SAVE_END = CWI_SAVE_GO_TO_LAYER_BUTTON,
 
 	CWI_COUNT
 };
 
-static HFONT font_caption;
+static HFONT font_caption; 
 static HFONT font_text;
 
 static HWND window;
@@ -68,33 +66,22 @@ static void info_tab_save(HWND hwnd)
 		RECT rect = { 0, 0, INFO_BOX_CLIENT_WIDTH, INFO_BOX_CLIENT_HEIGHT };
 		TabCtrl_AdjustRect(tab_control, FALSE, &rect);
 
-		int padding = ((198 - rect.top) - INFO_BOX_CELL_SIZE * 2) / 3;
-
 		child_windows[CWI_SAVE_TREEVIEW] = CreateWindowExW(0, WC_TREEVIEWW, NULL, WS_VISIBLE | WS_CHILD | WS_BORDER | TVS_HASLINES | TVS_LINESATROOT | TVS_HASBUTTONS, 2, 198, INFO_BOX_CLIENT_WIDTH - 4, 200, hwnd, NULL, NULL, NULL);
 		RUNTIME_ASSERT(child_windows[CWI_SAVE_TREEVIEW]);
 		SendMessageW(child_windows[CWI_SAVE_TREEVIEW], WM_SETFONT, (WPARAM)font_text, (LPARAM)FALSE);
 
-		child_windows[CWI_SAVE_CURRENT_CELL] = CreateWindowExW(0, MINERAL_CONTROL_CLASS_NAME, NULL, WS_VISIBLE | WS_CHILD, padding, rect.top + padding, 72, 72, hwnd, NULL, NULL, NULL);
+		child_windows[CWI_SAVE_CURRENT_CELL] = CreateWindowExW(0, MINERAL_CONTROL_CLASS_NAME, NULL, WS_VISIBLE | WS_CHILD, 3, 25, 72, 72, hwnd, NULL, NULL, NULL);
 		RUNTIME_ASSERT(child_windows[CWI_SAVE_CURRENT_CELL]);
 
-		child_windows[CWI_SAVE_PAINTER_CELL] = CreateWindowExW(0, MINERAL_CONTROL_CLASS_NAME, NULL, WS_VISIBLE | WS_CHILD, padding, rect.top + padding * 2 + INFO_BOX_CELL_SIZE, 72, 72, hwnd, NULL, NULL, NULL);
-		RUNTIME_ASSERT(child_windows[CWI_SAVE_PAINTER_CELL]);
+		child_windows[CWI_SAVE_CURRENT_TREEVIEW] = CreateWindowExW(0, WC_TREEVIEWW, NULL, WS_VISIBLE | WS_CHILD | WS_BORDER | TVS_HASLINES | TVS_LINESATROOT | TVS_HASBUTTONS, 76, 25, 322, 174, hwnd, NULL, NULL, NULL);
+		RUNTIME_ASSERT(child_windows[CWI_SAVE_CURRENT_TREEVIEW]);
+		SendMessageW(child_windows[CWI_SAVE_CURRENT_TREEVIEW], WM_SETFONT, (WPARAM)font_text, (LPARAM)FALSE);
 
-		child_windows[CWI_SAVE_GO_TO_BLOCK_BUTTON] = CreateWindowExW(0, L"BUTTON", L"Go to block", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, padding + INFO_BOX_CELL_SIZE + 4, rect.top + padding + 1, INFO_BOX_CLIENT_WIDTH / 3 + 4, 22, hwnd, NULL, NULL, NULL);
-		RUNTIME_ASSERT(child_windows[CWI_SAVE_GO_TO_BLOCK_BUTTON]);
+		child_windows[CWI_SAVE_GO_TO_LAYER_BUTTON] = CreateWindowExW(0, L"BUTTON", L"Go to layer", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 3, 98, 72, 22, hwnd, NULL, NULL, NULL);
+		RUNTIME_ASSERT(child_windows[CWI_SAVE_GO_TO_LAYER_BUTTON]);
 
-		child_windows[CWI_SAVE_GO_TO_MINERAL_BUTTON] = CreateWindowExW(0, L"BUTTON", L"Go to mineral", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, padding + INFO_BOX_CELL_SIZE + 4, rect.top + padding + 25, INFO_BOX_CLIENT_WIDTH / 3 + 4, 22, hwnd, NULL, NULL, NULL);
-		RUNTIME_ASSERT(child_windows[CWI_SAVE_GO_TO_MINERAL_BUTTON]);
-
-		child_windows[CWI_SAVE_GO_TO_STALACTITE_BUTTON] = CreateWindowExW(0, L"BUTTON", L"Go to stalactite", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, padding + INFO_BOX_CELL_SIZE + 4, rect.top + padding + 49, INFO_BOX_CLIENT_WIDTH / 3 + 4, 22, hwnd, NULL, NULL, NULL);
-		RUNTIME_ASSERT(child_windows[CWI_SAVE_GO_TO_STALACTITE_BUTTON]);
-
-		SendMessageW(child_windows[CWI_SAVE_GO_TO_BLOCK_BUTTON], WM_SETFONT, (WPARAM)font_text, (LPARAM)FALSE);
-		SendMessageW(child_windows[CWI_SAVE_GO_TO_MINERAL_BUTTON], WM_SETFONT, (WPARAM)font_text, (LPARAM)FALSE);
-		SendMessageW(child_windows[CWI_SAVE_GO_TO_STALACTITE_BUTTON], WM_SETFONT, (WPARAM)font_text, (LPARAM)FALSE);
-		EnableWindow(child_windows[CWI_SAVE_GO_TO_BLOCK_BUTTON], FALSE);
-		EnableWindow(child_windows[CWI_SAVE_GO_TO_MINERAL_BUTTON], FALSE);
-		EnableWindow(child_windows[CWI_SAVE_GO_TO_STALACTITE_BUTTON], FALSE);
+		SendMessageW(child_windows[CWI_SAVE_GO_TO_LAYER_BUTTON], WM_SETFONT, (WPARAM)font_text, (LPARAM)FALSE);
+		EnableWindow(child_windows[CWI_SAVE_GO_TO_LAYER_BUTTON], FALSE);
 	}
 
 	for (int i = CWI_SAVE_START; i <= CWI_SAVE_END; i++)
@@ -164,11 +151,12 @@ static LRESULT info_window_save_tree_control_proc(HWND hwnd, WPARAM wparam, LPAR
 		debug_profiler_push();
 
 		surface_element_t* se = (surface_element_t*)nmtv->itemNew.lParam;
+		bool prev = serialize_is_surface_mode();
 		serialize_set_preview_mode(true);
 		char buf[128];
 		int res = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, se->name, -1, buf, sizeof buf, NULL, NULL);
 		serialize_finalize(se, child_windows[CWI_SAVE_TREEVIEW], nmtv->itemNew.hItem);
-		serialize_set_preview_mode(false);
+		serialize_set_preview_mode(prev);
 
 		if (res)
 		{
@@ -180,7 +168,7 @@ static LRESULT info_window_save_tree_control_proc(HWND hwnd, WPARAM wparam, LPAR
 		}
 
 		nmtv->itemNew.mask = TVIF_PARAM;
-		nmtv->itemNew.lParam = NULL;
+		nmtv->itemNew.lParam = (LPARAM)NULL;
 		TreeView_SetItem(child_windows[CWI_SAVE_TREEVIEW], &nmtv->itemNew);
 	}
 	return 0;
@@ -224,45 +212,15 @@ static LRESULT info_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
 		{
 			return 0;
 		}
-		if (lparam == child_windows[CWI_SAVE_GO_TO_BLOCK_BUTTON])
+		HWND button_clicked = (HWND)lparam;
+		if (button_clicked == child_windows[CWI_SAVE_GO_TO_LAYER_BUTTON])
 		{
 			char buf[64];
-			snprintf(buf, sizeof buf, "blocks - %i", (int)(sizeof state->blocks / sizeof * state->blocks));
-			HTREEITEM blocks = serialize_tree_find_item(child_windows[CWI_SAVE_TREEVIEW], TVI_ROOT, buf);
-			TreeView_Expand(child_windows[CWI_SAVE_TREEVIEW], blocks, TVE_EXPAND);
-			snprintf(buf, sizeof buf, "%i", current_selection_index);
-			TreeView_Expand(child_windows[CWI_SAVE_TREEVIEW], serialize_tree_find_item(child_windows[CWI_SAVE_TREEVIEW], blocks, buf), TVE_EXPAND);
-		}
-		else if (lparam == child_windows[CWI_SAVE_GO_TO_MINERAL_BUTTON])
-		{
-			char buf[64];
-			snprintf(buf, sizeof buf, "minerals - %i", (int)(sizeof state->minerals / sizeof * state->minerals));
-			HTREEITEM minerals = serialize_tree_find_item(child_windows[CWI_SAVE_TREEVIEW], TVI_ROOT, buf);
-			TreeView_Expand(child_windows[CWI_SAVE_TREEVIEW], minerals, TVE_EXPAND);
-			snprintf(buf, sizeof buf, "%i", state->blocks[current_selection_index].mineral_index);
-			TreeView_Expand(child_windows[CWI_SAVE_TREEVIEW], serialize_tree_find_item(child_windows[CWI_SAVE_TREEVIEW], minerals, buf), TVE_EXPAND);
-		}
-		else if (lparam == child_windows[CWI_SAVE_GO_TO_STALACTITE_BUTTON])
-		{
-			char buf[64];
-			snprintf(buf, sizeof buf, "stalactite_array - %i", state->stalactite_count);
-			HTREEITEM stalactites = serialize_tree_find_item(child_windows[CWI_SAVE_TREEVIEW], TVI_ROOT, buf);
-			TreeView_Expand(child_windows[CWI_SAVE_TREEVIEW], stalactites, TVE_EXPAND);
-
-			int x = current_selection_index / (TARGET_HEIGHT * LAYER_COUNT);
-			int y = current_selection_index % (TARGET_HEIGHT * LAYER_COUNT);
-			int stalactite_index = 0;
-			for (int i = 0; i < state->stalactite_count; i++)
-			{
-				if ((int)state->stalactite_array[i].x == x && (int)state->stalactite_array[i].y == y)
-				{
-					stalactite_index = i;
-					break;
-				}
-			}
-
-			snprintf(buf, sizeof buf, "%i", stalactite_index);
-			TreeView_Expand(child_windows[CWI_SAVE_TREEVIEW], serialize_tree_find_item(child_windows[CWI_SAVE_TREEVIEW], stalactites, buf), TVE_EXPAND);
+			snprintf(buf, sizeof buf, "layer_headers - %i", LAYER_COUNT);
+			HTREEITEM headers = serialize_tree_find_item(child_windows[CWI_SAVE_TREEVIEW], TVI_ROOT, buf);
+			TreeView_Expand(child_windows[CWI_SAVE_TREEVIEW], headers, TVE_EXPAND);
+			snprintf(buf, sizeof buf, "%i", current_selection_index % (TARGET_HEIGHT * LAYER_COUNT) / TARGET_HEIGHT);
+			TreeView_Expand(child_windows[CWI_SAVE_TREEVIEW], serialize_tree_find_item(child_windows[CWI_SAVE_TREEVIEW], headers, buf), TVE_EXPAND);
 		}
 		return 0;
 	}
@@ -383,6 +341,16 @@ dnr_state_t* info_state_get(void)
 	return state;
 }
 
+static inline HTREEITEM info_node_create(HWND tree, const LPWSTR name)
+{
+	TVINSERTSTRUCTW tvins;
+	tvins.hParent = TVI_ROOT;
+	tvins.itemex.pszText = name;
+	tvins.itemex.mask = TVIF_TEXT;
+	tvins.hInsertAfter = TVI_LAST;
+	return TreeView_InsertItem(tree, &tvins);
+}
+
 static void info_state_set_tree_view(dnr_state_t* user_state)
 {
 	debug_profiler_push();
@@ -393,21 +361,16 @@ static void info_state_set_tree_view(dnr_state_t* user_state)
 
 	HTREEITEM root = NULL;
 
+	bool prev = serialize_is_surface_mode();
 	serialize_set_preview_mode(true);
 
 	SERIALIZABLE_DNR_STATE_0
+	SERIALIZABLE_DNR_STATE_1
 
 	TVINSERTSTRUCTW tvins;
 	WCHAR buf[32];
-
 	StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"stalactite_array - %i", user_state->stalactite_count);
-	tvins.hParent = TVI_ROOT;
-	tvins.itemex.pszText = buf;
-	tvins.itemex.mask = TVIF_TEXT;
-	tvins.hInsertAfter = TVI_LAST;
-	root = TreeView_InsertItem(child_windows[CWI_SAVE_TREEVIEW], &tvins);
-	RUNTIME_ASSERT(root);
-
+	root = info_node_create(child_windows[CWI_SAVE_TREEVIEW], buf);
 	tvins.hParent = root;
 
 	for (int i = 0; i < user_state->stalactite_count; i++)
@@ -424,9 +387,9 @@ static void info_state_set_tree_view(dnr_state_t* user_state)
 
 	root = NULL;
 
-	SERIALIZABLE_DNR_STATE_1
+	SERIALIZABLE_DNR_STATE_2
 
-	serialize_set_preview_mode(false);
+	serialize_set_preview_mode(prev);
 
 #undef ADD_SERIALIZABLE
 #undef ADD_SERIALIZABLE_ARRAY
@@ -450,6 +413,47 @@ void info_state_set(dnr_state_t* _state)
 	}
 }
 
+static void info_cell_set_current_treeview(int x, int y)
+{
+	bool prev = serialize_is_surface_mode();
+	serialize_set_preview_mode(false);
+
+	dnr_block_t* block = &state->blocks[current_selection_index];
+#define ADD_SERIALIZABLE(type, name) serialize_single(#type, &item->name, #name, child_windows[CWI_SAVE_CURRENT_TREEVIEW], root);
+#define ADD_SERIALIZABLE_ARRAY(type, name, count) serialize_array(#type, &item->name, count, #name, child_windows[CWI_SAVE_CURRENT_TREEVIEW], root);
+
+	{
+		HTREEITEM root = info_node_create(child_windows[CWI_SAVE_CURRENT_TREEVIEW], L"block");
+		dnr_block_t* item = block;
+		SERIALIZABLE_DNR_BLOCK
+		TreeView_Expand(child_windows[CWI_SAVE_CURRENT_TREEVIEW], root, TVE_EXPAND);
+	}
+	if (block->mineral_exists)
+	{
+		HTREEITEM root = info_node_create(child_windows[CWI_SAVE_CURRENT_TREEVIEW], L"mineral");
+		RUNTIME_ASSERT(block->mineral_index >= 0 && block->mineral_index < sizeof state->minerals / sizeof * state->minerals);
+		dnr_mineral_t* item = &state->minerals[block->mineral_index];
+		SERIALIZABLE_DNR_MINERAL
+		TreeView_Expand(child_windows[CWI_SAVE_CURRENT_TREEVIEW], root, TVE_EXPAND);
+	}
+	for (int i = 0; i < state->stalactite_count; i++)
+	{
+		if (state->stalactite_array[i].exists && (int)state->stalactite_array[i].x == x && (int)state->stalactite_array[i].y == y)
+		{
+			HTREEITEM root = info_node_create(child_windows[CWI_SAVE_CURRENT_TREEVIEW], L"stalactite");
+			stalactite_t* item = &state->stalactite_array[i];
+			SERIALIZABLE_STALACTITE
+			TreeView_Expand(child_windows[CWI_SAVE_CURRENT_TREEVIEW], root, TVE_EXPAND);
+			break;
+		}
+	}
+
+#undef ADD_SERIALIZABLE
+#undef ADD_SERIALIZABLE_ARRAY
+
+	serialize_set_preview_mode(prev);
+}
+
 void info_cell_set_current(int x, int y)
 {
 	if (!state)
@@ -458,9 +462,8 @@ void info_cell_set_current(int x, int y)
 		return;
 	}
 
-	EnableWindow(child_windows[CWI_SAVE_GO_TO_BLOCK_BUTTON], FALSE);
-	EnableWindow(child_windows[CWI_SAVE_GO_TO_MINERAL_BUTTON], FALSE);
-	EnableWindow(child_windows[CWI_SAVE_GO_TO_STALACTITE_BUTTON], FALSE);
+	EnableWindow(child_windows[CWI_SAVE_GO_TO_LAYER_BUTTON], FALSE);
+	TreeView_DeleteAllItems(child_windows[CWI_SAVE_CURRENT_TREEVIEW]);
 
 	if (x == -1 && y == -1)
 	{
@@ -475,18 +478,6 @@ void info_cell_set_current(int x, int y)
 	MINERAL_CONTROL_SET_CELL(child_windows[CWI_SAVE_CURRENT_CELL], cell.Char.AsciiChar, cell.Attributes, state->layer_headers[layer_index].dirt_color);
 
 	current_selection_index = x * TARGET_HEIGHT * LAYER_COUNT + y;
-	EnableWindow(child_windows[CWI_SAVE_GO_TO_BLOCK_BUTTON], TRUE);
-
-	dnr_block_t* current = &state->blocks[current_selection_index];
-	if (current->mineral_exists && current->mineral_index >= 0 && current->mineral_index < sizeof state->minerals / sizeof * state->minerals)
-	{
-		EnableWindow(child_windows[CWI_SAVE_GO_TO_MINERAL_BUTTON], TRUE);
-	}
-	for (int i = 0; i < state->stalactite_count; i++)
-	{
-		if ((int)state->stalactite_array[i].x == x && (int)state->stalactite_array[i].y == y)
-		{
-			EnableWindow(child_windows[CWI_SAVE_GO_TO_STALACTITE_BUTTON], TRUE);
-		}
-	}
+	EnableWindow(child_windows[CWI_SAVE_GO_TO_LAYER_BUTTON], TRUE);
+	info_cell_set_current_treeview(x, y);
 }

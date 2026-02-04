@@ -171,22 +171,28 @@ typedef struct dnr_state
 	ADD_SERIALIZABLE(int32_t, seconds_played) \
 	ADD_SERIALIZABLE_ARRAY(dnr_layer_header_t, layer_headers, LAYER_COUNT) \
 	ADD_SERIALIZABLE(dnr_player_t, player) \
-	ADD_SERIALIZABLE_ARRAY(int32_t, controls, 21) \
-	ADD_SERIALIZABLE_ARRAY(dnr_block_t, blocks, 210000) \
-	ADD_SERIALIZABLE_ARRAY(dnr_mineral_t, minerals, 50000) \
-	ADD_SERIALIZABLE_ARRAY(uint8_t, reserved0, 0x30CAA0) \
+	ADD_SERIALIZABLE_ARRAY(int32_t, controls, 21)
+SERIALIZABLE_DNR_STATE_0
+
+	/* too large and unmanageable to put in the tree view */
+
+	dnr_block_t blocks[210000];
+	dnr_mineral_t minerals[50000];
+	uint8_t reserved0[0x30CAA0];
+
+#define SERIALIZABLE_DNR_STATE_1 \
 	ADD_SERIALIZABLE_ARRAY(boolean32_t, elements_discovered, MINERAL_COUNT) \
 	ADD_SERIALIZABLE_ARRAY(uint8_t, reserved1, 0x1C) \
 	ADD_SERIALIZABLE_ARRAY(CHAR_INFO, vac_pak_contents, 1000)
-SERIALIZABLE_DNR_STATE_0
+SERIALIZABLE_DNR_STATE_1
 
 	stalactite_t* stalactite_array;
 	int stalactite_count;
 
-#define SERIALIZABLE_DNR_STATE_1 \
+#define SERIALIZABLE_DNR_STATE_2 \
 	ADD_SERIALIZABLE_ARRAY(uint8_t, reserved2, 0x6AC) \
 	ADD_SERIALIZABLE(boolean32_t, has_liquid_resistance)
-SERIALIZABLE_DNR_STATE_1
+SERIALIZABLE_DNR_STATE_2
 } dnr_state_t;
 
 #pragma pack()

@@ -372,6 +372,8 @@ static void info_state_set_tree_view(dnr_state_t* user_state)
 	StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"stalactite_array - %i", user_state->stalactite_count);
 	root = info_node_create(child_windows[CWI_SAVE_TREEVIEW], buf);
 	tvins.hParent = root;
+	tvins.itemex.mask = TVIF_TEXT;
+	tvins.hInsertAfter = TVI_LAST;
 
 	for (int i = 0; i < user_state->stalactite_count; i++)
 	{

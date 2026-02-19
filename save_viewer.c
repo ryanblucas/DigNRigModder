@@ -14,6 +14,26 @@ static int y_pos;
 
 static int selected_x = -1, selected_y = -1;
 
+static void save_viewer_set_selected(int x, int y)
+{
+	if (!dig_inside_bounds(x, y))
+	{
+		selected_x = selected_y = -1;
+		return;
+	}
+
+	selected_x = x;
+	selected_y = y;
+
+	if (y < y_pos || y >= y_pos + TARGET_HEIGHT)
+	{
+		y_pos = min(max(0, y - 16), TARGET_HEIGHT * 13 - 1);
+	}
+
+	info_cell_set_current(selected_x, selected_y);
+	screen_repaint();
+}
+
 static void save_viewer_move_window(int addend)
 {
 	static int prev_mid = 0;
@@ -60,6 +80,7 @@ void save_viewer_handle_keyboard(virtual_key_t vk)
 			cache[i] = file_state_spritify(save, i);
 		}
 
+		info_state_set(save);
 		screen_repaint();
 	}
 	else if (vk == VK_UP)

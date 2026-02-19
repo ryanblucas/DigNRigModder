@@ -9,7 +9,6 @@
 /* remove this */
 #include <Windows.h>
 
-#define LAYER_COUNT 14
 #define SAVE_BLOCK_STRUCT_SIZE 0x54
 #define SAVE_MINERAL_STRUCT_SIZE 0x34
 #define SAVE_MINERAL_MAX_COUNT 0xC350
@@ -122,6 +121,7 @@ typedef enum dnr_rig_type
 {
 #define SERIALIZABLE_DNR_RIG_TYPE \
 	ADD_SERIALIZABLE_ENUM(RIG_NONE, 0x00) \
+	ADD_SERIALIZABLE_ENUM(RIG_LADDER_CENTER, 0x01) \
 	ADD_SERIALIZABLE_ENUM(RIG_LADDER, 0x02) \
 	ADD_SERIALIZABLE_ENUM(RIG_SCOOPER, 0x04) \
 	ADD_SERIALIZABLE_ENUM(RIG_PLATFORM, 0x06) \
@@ -131,7 +131,8 @@ typedef enum dnr_rig_type
 	ADD_SERIALIZABLE_ENUM(RIG_LAVA, 0x0A) \
 	ADD_SERIALIZABLE_ENUM(RIG_WATER, 0x0B) \
 	ADD_SERIALIZABLE_ENUM(RIG_CONVEYOR_LEFT, 0x0C) \
-	ADD_SERIALIZABLE_ENUM(RIG_CONVEYOR_RIGHT, 0x0D)
+	ADD_SERIALIZABLE_ENUM(RIG_CONVEYOR_RIGHT, 0x0D) \
+	ADD_SERIALIZABLE_ENUM(RIG_BACKGROUND, 0x0F)
 SERIALIZABLE_DNR_RIG_TYPE
 } dnr_rig_type_t;
 
@@ -145,13 +146,20 @@ typedef struct dnr_block
 	ADD_SERIALIZABLE(int32_t, health_max) \
 	ADD_SERIALIZABLE(int32_t, health_current) \
 	ADD_SERIALIZABLE(CHAR_INFO, visual) \
-	ADD_SERIALIZABLE(CHAR_INFO, unknown) \
+	ADD_SERIALIZABLE(CHAR_INFO, secondary_visual) \
 	ADD_SERIALIZABLE(boolean32_t, block_exists) \
 	ADD_SERIALIZABLE(int32_t, mineral_index) \
-	ADD_SERIALIZABLE_ARRAY(uint8_t, reserved3, 0x8) \
+	ADD_SERIALIZABLE(dnr_pointer_t, enemy_pointer) \
+	ADD_SERIALIZABLE(boolean32_t, can_mine) \
 	ADD_SERIALIZABLE(boolean32_t, mineral_exists) \
 	ADD_SERIALIZABLE(dnr_rig_type_t, rig_type) \
-	ADD_SERIALIZABLE_ARRAY(uint8_t, reserved4, 0x1C)
+	ADD_SERIALIZABLE(boolean32_t, enemy_exists) \
+	ADD_SERIALIZABLE(uint32_t, mineral_move_direction) \
+	ADD_SERIALIZABLE(boolean32_t, should_animate_conveyor) \
+	ADD_SERIALIZABLE(int32_t, damage) \
+	ADD_SERIALIZABLE(uint32_t, mineral_spawn_rule) \
+	ADD_SERIALIZABLE(boolean32_t, can_remove_rig) \
+	ADD_SERIALIZABLE(uint32_t, mineable_attribute) 
 SERIALIZABLE_DNR_BLOCK
 } dnr_block_t;
 
@@ -184,7 +192,7 @@ SERIALIZABLE_DNR_STATE_0
 
 	dnr_block_t blocks[210000];
 	dnr_mineral_t minerals[50000];
-	uint8_t reserved0[0x30CAA0];
+	uint8_t enemies[0x30CAA0];
 
 #define SERIALIZABLE_DNR_STATE_1 \
 	ADD_SERIALIZABLE_ARRAY(boolean32_t, elements_discovered, MINERAL_COUNT) \

@@ -230,6 +230,10 @@ static LRESULT info_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
 			SetWindowLongPtr(hwnd, GWLP_USERDATA, 1);
 			return 0;
 		}
+		if (current_selection_index != -1)
+		{
+			info_cell_set_current(current_selection_index / (TARGET_HEIGHT * LAYER_COUNT), current_selection_index % (TARGET_HEIGHT * LAYER_COUNT));
+		}
 		serialize_delete(child_windows[CWI_SAVE_TREEVIEW]);
 		info_state_set_tree_view((dnr_state_t*)wparam);
 		return 0;
@@ -415,8 +419,11 @@ void info_state_set(dnr_state_t* _state)
 	}
 }
 
-static void info_cell_set_current_treeview(int x, int y)
+static void info_cell_set_current_treeview()
 {
+	int x = current_selection_index / (TARGET_HEIGHT * LAYER_COUNT);
+	int y = current_selection_index % (TARGET_HEIGHT * LAYER_COUNT);
+
 	bool prev = serialize_is_surface_mode();
 	serialize_set_preview_mode(false);
 
@@ -481,5 +488,5 @@ void info_cell_set_current(int x, int y)
 
 	current_selection_index = x * TARGET_HEIGHT * LAYER_COUNT + y;
 	EnableWindow(child_windows[CWI_SAVE_GO_TO_LAYER_BUTTON], TRUE);
-	info_cell_set_current_treeview(x, y);
+	info_cell_set_current_treeview();
 }

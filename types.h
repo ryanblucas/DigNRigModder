@@ -13,6 +13,8 @@
 #define TARGET_HEIGHT	100
 #define TARGET_CELL_SIZE 8
 
+#define LAYER_COUNT 14
+
 #define DNR_DIRT_INDEX 6
 #define DNR_DEFAULT_DIRT_COLOR 0x4175A4
 #define DNR_FONT L"digfont9"
@@ -58,4 +60,9 @@ extern inline void* dig_malloc(size_t size)
 		exit(-10);
 	}
 	return res;
+}
+
+extern inline bool dig_inside_bounds(int x, int y)
+{
+	return x >= 0 && y >= 0 && x < TARGET_WIDTH && y < (TARGET_HEIGHT * LAYER_COUNT);
 }

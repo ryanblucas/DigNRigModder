@@ -472,6 +472,7 @@ void info_cell_set_current(int x, int y)
 	}
 
 	EnableWindow(child_windows[CWI_SAVE_GO_TO_LAYER_BUTTON], FALSE);
+	int pos = GetScrollPos(child_windows[CWI_SAVE_CURRENT_TREEVIEW], SB_VERT);
 	TreeView_DeleteAllItems(child_windows[CWI_SAVE_CURRENT_TREEVIEW]);
 
 	if (x == -1 && y == -1)
@@ -488,5 +489,7 @@ void info_cell_set_current(int x, int y)
 
 	current_selection_index = x * TARGET_HEIGHT * LAYER_COUNT + y;
 	EnableWindow(child_windows[CWI_SAVE_GO_TO_LAYER_BUTTON], TRUE);
+
 	info_cell_set_current_treeview();
+	SetScrollPos(child_windows[CWI_SAVE_CURRENT_TREEVIEW], SB_VERT, pos, TRUE);
 }

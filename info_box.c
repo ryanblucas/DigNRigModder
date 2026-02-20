@@ -219,7 +219,7 @@ static LRESULT info_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
 			snprintf(buf, sizeof buf, "layer_headers - %i", LAYER_COUNT);
 			HTREEITEM headers = serialize_tree_find_item(child_windows[CWI_SAVE_TREEVIEW], TVI_ROOT, buf);
 			TreeView_Expand(child_windows[CWI_SAVE_TREEVIEW], headers, TVE_EXPAND);
-			snprintf(buf, sizeof buf, "%i", current_selection_index % (TARGET_HEIGHT * LAYER_COUNT) / TARGET_HEIGHT);
+			snprintf(buf, sizeof buf, "%i", current_selection_index % WORLD_HEIGHT / TARGET_HEIGHT);
 			TreeView_Expand(child_windows[CWI_SAVE_TREEVIEW], serialize_tree_find_item(child_windows[CWI_SAVE_TREEVIEW], headers, buf), TVE_EXPAND);
 		}
 		return 0;
@@ -232,7 +232,7 @@ static LRESULT info_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
 		}
 		if (current_selection_index != -1)
 		{
-			info_cell_set_current(current_selection_index / (TARGET_HEIGHT * LAYER_COUNT), current_selection_index % (TARGET_HEIGHT * LAYER_COUNT));
+			info_cell_set_current(current_selection_index / WORLD_HEIGHT, current_selection_index % WORLD_HEIGHT);
 		}
 		serialize_delete(child_windows[CWI_SAVE_TREEVIEW]);
 		info_state_set_tree_view((dnr_state_t*)wparam);
@@ -421,8 +421,8 @@ void info_state_set(dnr_state_t* _state)
 
 static void info_cell_set_current_treeview()
 {
-	int x = current_selection_index / (TARGET_HEIGHT * LAYER_COUNT);
-	int y = current_selection_index % (TARGET_HEIGHT * LAYER_COUNT);
+	int x = current_selection_index / WORLD_HEIGHT;
+	int y = current_selection_index % WORLD_HEIGHT;
 
 	bool prev = serialize_is_surface_mode();
 	serialize_set_preview_mode(false);
@@ -481,13 +481,13 @@ void info_cell_set_current(int x, int y)
 		return;
 	}
 
-	RUNTIME_ASSERT(x >= 0 && y >= 0 && x < TARGET_WIDTH && y < TARGET_HEIGHT * LAYER_COUNT);
+	RUNTIME_ASSERT(x >= 0 && y >= 0 && x < WORLD_WIDTH && y < WORLD_HEIGHT);
 
 	CHAR_INFO cell = file_state_spritify_cell(state, x, y);
 	int layer_index = y / TARGET_HEIGHT;
 	MINERAL_CONTROL_SET_CELL(child_windows[CWI_SAVE_CURRENT_CELL], cell.Char.AsciiChar, cell.Attributes, state->layer_headers[layer_index].dirt_color);
 
-	current_selection_index = x * TARGET_HEIGHT * LAYER_COUNT + y;
+	current_selection_index = x * WORLD_HEIGHT + y;
 	EnableWindow(child_windows[CWI_SAVE_GO_TO_LAYER_BUTTON], TRUE);
 
 	info_cell_set_current_treeview();

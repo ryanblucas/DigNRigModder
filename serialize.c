@@ -18,6 +18,8 @@
 #define TYPE_UINT8_T 229384437135984ULL
 #define TYPE_DNR_SPRITE_T 11081697800589051136ULL
 #define TYPE_DNR_RIG_TYPE_T 3798355938377845426ULL
+#define TYPE_DNR_MINERAL_MOVE_DIRECTION_T 7836251078612970605ULL
+#define TYPE_DNR_MINERAL_SPAWN_RULE_T 567133761540061260ULL
 #define TYPE_DNR_SAVE_HEADER_T 12164599792533459048ULL
 #define TYPE_DNR_LAYER_HEADER_T 663611519707857130ULL
 #define TYPE_DNR_PLAYER_T 11081698126627463866ULL
@@ -51,6 +53,8 @@ static inline size_t serialize_type_size(uint64_t type_hash)
 	case TYPE_UINT32_T:
 	case TYPE_DNR_POINTER_T:
 	case TYPE_DNR_RIG_TYPE_T:
+	case TYPE_DNR_MINERAL_MOVE_DIRECTION_T:
+	case TYPE_DNR_MINERAL_SPAWN_RULE_T:
 		return 4;
 	case TYPE_DNR_SPRITE_T:
 		return sizeof(dnr_sprite_t);
@@ -114,8 +118,10 @@ static void serialize_array_internal(uint64_t type_hash, void* value, int start,
 			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%i - %#04x", i, *(uint8_t*)value);
 			value = (uint8_t*)value - 1;
 			break;
-		case TYPE_DNR_RIG_TYPE_T:
+
 #define ADD_SERIALIZABLE_ENUM(enum_name, enum_value) case enum_value: StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%i - " L#enum_name, i); break;
+
+		case TYPE_DNR_RIG_TYPE_T:
 			switch (*(dnr_rig_type_t*)value)
 			{
 				SERIALIZABLE_DNR_RIG_TYPE
@@ -123,9 +129,29 @@ static void serialize_array_internal(uint64_t type_hash, void* value, int start,
 				StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#010x", wname, *(dnr_rig_type_t*)value);
 				break;
 			}
-#undef ADD_SERIALIZABLE_ENUM
 			value = (dnr_rig_type_t*)value - 1;
 			break;
+		case TYPE_DNR_MINERAL_MOVE_DIRECTION_T:
+			switch (*(dnr_mineral_move_direction_t*)value)
+			{
+				SERIALIZABLE_DNR_MINERAL_MOVE_DIRECTION
+			default:
+				StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#010x", wname, *(dnr_mineral_move_direction_t*)value);
+				break;
+			}
+			value = (dnr_mineral_move_direction_t*)value - 1;
+			break;
+		case TYPE_DNR_MINERAL_SPAWN_RULE_T:
+			switch (*(dnr_mineral_spawn_rule_t*)value)
+			{
+				SERIALIZABLE_DNR_MINERAL_SPAWN_RULE
+			default:
+				StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#010x", wname, *(dnr_mineral_spawn_rule_t*)value);
+				break;
+			}
+			value = (dnr_mineral_spawn_rule_t*)value - 1;
+			break;
+#undef ADD_SERIALIZABLE_ENUM
 
 #define ADD_SERIALIZABLE(type, name) serialize_single(#type, &item->name, #name, tree_window, next_tree_item);
 #define ADD_SERIALIZABLE_ARRAY(type, name, count) serialize_array(#type, &item->name, count, #name, tree_window, next_tree_item);
@@ -272,8 +298,10 @@ static void serialize_single_internal(bool post_populate, uint64_t type_hash, vo
 	case TYPE_UINT8_T:
 		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#04x", wname, *(uint8_t*)value);
 		break;
-	case TYPE_DNR_RIG_TYPE_T:
+
 #define ADD_SERIALIZABLE_ENUM(enum_name, enum_value) case enum_value: StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - " L#enum_name, wname); break;
+
+	case TYPE_DNR_RIG_TYPE_T:
 		switch (*(dnr_rig_type_t*)value)
 		{
 			SERIALIZABLE_DNR_RIG_TYPE
@@ -281,8 +309,27 @@ static void serialize_single_internal(bool post_populate, uint64_t type_hash, vo
 			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#010x", wname, *(dnr_rig_type_t*)value);
 			break;
 		}
-#undef ADD_SERIALIZABLE_ENUM
 		break;
+	case TYPE_DNR_MINERAL_MOVE_DIRECTION_T:
+		switch (*(dnr_mineral_move_direction_t*)value)
+		{
+			SERIALIZABLE_DNR_MINERAL_MOVE_DIRECTION
+		default:
+			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#010x", wname, *(dnr_mineral_move_direction_t*)value);
+			break;
+		}
+		break;
+	case TYPE_DNR_MINERAL_SPAWN_RULE_T:
+		switch (*(dnr_mineral_spawn_rule_t*)value)
+		{
+			SERIALIZABLE_DNR_MINERAL_SPAWN_RULE
+		default:
+			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#010x", wname, *(dnr_mineral_spawn_rule_t*)value);
+			break;
+		}
+		break;
+
+#undef ADD_SERIALIZABLE_ENUM
 
 #define ADD_SERIALIZABLE(type, name) serialize_single(#type, &item->name, #name, tree_window, next_tree_item);
 #define ADD_SERIALIZABLE_ARRAY(type, name, count) serialize_array(#type, &item->name, count, #name, tree_window, next_tree_item);
@@ -459,7 +506,7 @@ HTREEITEM serialize_tree_find_item(HWND tree_window, HTREEITEM root, const char*
 	HTREEITEM curr = TreeView_GetChild(tree_window, root);
 	while (curr)
 	{
-		WCHAR wname[64], tname[64];
+		WCHAR wname[64], tname[64] = { 0 };
 		TVITEMEX tvix = { .mask = TVIF_TEXT, .pszText = tname, .cchTextMax = sizeof tname / sizeof * tname, .hItem = curr };
 		TreeView_GetItem(tree_window, &tvix);
 

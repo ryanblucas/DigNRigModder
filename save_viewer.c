@@ -111,8 +111,14 @@ void save_viewer_handle_mouse_button(int x, int y)
 
 	screen_repaint();
 
+	int block_index = (selected_x * WORLD_HEIGHT + selected_y);
 	debug_format("%i, %i\n", selected_x, selected_y);
-	debug_format("Cheat Engine block: \"Dig-N-Rig.exe\"+%X 0x54 array size\n", (selected_x * WORLD_HEIGHT + selected_y) * SAVE_BLOCK_STRUCT_SIZE + 0x661E00);
+	debug_format("Cheat Engine block: \"Dig-N-Rig.exe\"+%X 0x54 array size\n", block_index * SAVE_BLOCK_STRUCT_SIZE + 0x661E00);
+	if (save->blocks[block_index].mineral_exists && save->blocks[block_index].mineral_index >= 0 
+		&& save->blocks[block_index].mineral_index < sizeof save->minerals / sizeof * save->minerals)
+	{
+		debug_format("Cheat Engine mineral: \"Dig-N-Rig.exe\"+%X 0x34 array size\n", save->blocks[block_index].mineral_index * SAVE_MINERAL_STRUCT_SIZE + 0x61890);
+	}
 	debug_format("Cheat Engine screen: \"Dig-N-Rig.exe\"+65C5CC pointer with offset 0x%X\n", (x + y * WORLD_WIDTH) * 4);
 }
 

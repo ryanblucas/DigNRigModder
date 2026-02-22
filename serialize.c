@@ -24,6 +24,8 @@
 #define TYPE_DNR_LAYER_HEADER_T 663611519707857130ULL
 #define TYPE_DNR_PLAYER_T 11081698126627463866ULL
 #define TYPE_DNR_BLOCK_T 13751622877662047520ULL
+#define TYPE_DNR_MINERAL_SIZE_T 12303576239702824387ULL
+#define TYPE_DNR_MINERAL_TYPE_T 12303576239558253438ULL
 #define TYPE_DNR_MINERAL_T 15207893016492402041ULL
 
 static bool is_surface;
@@ -43,8 +45,10 @@ static inline size_t serialize_type_size(uint64_t type_hash)
 	switch (type_hash)
 	{
 	case TYPE_UINT8_T:
+	case TYPE_DNR_MINERAL_SIZE_T:
 		return 1;
 	case TYPE_UINT16_T:
+	case TYPE_DNR_MINERAL_TYPE_T:
 		return 2;
 	case TYPE_FLOAT:
 	case TYPE_BOOLEAN32_T:
@@ -151,6 +155,27 @@ static void serialize_array_internal(uint64_t type_hash, void* value, int start,
 			}
 			value = (dnr_mineral_spawn_rule_t*)value - 1;
 			break;
+		case TYPE_DNR_MINERAL_SIZE_T:
+			switch (*(dnr_mineral_size_t*)value)
+			{
+				SERIALIZABLE_DNR_MINERAL_SIZE
+			default:
+				StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#004x", wname, *(dnr_mineral_size_t*)value);
+				break;
+			}
+			value = (dnr_mineral_type_t*)value - 1;
+			break;
+		case TYPE_DNR_MINERAL_TYPE_T:
+			switch (*(dnr_mineral_type_t*)value)
+			{
+				SERIALIZABLE_DNR_MINERAL_TYPE
+			default:
+				StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#006x", wname, *(dnr_mineral_type_t*)value);
+				break;
+			}
+			value = (dnr_mineral_type_t*)value - 1;
+			break;
+
 #undef ADD_SERIALIZABLE_ENUM
 
 #define ADD_SERIALIZABLE(type, name) serialize_single(#type, &item->name, #name, tree_window, next_tree_item);
@@ -325,6 +350,24 @@ static void serialize_single_internal(bool post_populate, uint64_t type_hash, vo
 			SERIALIZABLE_DNR_MINERAL_SPAWN_RULE
 		default:
 			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#010x", wname, *(dnr_mineral_spawn_rule_t*)value);
+			break;
+		}
+		break;
+	case TYPE_DNR_MINERAL_SIZE_T:
+		switch (*(dnr_mineral_size_t*)value)
+		{
+			SERIALIZABLE_DNR_MINERAL_SIZE
+		default:
+			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#004x", wname, *(dnr_mineral_size_t*)value);
+			break;
+		}
+		break;
+	case TYPE_DNR_MINERAL_TYPE_T:
+		switch (*(dnr_mineral_type_t*)value)
+		{
+			SERIALIZABLE_DNR_MINERAL_TYPE
+		default:
+			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#006x", wname, *(dnr_mineral_type_t*)value);
 			break;
 		}
 		break;

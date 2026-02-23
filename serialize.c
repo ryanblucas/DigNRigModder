@@ -6,6 +6,16 @@
 #include <strsafe.h>
 #include <stdio.h>
 
+struct element
+{
+	HWND window;
+	HTREEITEM tree_item;
+	uint64_t type_hash;
+	void* value;
+	int count;
+	WCHAR name[64];
+};
+
 /* by running serialize_hash on each of the types as a string, you get this result. */
 
 #define TYPE_FLOAT 210624726069ULL
@@ -27,18 +37,6 @@
 #define TYPE_DNR_MINERAL_SIZE_T 12303576239702824387ULL
 #define TYPE_DNR_MINERAL_TYPE_T 12303576239558253438ULL
 #define TYPE_DNR_MINERAL_T 15207893016492402041ULL
-
-static bool is_surface;
-
-bool serialize_is_surface_mode(void)
-{
-	return is_surface;
-}
-
-void serialize_set_preview_mode(bool mode)
-{
-	is_surface = mode;
-}
 
 static inline size_t serialize_type_size(uint64_t type_hash)
 {
@@ -115,7 +113,7 @@ static void serialize_array_internal(uint64_t type_hash, void* value, int start,
 			value = (uint32_t*)value - 1;
 			break;
 		case TYPE_UINT16_T:
-			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#06x", wname, *(uint16_t*)value);
+			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%i - %#06x", i, *(uint16_t*)value);
 			value = (uint16_t*)value - 1;
 			break;
 		case TYPE_UINT8_T:
@@ -130,7 +128,7 @@ static void serialize_array_internal(uint64_t type_hash, void* value, int start,
 			{
 				SERIALIZABLE_DNR_RIG_TYPE
 			default:
-				StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#010x", wname, *(dnr_rig_type_t*)value);
+				StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%i - %#010x", i, *(dnr_rig_type_t*)value);
 				break;
 			}
 			value = (dnr_rig_type_t*)value - 1;
@@ -140,7 +138,7 @@ static void serialize_array_internal(uint64_t type_hash, void* value, int start,
 			{
 				SERIALIZABLE_DNR_MINERAL_MOVE_DIRECTION
 			default:
-				StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#010x", wname, *(dnr_mineral_move_direction_t*)value);
+				StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%i - %#010x", i, *(dnr_mineral_move_direction_t*)value);
 				break;
 			}
 			value = (dnr_mineral_move_direction_t*)value - 1;
@@ -150,7 +148,7 @@ static void serialize_array_internal(uint64_t type_hash, void* value, int start,
 			{
 				SERIALIZABLE_DNR_MINERAL_SPAWN_RULE
 			default:
-				StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#010x", wname, *(dnr_mineral_spawn_rule_t*)value);
+				StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%i - %#010x", i, *(dnr_mineral_spawn_rule_t*)value);
 				break;
 			}
 			value = (dnr_mineral_spawn_rule_t*)value - 1;
@@ -160,7 +158,7 @@ static void serialize_array_internal(uint64_t type_hash, void* value, int start,
 			{
 				SERIALIZABLE_DNR_MINERAL_SIZE
 			default:
-				StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#004x", wname, *(dnr_mineral_size_t*)value);
+				StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%i - %#004x", i, *(dnr_mineral_size_t*)value);
 				break;
 			}
 			value = (dnr_mineral_type_t*)value - 1;
@@ -170,7 +168,7 @@ static void serialize_array_internal(uint64_t type_hash, void* value, int start,
 			{
 				SERIALIZABLE_DNR_MINERAL_TYPE
 			default:
-				StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#006x", wname, *(dnr_mineral_type_t*)value);
+				StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%i - %#006x", i, *(dnr_mineral_type_t*)value);
 				break;
 			}
 			value = (dnr_mineral_type_t*)value - 1;
@@ -220,28 +218,20 @@ static void serialize_array_internal(uint64_t type_hash, void* value, int start,
 		case TYPE_DNR_BLOCK_T:
 		{
 			dnr_block_t* item = (dnr_block_t*)value;
-			if (is_surface)
-			{
-				tvins.itemex.mask |= TVIF_PARAM;
-				surface_element_t* se = dig_malloc(sizeof * se);
-				*se = (surface_element_t){ .type_hash = type_hash, .value = value, .count = 0 };
-				wcsncpy(se->name, tvins.itemex.pszText, sizeof se->name / sizeof * se->name - 1);
-				tvins.itemex.lParam = (LPARAM)se;
-
-				HTREEITEM next_tree_item = TreeView_InsertItem(tree_window, &tvins);
-
-				tvins.itemex.mask = 0;
-				tvins.hParent = next_tree_item;
-				tvins.hInsertAfter = TVI_FIRST;
-
-				TreeView_InsertItem(tree_window, &tvins);
-
-				value = item - 1;
-				continue;
-			}
+			tvins.itemex.mask |= TVIF_PARAM;
+			element_t se = dig_malloc(sizeof * se);
+			*se = (struct element){ .type_hash = type_hash, .value = value, .count = 0 };
+			wcsncpy(se->name, tvins.itemex.pszText, sizeof se->name / sizeof * se->name - 1);
+			tvins.itemex.lParam = (LPARAM)se;
 
 			HTREEITEM next_tree_item = TreeView_InsertItem(tree_window, &tvins);
-			SERIALIZABLE_DNR_BLOCK
+
+			tvins.itemex.mask = 0;
+			tvins.hParent = next_tree_item;
+			tvins.hInsertAfter = TVI_FIRST;
+
+			TreeView_InsertItem(tree_window, &tvins);
+
 			value = item - 1;
 			continue;
 		}
@@ -249,28 +239,20 @@ static void serialize_array_internal(uint64_t type_hash, void* value, int start,
 		case TYPE_DNR_MINERAL_T:
 		{
 			dnr_mineral_t* item = (dnr_mineral_t*)value;
-			if (is_surface)
-			{
-				tvins.itemex.mask |= TVIF_PARAM;
-				surface_element_t* se = dig_malloc(sizeof * se);
-				*se = (surface_element_t){ .type_hash = type_hash, .value = value, .count = 0 };
-				wcsncpy(se->name, tvins.itemex.pszText, sizeof se->name / sizeof * se->name - 1);
-				tvins.itemex.lParam = (LPARAM)se;
-
-				HTREEITEM next_tree_item = TreeView_InsertItem(tree_window, &tvins);
-
-				tvins.itemex.mask = 0;
-				tvins.hParent = next_tree_item;
-				tvins.hInsertAfter = TVI_FIRST;
-
-				TreeView_InsertItem(tree_window, &tvins);
-
-				value = item - 1;
-				continue;
-			}
+			tvins.itemex.mask |= TVIF_PARAM;
+			element_t se = dig_malloc(sizeof * se);
+			*se = (struct element){ .type_hash = type_hash, .value = value, .count = 0 };
+			wcsncpy(se->name, tvins.itemex.pszText, sizeof se->name / sizeof * se->name - 1);
+			tvins.itemex.lParam = (LPARAM)se;
 
 			HTREEITEM next_tree_item = TreeView_InsertItem(tree_window, &tvins);
-			SERIALIZABLE_DNR_MINERAL
+
+			tvins.itemex.mask = 0;
+			tvins.hParent = next_tree_item;
+			tvins.hInsertAfter = TVI_FIRST;
+
+			TreeView_InsertItem(tree_window, &tvins);
+
 			value = item - 1;
 			continue;
 		}
@@ -286,7 +268,7 @@ static void serialize_array_internal(uint64_t type_hash, void* value, int start,
 	}
 }
 
-static void serialize_single_internal(bool post_populate, uint64_t type_hash, void* value, WCHAR* wname, HWND tree_window, HTREEITEM tree_item)
+static HTREEITEM serialize_single_internal(bool post_populate, uint64_t type_hash, void* value, WCHAR* wname, HWND tree_window, HTREEITEM tree_item)
 {
 	TVINSERTSTRUCTW tvins = { 0 };
 
@@ -384,7 +366,7 @@ static void serialize_single_internal(bool post_populate, uint64_t type_hash, vo
 		tvins.itemex.cchTextMax = 0;
 		HTREEITEM next_tree_item = TreeView_InsertItem(tree_window, &tvins);
 		SERIALIZABLE_DNR_SPRITE
-		return;
+		return next_tree_item;
 	}
 
 	case TYPE_DNR_SAVE_HEADER_T:
@@ -394,7 +376,7 @@ static void serialize_single_internal(bool post_populate, uint64_t type_hash, vo
 		tvins.itemex.cchTextMax = 0;
 		HTREEITEM next_tree_item = TreeView_InsertItem(tree_window, &tvins);
 		SERIALIZABLE_DNR_SAVE_HEADER
-		return;
+		return next_tree_item;
 	}
 
 	case TYPE_DNR_LAYER_HEADER_T:
@@ -404,7 +386,7 @@ static void serialize_single_internal(bool post_populate, uint64_t type_hash, vo
 		tvins.itemex.cchTextMax = 0;
 		HTREEITEM next_tree_item = TreeView_InsertItem(tree_window, &tvins);
 		SERIALIZABLE_DNR_LAYER_HEADER
-		return;
+		return next_tree_item;
 	}
 
 	case TYPE_DNR_PLAYER_T:
@@ -414,7 +396,7 @@ static void serialize_single_internal(bool post_populate, uint64_t type_hash, vo
 		tvins.itemex.cchTextMax = 0;
 		HTREEITEM next_tree_item = TreeView_InsertItem(tree_window, &tvins);
 		SERIALIZABLE_DNR_PLAYER
-		return;
+		return next_tree_item;
 	}
 
 	case TYPE_DNR_BLOCK_T:
@@ -428,7 +410,7 @@ static void serialize_single_internal(bool post_populate, uint64_t type_hash, vo
 			next_tree_item = TreeView_InsertItem(tree_window, &tvins);
 		}
 		SERIALIZABLE_DNR_BLOCK
-		return;
+		return next_tree_item;
 	}
 
 	case TYPE_DNR_MINERAL_T:
@@ -442,7 +424,7 @@ static void serialize_single_internal(bool post_populate, uint64_t type_hash, vo
 			next_tree_item = TreeView_InsertItem(tree_window, &tvins);
 		}
 		SERIALIZABLE_DNR_MINERAL
-		return;
+		return next_tree_item;
 	}
 
 #undef ADD_SERIALIZABLE
@@ -453,23 +435,7 @@ static void serialize_single_internal(bool post_populate, uint64_t type_hash, vo
 
 	HTREEITEM item = TreeView_InsertItem(tree_window, &tvins);
 	RUNTIME_ASSERT(item);
-}
-
-void serialize_finalize(surface_element_t* se, HWND tree_window, HTREEITEM tree_item)
-{
-	if (se)
-	{
-		TreeView_DeleteItem(tree_window, TreeView_GetChild(tree_window, tree_item));
-		if (se->count == 0)
-		{
-			serialize_single_internal(true, se->type_hash, se->value, se->name, tree_window, tree_item);
-		}
-		else
-		{
-			serialize_array_internal(se->type_hash, se->value, 0, se->count, se->name, tree_window, tree_item);
-		}
-		free(se);
-	}
+	return item;
 }
 
 static inline uint64_t serialize_hash(const char* str)
@@ -487,7 +453,15 @@ void serialize_single(const char* type, void* value, const char* name, HWND tree
 	uint64_t type_hash = serialize_hash(type);
 	WCHAR wname[64];
 	RUNTIME_ASSERT(MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, name, -1, wname, sizeof wname / sizeof * wname));
-	serialize_single_internal(false, type_hash, value, wname, tree_window, tree_item);
+
+	tree_item = serialize_single_internal(false, type_hash, value, wname, tree_window, tree_item);
+
+	element_t se = dig_malloc(sizeof * se);
+	*se = (struct element){ .window = tree_window, .tree_item = tree_item, .type_hash = type_hash, .value = value, .count = 0 };
+	wcsncpy(se->name, wname, sizeof se->name / sizeof * se->name - 1);
+
+	TVITEMEXW tvi = { .mask = TVIF_PARAM, .hItem = tree_item, .lParam = se };
+	TreeView_SetItem(tree_window, &tvi);
 }
 
 void serialize_array(const char* type, void* value, int count, const char* name, HWND tree_window, HTREEITEM tree_item)
@@ -507,19 +481,15 @@ void serialize_array(const char* type, void* value, int count, const char* name,
 	tvins.hParent = tree_item;
 	tvins.hInsertAfter = TVI_LAST;
 
-	int loop_count = count;
-	if (is_surface)
-	{
-		loop_count = 1;
-		tvins.itemex.mask |= TVIF_PARAM;
-		surface_element_t* se = dig_malloc(sizeof * se);
-		*se = (surface_element_t) { .type_hash = type_hash, .value = value, .count = count };
-		wcsncpy(se->name, wname, sizeof se->name / sizeof * se->name - 1);
-		tvins.itemex.lParam = (LPARAM)se;
-	}
+	tvins.itemex.mask |= TVIF_PARAM;
+	element_t se = dig_malloc(sizeof * se);
+	*se = (struct element) { .window = tree_window, .type_hash = type_hash, .value = value, .count = count };
+	wcsncpy(se->name, wname, sizeof se->name / sizeof * se->name - 1);
+	tvins.itemex.lParam = (LPARAM)se;
 
 	tree_item = TreeView_InsertItem(tree_window, &tvins);
-	serialize_array_internal(type_hash, value, 0, loop_count, wname, tree_window, tree_item);
+	se->tree_item = tree_item;
+	serialize_array_internal(type_hash, value, 0, 1, wname, tree_window, tree_item);
 }
 
 void serialize_delete_internal(HWND tree_window, HTREEITEM item)
@@ -542,6 +512,45 @@ void serialize_delete(HWND tree_window)
 {
 	serialize_delete_internal(tree_window, TreeView_GetRoot(tree_window));
 	TreeView_DeleteAllItems(tree_window);
+}
+
+void serialize_on_expand(element_t element)
+{
+	if (!element || element->count == -1)
+	{
+		return;
+	}
+
+	debug_profiler_push();
+
+	char buf[128];
+	int res = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, element->name, -1, buf, sizeof buf, NULL, NULL);
+
+	TreeView_DeleteItem(element->window, TreeView_GetChild(element->window, element->tree_item));
+	if (element->count == 0)
+	{
+		serialize_single_internal(true, element->type_hash, element->value, element->name, element->window, element->tree_item);
+		element->count = -1;
+	}
+	else
+	{
+		serialize_array_internal(element->type_hash, element->value, 0, element->count, element->name, element->window, element->tree_item);
+		element->count = -1;
+	}
+
+	if (res)
+	{
+		debug_profiler_pop("Serializing %s", buf);
+	}
+	else
+	{
+		debug_profiler_pop("Post-serializing");
+	}
+}
+
+void serialize_on_change_field(element_t element)
+{
+	debug_format("Field double clicked %ls\n", element->name);
 }
 
 HTREEITEM serialize_tree_find_item(HWND tree_window, HTREEITEM root, const char* name)

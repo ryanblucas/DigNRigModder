@@ -142,34 +142,26 @@ static LRESULT info_window_tab_control_proc(HWND hwnd, WPARAM wparam, LPARAM lpa
 static LRESULT info_window_save_tree_control_proc(HWND hwnd, WPARAM wparam, LPARAM lparam)
 {
 	NMTREEVIEWW* nmtv = (NMTREEVIEWW*)lparam;
-	if (nmtv->hdr.code != TVN_ITEMEXPANDING || nmtv->action != TVE_EXPAND)
+	if (nmtv->hdr.code == TVN_ITEMEXPANDING && nmtv->action == TVE_EXPAND && nmtv->itemNew.mask & TVIF_PARAM)
 	{
-		return 0;
+		serialize_on_expand((element_t)nmtv->itemNew.lParam);
 	}
-	if (nmtv->itemNew.mask & TVIF_PARAM && nmtv->itemNew.lParam)
+	else if (nmtv->hdr.code == NM_DBLCLK)
 	{
-		debug_profiler_push();
+		/* the LPARAM here is NOT a NMTREEVIEWW */
+		TVHITTESTINFO info;
+		GetCursorPos(&info.pt);
+		ScreenToClient(child_windows[CWI_SAVE_TREEVIEW], &info.pt);
 
-		surface_element_t* se = (surface_element_t*)nmtv->itemNew.lParam;
-		bool prev = serialize_is_surface_mode();
-		serialize_set_preview_mode(true);
-		char buf[128];
-		int res = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, se->name, -1, buf, sizeof buf, NULL, NULL);
-		serialize_finalize(se, child_windows[CWI_SAVE_TREEVIEW], nmtv->itemNew.hItem);
-		serialize_set_preview_mode(prev);
-
-		if (res)
+		HTREEITEM res = TreeView_HitTest(child_windows[CWI_SAVE_TREEVIEW], &info);
+		if (res || info.flags & TVHT_ONITEM)
 		{
-			debug_profiler_pop("Serializing %s", buf);
+			TVITEMEXW tvi;
+			tvi.hItem = res;
+			tvi.mask = TVIF_PARAM;
+			TreeView_GetItem(child_windows[CWI_SAVE_TREEVIEW], &tvi);
+			serialize_on_change_field((element_t)tvi.lParam);
 		}
-		else
-		{
-			debug_profiler_pop("Post-serializing");
-		}
-
-		nmtv->itemNew.mask = TVIF_PARAM;
-		nmtv->itemNew.lParam = (LPARAM)NULL;
-		TreeView_SetItem(child_windows[CWI_SAVE_TREEVIEW], &nmtv->itemNew);
 	}
 	return 0;
 }
@@ -360,42 +352,12 @@ static void info_state_set_tree_view(dnr_state_t* user_state)
 	debug_profiler_push();
 	dnr_state_t* item = user_state;
 
-#define ADD_SERIALIZABLE(type, name) serialize_single(#type, &item->name, #name, child_windows[CWI_SAVE_TREEVIEW], root);
-#define ADD_SERIALIZABLE_ARRAY(type, name, count) serialize_array(#type, &item->name, count, #name, child_windows[CWI_SAVE_TREEVIEW], root);
-
-	HTREEITEM root = NULL;
-
-	bool prev = serialize_is_surface_mode();
-	serialize_set_preview_mode(true);
+#define ADD_SERIALIZABLE(type, name) serialize_single(#type, &item->name, #name, child_windows[CWI_SAVE_TREEVIEW], NULL);
+#define ADD_SERIALIZABLE_ARRAY(type, name, count) serialize_array(#type, &item->name, count, #name, child_windows[CWI_SAVE_TREEVIEW], NULL);
 
 	SERIALIZABLE_DNR_STATE_0
 	SERIALIZABLE_DNR_STATE_1
-
-	TVINSERTSTRUCTW tvins;
-	WCHAR buf[32];
-	StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"stalactite_array - %i", user_state->stalactite_count);
-	root = info_node_create(child_windows[CWI_SAVE_TREEVIEW], buf);
-	tvins.hParent = root;
-	tvins.itemex.mask = TVIF_TEXT;
-	tvins.hInsertAfter = TVI_LAST;
-
-	for (int i = 0; i < user_state->stalactite_count; i++)
-	{
-		stalactite_t* item = &user_state->stalactite_array[i];
-
-		tvins.itemex.pszText = buf;
-		StringCchPrintfW(tvins.itemex.pszText, sizeof buf / sizeof * buf, L"%i", i);
-		root = TreeView_InsertItem(child_windows[CWI_SAVE_TREEVIEW], &tvins);
-		RUNTIME_ASSERT(root);
-
-		SERIALIZABLE_STALACTITE
-	}
-
-	root = NULL;
-
 	SERIALIZABLE_DNR_STATE_2
-
-	serialize_set_preview_mode(prev);
 
 #undef ADD_SERIALIZABLE
 #undef ADD_SERIALIZABLE_ARRAY
@@ -423,9 +385,6 @@ static void info_cell_set_current_treeview()
 {
 	int x = current_selection_index / WORLD_HEIGHT;
 	int y = current_selection_index % WORLD_HEIGHT;
-
-	bool prev = serialize_is_surface_mode();
-	serialize_set_preview_mode(false);
 
 	dnr_block_t* block = &state->blocks[current_selection_index];
 #define ADD_SERIALIZABLE(type, name) serialize_single(#type, &item->name, #name, child_windows[CWI_SAVE_CURRENT_TREEVIEW], root);
@@ -459,8 +418,6 @@ static void info_cell_set_current_treeview()
 
 #undef ADD_SERIALIZABLE
 #undef ADD_SERIALIZABLE_ARRAY
-
-	serialize_set_preview_mode(prev);
 }
 
 void info_cell_set_current(int x, int y)

@@ -633,14 +633,26 @@ void serialize_on_change_field(element_t element)
 		break;
 	case TYPE_DNR_MINERAL_SPAWN_RULE_T:
 		change_field_modal_mineral_spawn_rule(owner, element->value);
-		break;/*
+		break;
 	case TYPE_UINT8_T:
+		change_field_modal_integer(owner, element->value, sizeof(uint8_t));
+		break;
 	case TYPE_UINT16_T:
+		change_field_modal_integer(owner, element->value, sizeof(uint16_t));
+		break;
 	case TYPE_INT32_T:
+		change_field_modal_integer(owner, element->value, sizeof(int32_t) | SIZE_IS_SIGNED);
+		break;
 	case TYPE_UINT32_T:
-	case TYPE_FLOAT:
+		change_field_modal_integer(owner, element->value, sizeof(uint32_t));
+		break;
 	case TYPE_BOOLEAN32_T:
-	case TYPE_CHAR_INFO:*/
+		change_field_modal_integer(owner, element->value, sizeof(boolean32_t) | SIZE_IS_SIGNED);
+		break;
+	case TYPE_FLOAT:
+		change_field_modal_float(owner, element->value);
+		break;
+	/*case TYPE_CHAR_INFO:*/
 	}
 	serialize_redo_basic(element);
 }

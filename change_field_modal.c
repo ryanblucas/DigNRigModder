@@ -5,6 +5,7 @@
 #include "change_field_modal.h"
 #include "file.h"
 #include "resource.h"
+#include <strsafe.h>
 #include <windowsx.h>
 
 struct modal_open_struct
@@ -115,7 +116,7 @@ static int cfm_index_to_rig_type(int index)
 	return 0;
 }
 
-static INT_PTR cfm_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
+static INT_PTR cfm_combo_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
 	switch (msg)
 	{
@@ -165,7 +166,7 @@ static void cfm_enum_internal(HWND owner, int* value, WCHAR* array, int len, con
 	mos.choice_first = type_to_index ? type_to_index(*value) : *value;
 	RUNTIME_ASSERT(mos.choice_first >= 0 && mos.choice_first < mos.choice_length);
 
-	DialogBoxParamW(GetModuleHandleW(NULL), MAKEINTRESOURCEW(IDD_CHANGE_FIELD_DROPDOWN), owner, cfm_proc, (LPARAM)&mos);
+	DialogBoxParamW(GetModuleHandleW(NULL), MAKEINTRESOURCEW(IDD_CHANGE_FIELD_DROPDOWN), owner, cfm_combo_proc, (LPARAM)&mos);
 
 	for (int i = 0; i < mos.choice_length; i++)
 	{
@@ -228,4 +229,106 @@ void change_field_modal_mineral_spawn_rule(HWND owner, dnr_mineral_spawn_rule_t*
 	WCHAR* array = SERIALIZABLE_DNR_MINERAL_SPAWN_RULE;
 #undef ADD_SERIALIZABLE_ENUM
 	cfm_enum_internal(owner, (int*)value, array, 10, NULL, NULL);
+}
+
+static INT_PTR cfm_text_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
+{
+	switch (msg)
+	{
+	case WM_INITDIALOG:
+	{
+		struct modal_open_struct* mos = (struct modal_open_struct*)lparam;
+		SetWindowTextW(hwnd, mos->title);
+		Edit_SetText(GetDlgItem(hwnd, IDEDIT), mos->choice_array);
+		SetWindowLongPtrW(hwnd, DWLP_USER, (LONG_PTR)mos);
+		break;
+	}
+	case WM_COMMAND:
+		if (HIWORD(wparam) != BN_CLICKED)
+		{
+			return 0;
+		}
+		if (LOWORD(wparam) == IDOK)
+		{
+			struct modal_open_struct* mos = (struct modal_open_struct*)GetWindowLongPtrW(hwnd, DWLP_USER);
+			Edit_GetText(GetDlgItem(hwnd, IDEDIT), mos->result, sizeof mos->result / sizeof * mos->result);
+			EndDialog(hwnd, 0);
+		}
+		else if (LOWORD(wparam) == IDCANCEL)
+		{
+			EndDialog(hwnd, 1);
+		}
+		break;
+	}
+	return 0;
+}
+
+void change_field_modal_integer(HWND owner, void* value, int bitmask_size)
+{
+	bool is_signed = bitmask_size & SIZE_IS_SIGNED;
+	bitmask_size = bitmask_size & ~SIZE_IS_SIGNED;
+
+	WCHAR buf[64];
+	struct modal_open_struct mos = { .title = L"Change unsigned integer type", .choice_array = buf };
+	if (is_signed)
+	{
+		mos.title = L"Change signed integer type";
+	}
+	switch (bitmask_size)
+	{
+	case sizeof(uint8_t):
+		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%#004x", *(uint8_t*)value);
+		break;
+	case sizeof(uint16_t):
+		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%#006x", *(uint16_t*)value);
+		break;
+	case sizeof(uint32_t):
+		if (is_signed)
+		{
+			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%i", *(int32_t*)value);
+		}
+		else
+		{
+			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%#010x", *(uint32_t*)value);
+		}
+		break;
+	}
+	DialogBoxParamW(GetModuleHandleW(NULL), MAKEINTRESOURCEW(IDD_CHANGE_FIELD_TEXT), owner, cfm_text_proc, (LPARAM)&mos);
+	int result = 0;
+	if (is_signed)
+	{
+		result = wcstol(mos.result, NULL, 0);
+	}
+	else
+	{
+		result = wcstoul(mos.result, NULL, 0);
+	}
+	switch (bitmask_size)
+	{
+	case sizeof(uint8_t):
+		*(uint8_t*)value = result;
+		break;
+	case sizeof(uint16_t):
+		*(uint16_t*)value = result;
+		break;
+	case sizeof(uint32_t):
+		if (is_signed)
+		{
+			*(int32_t*)value = result;
+		}
+		else
+		{
+			*(uint32_t*)value = result;
+		}
+		break;
+	}
+}
+
+void change_field_modal_float(HWND owner, float* value)
+{
+	WCHAR buf[64];
+	struct modal_open_struct mos = { .title = L"Change float type", .choice_array = buf };
+	StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%f", *value);
+	DialogBoxParamW(GetModuleHandleW(NULL), MAKEINTRESOURCEW(IDD_CHANGE_FIELD_TEXT), owner, cfm_text_proc, (LPARAM)&mos);
+	*value = (float)wcstod(mos.result, NULL);
 }

@@ -23,6 +23,7 @@
 #define INFO_BOX_MSG_STATE_READY (WM_USER + 0x10)
 
 static void info_state_set_tree_view(dnr_state_t* user_state);
+static void info_state_update_current_cell_image(int x, int y);
 
 enum child_window_index
 {
@@ -52,6 +53,8 @@ static HWND child_windows[CWI_COUNT];
 
 static dnr_state_t* state;
 static int current_selection_index = -1;
+
+static info_handle_change_block change_block_handler;
 
 static inline void info_tab_create(const LPWSTR name, info_mode_t index)
 {
@@ -151,16 +154,23 @@ static LRESULT info_window_save_tree_control_proc(HWND hwnd, WPARAM wparam, LPAR
 		/* the LPARAM here is NOT a NMTREEVIEWW */
 		TVHITTESTINFO info;
 		GetCursorPos(&info.pt);
-		ScreenToClient(child_windows[CWI_SAVE_TREEVIEW], &info.pt);
+		ScreenToClient(nmtv->hdr.hwndFrom, &info.pt);
 
-		HTREEITEM res = TreeView_HitTest(child_windows[CWI_SAVE_TREEVIEW], &info);
-		if (res || info.flags & TVHT_ONITEM)
+		HTREEITEM res = TreeView_HitTest(nmtv->hdr.hwndFrom, &info);
+		if (res && info.flags & TVHT_ONITEM)
 		{
 			TVITEMEXW tvi;
 			tvi.hItem = res;
 			tvi.mask = TVIF_PARAM;
-			TreeView_GetItem(child_windows[CWI_SAVE_TREEVIEW], &tvi);
+			TreeView_GetItem(nmtv->hdr.hwndFrom, &tvi);
 			serialize_on_change_field((element_t)tvi.lParam);
+			if (nmtv->hdr.hwndFrom == child_windows[CWI_SAVE_CURRENT_TREEVIEW] && change_block_handler)
+			{
+				int x = current_selection_index / WORLD_HEIGHT;
+				int y = current_selection_index % WORLD_HEIGHT;
+				change_block_handler(x, y);
+				info_state_update_current_cell_image(x, y);
+			}
 		}
 	}
 	return 0;
@@ -192,7 +202,7 @@ static LRESULT info_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
 		{
 			return info_window_tab_control_proc(hwnd, wparam, lparam);
 		}
-		else if (nmhdr->hwndFrom == child_windows[CWI_SAVE_TREEVIEW])
+		else if (nmhdr->hwndFrom == child_windows[CWI_SAVE_TREEVIEW] || nmhdr->hwndFrom == child_windows[CWI_SAVE_CURRENT_TREEVIEW])
 		{
 			return info_window_save_tree_control_proc(hwnd, wparam, lparam);
 		}
@@ -292,9 +302,10 @@ static DWORD info_thread_proc(LPVOID param)
 	return result;
 }
 
-void info_initialize(info_handle_change_mode handler)
+void info_initialize(info_handle_change_mode handler, info_handle_change_block block_handler)
 {
 	change_mode_handler = handler;
+	change_block_handler = block_handler;
 
 	INITCOMMONCONTROLSEX icc = { .dwSize = sizeof icc, .dwICC = ICC_TREEVIEW_CLASSES | ICC_TAB_CLASSES };
 	RUNTIME_ASSERT(InitCommonControlsEx(&icc));
@@ -420,6 +431,13 @@ static void info_cell_set_current_treeview()
 #undef ADD_SERIALIZABLE_ARRAY
 }
 
+static void info_state_update_current_cell_image(int x, int y)
+{
+	CHAR_INFO cell = file_state_spritify_cell(state, x, y);
+	int layer_index = y / TARGET_HEIGHT;
+	MINERAL_CONTROL_SET_CELL(child_windows[CWI_SAVE_CURRENT_CELL], cell.Char.AsciiChar, cell.Attributes, state->layer_headers[layer_index].dirt_color);
+}
+
 void info_cell_set_current(int x, int y)
 {
 	if (!state)
@@ -440,9 +458,7 @@ void info_cell_set_current(int x, int y)
 
 	RUNTIME_ASSERT(x >= 0 && y >= 0 && x < WORLD_WIDTH && y < WORLD_HEIGHT);
 
-	CHAR_INFO cell = file_state_spritify_cell(state, x, y);
-	int layer_index = y / TARGET_HEIGHT;
-	MINERAL_CONTROL_SET_CELL(child_windows[CWI_SAVE_CURRENT_CELL], cell.Char.AsciiChar, cell.Attributes, state->layer_headers[layer_index].dirt_color);
+	info_state_update_current_cell_image(x, y);
 
 	current_selection_index = x * WORLD_HEIGHT + y;
 	EnableWindow(child_windows[CWI_SAVE_GO_TO_LAYER_BUTTON], TRUE);

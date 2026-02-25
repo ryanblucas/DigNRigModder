@@ -36,6 +36,9 @@
     <ClCompile Include="serialize.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="change_field_modal.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="types.h">
@@ -59,8 +62,19 @@
     <ClInclude Include="serialize.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="change_field_modal.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="change_field_modal.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
   </ItemGroup>
 </Project>

@@ -49,7 +49,7 @@ static void save_viewer_move_window(int addend)
 	screen_repaint();
 }
 
-void save_viewer_handle_repaint()
+static void save_viewer_handle_repaint()
 {
 	int top = y_pos / TARGET_HEIGHT;
 	int bottom = y_pos / TARGET_HEIGHT + 1;
@@ -67,7 +67,7 @@ void save_viewer_handle_repaint()
 	screen_set_attrib_region(&selected, selected_x, selected_y - y_pos, 1, 1);
 }
 
-void save_viewer_handle_keyboard(virtual_key_t vk)
+static void save_viewer_handle_keyboard(virtual_key_t vk)
 {
 	if (vk == 'R')
 	{
@@ -93,7 +93,7 @@ void save_viewer_handle_keyboard(virtual_key_t vk)
 	}
 }
 
-void save_viewer_handle_mouse_button(int x, int y)
+static void save_viewer_handle_mouse_button(int x, int y)
 {
 	int new_selected_x = x;
 	int new_selected_y = y + y_pos;
@@ -122,9 +122,20 @@ void save_viewer_handle_mouse_button(int x, int y)
 	debug_format("Cheat Engine screen: \"Dig-N-Rig.exe\"+65C5CC pointer with offset 0x%X\n", (x + y * WORLD_WIDTH) * 4);
 }
 
-void save_viewer_handle_mouse_wheel(int delta)
+static void save_viewer_handle_mouse_wheel(int delta)
 {
 	save_viewer_move_window(delta * 10);
+}
+
+static void save_viewer_handle_block_change(int x, int y)
+{
+	int layer = y / TARGET_HEIGHT;
+	if (layer < 0 || layer >= LAYER_COUNT)
+	{
+		return;
+	}
+	cache[layer] = file_state_spritify(save, layer);
+	screen_repaint();
 }
 
 int main()
@@ -141,7 +152,7 @@ int main()
 
 	screen_change_title("Dig-N-Rig Display");
 
-	info_initialize(NULL);
+	info_initialize(NULL, save_viewer_handle_block_change);
 
 	debug_profiler_push();
 	/* paths are temporary */

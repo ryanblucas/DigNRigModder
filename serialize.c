@@ -3,6 +3,7 @@
 */
 
 #include "serialize.h"
+#include "change_field_modal.h"
 #include <strsafe.h>
 #include <stdio.h>
 
@@ -15,28 +16,6 @@ struct element
 	int count;
 	WCHAR name[64];
 };
-
-/* by running serialize_hash on each of the types as a string, you get this result. */
-
-#define TYPE_FLOAT 210624726069ULL
-#define TYPE_BOOLEAN32_T 13766221191973021547ULL
-#define TYPE_CHAR_INFO 249834764690065676ULL
-#define TYPE_INT32_T 229378475688636ULL
-#define TYPE_UINT32_T 7569686425136137ULL
-#define TYPE_DNR_POINTER_T 15207900801384124882ULL
-#define TYPE_UINT16_T 7569686425208015ULL
-#define TYPE_UINT8_T 229384437135984ULL
-#define TYPE_DNR_SPRITE_T 11081697800589051136ULL
-#define TYPE_DNR_RIG_TYPE_T 3798355938377845426ULL
-#define TYPE_DNR_MINERAL_MOVE_DIRECTION_T 7836251078612970605ULL
-#define TYPE_DNR_MINERAL_SPAWN_RULE_T 567133761540061260ULL
-#define TYPE_DNR_SAVE_HEADER_T 12164599792533459048ULL
-#define TYPE_DNR_LAYER_HEADER_T 663611519707857130ULL
-#define TYPE_DNR_PLAYER_T 11081698126627463866ULL
-#define TYPE_DNR_BLOCK_T 13751622877662047520ULL
-#define TYPE_DNR_MINERAL_SIZE_T 12303576239702824387ULL
-#define TYPE_DNR_MINERAL_TYPE_T 12303576239558253438ULL
-#define TYPE_DNR_MINERAL_T 15207893016492402041ULL
 
 static inline size_t serialize_type_size(uint64_t type_hash)
 {
@@ -72,6 +51,92 @@ static inline size_t serialize_type_size(uint64_t type_hash)
 		return sizeof(dnr_mineral_t);
 	}
 	return 0;
+}
+
+/* TO DO: lots of copied and redundant code here... */
+
+static void serialize_redo_basic(element_t element)
+{
+	WCHAR buf[256];
+	switch (element->type_hash)
+	{
+	case TYPE_FLOAT:
+		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %f", element->name, *(float*)element->value);
+		break;
+	case TYPE_BOOLEAN32_T:
+	case TYPE_INT32_T:
+		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %i", element->name, *(int32_t*)element->value);
+		break;
+	case TYPE_CHAR_INFO:
+	{
+		CHAR_INFO ci_value = *(CHAR_INFO*)element->value;
+		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - {char: %#04x, attributes: %#06x}", element->name, ci_value.Char.AsciiChar, ci_value.Attributes);
+		break;
+	}
+	case TYPE_UINT32_T:
+	case TYPE_DNR_POINTER_T:
+		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#010x", element->name, *(uint32_t*)element->value);
+		break;
+	case TYPE_UINT16_T:
+		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#06x", element->name, *(uint16_t*)element->value);
+		break;
+	case TYPE_UINT8_T:
+		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#04x", element->name, *(uint8_t*)element->value);
+		break;
+
+#define ADD_SERIALIZABLE_ENUM(enum_name, enum_value) case enum_value: StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - " L#enum_name, element->name); break;
+
+	case TYPE_DNR_RIG_TYPE_T:
+		switch (*(dnr_rig_type_t*)element->value)
+		{
+			SERIALIZABLE_DNR_RIG_TYPE
+		default:
+			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#010x", element->name, *(dnr_rig_type_t*)element->value);
+			break;
+		}
+		break;
+	case TYPE_DNR_MINERAL_MOVE_DIRECTION_T:
+		switch (*(dnr_mineral_move_direction_t*)element->value)
+		{
+			SERIALIZABLE_DNR_MINERAL_MOVE_DIRECTION
+		default:
+			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#010x", element->name, *(dnr_mineral_move_direction_t*)element->value);
+			break;
+		}
+		break;
+	case TYPE_DNR_MINERAL_SPAWN_RULE_T:
+		switch (*(dnr_mineral_spawn_rule_t*)element->value)
+		{
+			SERIALIZABLE_DNR_MINERAL_SPAWN_RULE
+		default:
+			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#010x", element->name, *(dnr_mineral_spawn_rule_t*)element->value);
+			break;
+		}
+		break;
+	case TYPE_DNR_MINERAL_SIZE_T:
+		switch (*(dnr_mineral_size_t*)element->value)
+		{
+			SERIALIZABLE_DNR_MINERAL_SIZE
+		default:
+			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#004x", element->name, *(dnr_mineral_size_t*)element->value);
+			break;
+		}
+		break;
+	case TYPE_DNR_MINERAL_TYPE_T:
+		switch (*(dnr_mineral_type_t*)element->value)
+		{
+			SERIALIZABLE_DNR_MINERAL_TYPE
+		default:
+			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#006x", element->name, *(dnr_mineral_type_t*)element->value);
+			break;
+		}
+		break;
+
+#undef ADD_SERIALIZABLE_ENUM
+	}
+
+	TVITEMEX tvi = { .mask = TVIF_TEXT, .hItem = element->tree_item, .pszText = buf, .cchTextMax = sizeof buf / sizeof * buf };
+	RUNTIME_ASSERT(TreeView_SetItem(element->window, &tvi));
 }
 
 static void serialize_array_internal(uint64_t type_hash, void* value, int start, int end, WCHAR* wname, HWND tree_window, HTREEITEM tree_item)
@@ -460,7 +525,7 @@ void serialize_single(const char* type, void* value, const char* name, HWND tree
 	*se = (struct element){ .window = tree_window, .tree_item = tree_item, .type_hash = type_hash, .value = value, .count = 0 };
 	wcsncpy(se->name, wname, sizeof se->name / sizeof * se->name - 1);
 
-	TVITEMEXW tvi = { .mask = TVIF_PARAM, .hItem = tree_item, .lParam = se };
+	TVITEMEXW tvi = { .mask = TVIF_PARAM, .hItem = tree_item, .lParam = (LPARAM)se };
 	TreeView_SetItem(tree_window, &tvi);
 }
 
@@ -550,7 +615,28 @@ void serialize_on_expand(element_t element)
 
 void serialize_on_change_field(element_t element)
 {
-	debug_format("Field double clicked %ls\n", element->name);
+	HWND owner = GetParent(element->window);
+	RUNTIME_ASSERT(owner);
+	switch (element->type_hash)
+	{
+	case TYPE_DNR_MINERAL_SIZE_T:
+		change_field_modal_mineral_size(owner, element->value);
+		break;
+	case TYPE_DNR_MINERAL_TYPE_T:
+		change_field_modal_mineral_type(owner, element->value);
+		break;
+	/*case TYPE_UINT8_T:
+	case TYPE_UINT16_T:
+	case TYPE_FLOAT:
+	case TYPE_BOOLEAN32_T:
+	case TYPE_CHAR_INFO:
+	case TYPE_INT32_T:
+	case TYPE_UINT32_T:
+	case TYPE_DNR_RIG_TYPE_T:
+	case TYPE_DNR_MINERAL_MOVE_DIRECTION_T:
+	case TYPE_DNR_MINERAL_SPAWN_RULE_T:*/
+	}
+	serialize_redo_basic(element);
 }
 
 HTREEITEM serialize_tree_find_item(HWND tree_window, HTREEITEM root, const char* name)

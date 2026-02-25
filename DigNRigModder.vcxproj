@@ -129,6 +129,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="change_field_modal.c" />
     <ClCompile Include="debug.c" />
     <ClCompile Include="file.c" />
     <ClCompile Include="info_box.c" />
@@ -138,16 +139,21 @@
     <ClCompile Include="serialize.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="change_field_modal.h" />
     <ClInclude Include="debug.h" />
     <ClInclude Include="file.h" />
     <ClInclude Include="info_box.h" />
     <ClInclude Include="mineral_control.h" />
+    <ClInclude Include="resource.h" />
     <ClInclude Include="screen.h" />
     <ClInclude Include="serialize.h" />
     <ClInclude Include="types.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="change_field_modal.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

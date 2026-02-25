@@ -625,16 +625,22 @@ void serialize_on_change_field(element_t element)
 	case TYPE_DNR_MINERAL_TYPE_T:
 		change_field_modal_mineral_type(owner, element->value);
 		break;
-	/*case TYPE_UINT8_T:
+	case TYPE_DNR_RIG_TYPE_T:
+		change_field_modal_rig_type(owner, element->value);
+		break;
+	case TYPE_DNR_MINERAL_MOVE_DIRECTION_T:
+		change_field_modal_mineral_move_direction(owner, element->value);
+		break;
+	case TYPE_DNR_MINERAL_SPAWN_RULE_T:
+		change_field_modal_mineral_spawn_rule(owner, element->value);
+		break;/*
+	case TYPE_UINT8_T:
 	case TYPE_UINT16_T:
-	case TYPE_FLOAT:
-	case TYPE_BOOLEAN32_T:
-	case TYPE_CHAR_INFO:
 	case TYPE_INT32_T:
 	case TYPE_UINT32_T:
-	case TYPE_DNR_RIG_TYPE_T:
-	case TYPE_DNR_MINERAL_MOVE_DIRECTION_T:
-	case TYPE_DNR_MINERAL_SPAWN_RULE_T:*/
+	case TYPE_FLOAT:
+	case TYPE_BOOLEAN32_T:
+	case TYPE_CHAR_INFO:*/
 	}
 	serialize_redo_basic(element);
 }

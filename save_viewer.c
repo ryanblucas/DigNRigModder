@@ -152,7 +152,11 @@ int main()
 
 	screen_change_title("Dig-N-Rig Display");
 
-	info_initialize(NULL, save_viewer_handle_block_change);
+	info_initialize((info_events_t)
+	{
+		.mode_handler = NULL,
+		.block_handler = save_viewer_handle_block_change,
+	});
 
 	debug_profiler_push();
 	/* paths are temporary */

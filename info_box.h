@@ -18,9 +18,15 @@ typedef enum info_mode
 } info_mode_t;
 
 typedef void (*info_handle_change_mode)(info_mode_t);
-typedef void (*info_handle_change_block)(int x, int y);
+typedef void (*info_handle_change_block)(int, int);
 
-void info_initialize(info_handle_change_mode mode_handler, info_handle_change_block block_handler);
+typedef struct info_events
+{
+	info_handle_change_mode mode_handler;
+	info_handle_change_block block_handler;
+} info_events_t;
+
+void info_initialize(info_events_t events);
 void info_destroy(void);
 info_mode_t info_get_current_mode(void);
 

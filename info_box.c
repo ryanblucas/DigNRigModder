@@ -13,6 +13,8 @@
 #include <commctrl.h>
 #include <strsafe.h>
 
+#define RAISE_EVENT(ev, ...) if (ev) ev(__VA_ARGS__);
+
 #define INFO_BOX_CLASS_NAME L"dnr_mod_info"
 #define INFO_BOX_WINDOW_STYLE (WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX)
 #define INFO_BOX_WINDOW_STYLE_EX (WS_EX_OVERLAPPEDWINDOW)
@@ -47,14 +49,13 @@ static HWND tab_control;
 static HANDLE thread;
 static DWORD thread_id;
 
-static info_handle_change_mode change_mode_handler;
 static info_mode_t current_mode;
 static HWND child_windows[CWI_COUNT];
 
 static dnr_state_t* state;
 static int current_selection_index = -1;
 
-static info_handle_change_block change_block_handler;
+static info_events_t events;
 
 static inline void info_tab_create(const LPWSTR name, info_mode_t index)
 {
@@ -135,10 +136,7 @@ static LRESULT info_window_tab_control_proc(HWND hwnd, WPARAM wparam, LPARAM lpa
 		RUNTIME_ASSERT(false);
 		break;
 	}
-	if (change_mode_handler)
-	{
-		change_mode_handler(current_mode);
-	}
+	RAISE_EVENT(events.mode_handler, current_mode);
 	return 0;
 }
 
@@ -164,11 +162,11 @@ static LRESULT info_window_save_tree_control_proc(HWND hwnd, WPARAM wparam, LPAR
 			tvi.mask = TVIF_PARAM;
 			TreeView_GetItem(nmtv->hdr.hwndFrom, &tvi);
 			serialize_on_change_field((element_t)tvi.lParam);
-			if (nmtv->hdr.hwndFrom == child_windows[CWI_SAVE_CURRENT_TREEVIEW] && change_block_handler)
+			if (nmtv->hdr.hwndFrom == child_windows[CWI_SAVE_CURRENT_TREEVIEW])
 			{
 				int x = current_selection_index / WORLD_HEIGHT;
 				int y = current_selection_index % WORLD_HEIGHT;
-				change_block_handler(x, y);
+				RAISE_EVENT(events.block_handler, x, y);
 				info_state_update_current_cell_image(x, y);
 			}
 		}
@@ -302,10 +300,9 @@ static DWORD info_thread_proc(LPVOID param)
 	return result;
 }
 
-void info_initialize(info_handle_change_mode handler, info_handle_change_block block_handler)
+void info_initialize(info_events_t _events)
 {
-	change_mode_handler = handler;
-	change_block_handler = block_handler;
+	events = _events;
 
 	INITCOMMONCONTROLSEX icc = { .dwSize = sizeof icc, .dwICC = ICC_TREEVIEW_CLASSES | ICC_TAB_CLASSES };
 	RUNTIME_ASSERT(InitCommonControlsEx(&icc));

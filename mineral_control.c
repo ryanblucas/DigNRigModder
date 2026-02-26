@@ -66,7 +66,7 @@ static LRESULT mineral_control_window_proc(HWND hwnd, UINT msg, WPARAM wparam, L
 		HBITMAP memory_bmp = CreateCompatibleBitmap(ps.hdc, mci->rect.right, mci->rect.bottom);
 
 		SelectObject(memory_dc, memory_bmp);
-
+		
 		SelectObject(memory_dc, dnr_font);
 		SetTextColor(memory_dc, mineral_control_get_color(mci, ATTRIBUTE_FOREGROUND(mci->attrib)));
 		SetBkColor(memory_dc, mineral_control_get_color(mci, ATTRIBUTE_BACKGROUND(mci->attrib)));

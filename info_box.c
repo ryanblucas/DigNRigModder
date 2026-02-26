@@ -4,6 +4,7 @@
 */
 
 #include "info_box.h"
+#include "charmap_control.h"
 #include "debug.h"
 #include "mineral_control.h"
 #include "serialize.h"
@@ -307,6 +308,7 @@ void info_initialize(info_events_t _events)
 	INITCOMMONCONTROLSEX icc = { .dwSize = sizeof icc, .dwICC = ICC_TREEVIEW_CLASSES | ICC_TAB_CLASSES };
 	RUNTIME_ASSERT(InitCommonControlsEx(&icc));
 	mineral_control_initialize();
+	charmap_control_initialize();
 
 	font_caption = CreateFontW(-12, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, FF_DONTCARE, L"Arial");
 	font_text = CreateFontW(-10, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, FF_DONTCARE, L"Arial");
@@ -320,6 +322,7 @@ void info_initialize(info_events_t _events)
 void info_destroy(void)
 {
 	mineral_control_destroy();
+	charmap_control_destroy();
 
 	if (window)
 	{

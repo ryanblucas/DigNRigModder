@@ -39,6 +39,9 @@
     <ClCompile Include="change_field_modal.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="charmap_control.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="types.h">
@@ -66,6 +69,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="charmap_control.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

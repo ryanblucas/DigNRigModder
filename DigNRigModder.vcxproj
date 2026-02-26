@@ -130,6 +130,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="change_field_modal.c" />
+    <ClCompile Include="charmap_control.c" />
     <ClCompile Include="debug.c" />
     <ClCompile Include="file.c" />
     <ClCompile Include="info_box.c" />
@@ -140,6 +141,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="change_field_modal.h" />
+    <ClInclude Include="charmap_control.h" />
     <ClInclude Include="debug.h" />
     <ClInclude Include="file.h" />
     <ClInclude Include="info_box.h" />

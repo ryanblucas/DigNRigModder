@@ -3,7 +3,9 @@
 */
 
 #include "change_field_modal.h"
+#include "charmap_control.h"
 #include "file.h"
+#include "mineral_control.h"
 #include "resource.h"
 #include <strsafe.h>
 #include <windowsx.h>
@@ -14,6 +16,12 @@ struct modal_open_struct
 	int choice_first, choice_length;
 	WCHAR* choice_array;
 	WCHAR result[32];
+};
+
+struct modal_charinfo_open_struct
+{
+	const WCHAR* title;
+	CHAR_INFO* value;
 };
 
 typedef int (*conversion_func)(int);
@@ -151,6 +159,10 @@ static INT_PTR cfm_combo_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 		}
 		else if (LOWORD(wparam) == IDCANCEL)
 		{
+			struct modal_open_struct* mos = (struct modal_open_struct*)GetWindowLongPtrW(hwnd, DWLP_USER);
+			int index = ComboBox_GetCurSel(GetDlgItem(hwnd, IDCOMBO));
+			RUNTIME_ASSERT(ComboBox_GetLBTextLen(GetDlgItem(hwnd, IDCOMBO), index) < sizeof mos->result / sizeof * mos->result);
+			ComboBox_GetLBText(GetDlgItem(hwnd, IDCOMBO), index, mos->result);
 			EndDialog(hwnd, 1);
 		}
 		break;
@@ -256,6 +268,8 @@ static INT_PTR cfm_text_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 		}
 		else if (LOWORD(wparam) == IDCANCEL)
 		{
+			struct modal_open_struct* mos = (struct modal_open_struct*)GetWindowLongPtrW(hwnd, DWLP_USER);
+			Edit_GetText(GetDlgItem(hwnd, IDEDIT), mos->result, sizeof mos->result / sizeof * mos->result);
 			EndDialog(hwnd, 1);
 		}
 		break;
@@ -331,4 +345,86 @@ void change_field_modal_float(HWND owner, float* value)
 	StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%f", *value);
 	DialogBoxParamW(GetModuleHandleW(NULL), MAKEINTRESOURCEW(IDD_CHANGE_FIELD_TEXT), owner, cfm_text_proc, (LPARAM)&mos);
 	*value = (float)wcstod(mos.result, NULL);
+}
+
+static void cfm_populate_combobox(HWND hwnd, int length, const WCHAR* str)
+{
+	for (int i = 0; i < length; i++)
+	{
+		ComboBox_AddString(hwnd, str);
+		str += wcsnlen(str, 32);
+		RUNTIME_ASSERT(*str == '\0');
+		str++;
+	}
+}
+
+static void cfm_invalidate_charinfo(HWND hwnd)
+{
+	struct modal_charinfo_open_struct* mos = (struct modal_charinfo_open_struct*)GetWindowLongPtrW(hwnd, DWLP_USER);
+	MINERAL_CONTROL_SET_CELL(GetDlgItem(hwnd, IDMINERAL), mos->value->Char.AsciiChar, mos->value->Attributes, DNR_DEFAULT_DIRT_COLOR);
+
+	char buf[256];
+	snprintf(buf, sizeof buf, "Character:%#04X\nAttribute:%#06X", mos->value->Char.AsciiChar & 0xFF, mos->value->Attributes & 0xFFFF);
+	SetWindowTextA(GetDlgItem(hwnd, IDSELECTEDDESCRIPTION), buf);
+}
+
+static INT_PTR cfm_charinfo_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
+{
+	switch (msg)
+	{
+	case WM_INITDIALOG:
+	{
+		struct modal_charinfo_open_struct* mos = (struct modal_charinfo_open_struct*)lparam;
+		SetWindowTextW(hwnd, mos->title);
+
+		cfm_populate_combobox(GetDlgItem(hwnd, IDFOREGROUND), 16, L"DARK_BLACK\0DARK_BLUE\0DARK_GREEN\0DARK_AQUA\0DARK_RED\0DARK_PURPLE\0DARK_YELLOW\0LIGHT_GRAY\0DARK_GRAY\0LIGHT_BLUE\0LIGHT_GREEN\0LIGHT_AQUA\0LIGHT_RED\0LIGHT_PURPLE\0LIGHT_YELLOW\0LIGHT_WHITE");
+		cfm_populate_combobox(GetDlgItem(hwnd, IDBACKGROUND), 16, L"DARK_BLACK\0DARK_BLUE\0DARK_GREEN\0DARK_AQUA\0DARK_RED\0DARK_PURPLE\0DARK_YELLOW\0LIGHT_GRAY\0DARK_GRAY\0LIGHT_BLUE\0LIGHT_GREEN\0LIGHT_AQUA\0LIGHT_RED\0LIGHT_PURPLE\0LIGHT_YELLOW\0LIGHT_WHITE");
+		
+		ComboBox_SetCurSel(GetDlgItem(hwnd, IDFOREGROUND), ATTRIBUTE_FOREGROUND(mos->value->Attributes));
+		ComboBox_SetCurSel(GetDlgItem(hwnd, IDBACKGROUND), ATTRIBUTE_BACKGROUND(mos->value->Attributes));
+
+		SetWindowLongPtrW(hwnd, DWLP_USER, (LONG_PTR)mos);
+		cfm_invalidate_charinfo(hwnd);
+		break;
+	}
+	case WM_COMMAND:
+		if (HIWORD(wparam) == BN_CLICKED)
+		{
+			if (LOWORD(wparam) == IDOK)
+			{
+				EndDialog(hwnd, 0);
+			}
+			else if (LOWORD(wparam) == IDCANCEL)
+			{
+				EndDialog(hwnd, 1);
+			}
+		}
+		else if (HIWORD(wparam) == CBN_SELCHANGE)
+		{
+			struct modal_charinfo_open_struct* mos = (struct modal_charinfo_open_struct*)GetWindowLongPtrW(hwnd, DWLP_USER);
+			if (LOWORD(wparam) == IDFOREGROUND)
+			{
+				mos->value->Attributes = mos->value->Attributes & 0xF0 | ComboBox_GetCurSel(GetDlgItem(hwnd, IDFOREGROUND));
+			}
+			else if (LOWORD(wparam) == IDBACKGROUND)
+			{
+				mos->value->Attributes = mos->value->Attributes & 0x0F | ((ComboBox_GetCurSel(GetDlgItem(hwnd, IDBACKGROUND)) & 0x0F) << 4);
+			}
+			cfm_invalidate_charinfo(hwnd);
+		}
+		else if (HIWORD(wparam) == CHARMAP_CONTROL_CURRENT_SET)
+		{
+			struct modal_charinfo_open_struct* mos = (struct modal_charinfo_open_struct*)GetWindowLongPtrW(hwnd, DWLP_USER);
+			mos->value->Char.AsciiChar = (char)CHARMAP_CONTROL_GET_CURRENT(GetDlgItem(hwnd, IDCHARACTERPICKER));
+			cfm_invalidate_charinfo(hwnd);
+		}
+		break;
+	}
+	return 0;
+}
+
+void change_field_modal_char_info(HWND owner, CHAR_INFO* value)
+{
+	struct modal_charinfo_open_struct mos = { .title = L"Change char info type", .value = value };
+	DialogBoxParamW(GetModuleHandleW(NULL), MAKEINTRESOURCEW(IDD_CHANGE_FIELD_CHARINFO), owner, cfm_charinfo_proc, (LPARAM)&mos);
 }

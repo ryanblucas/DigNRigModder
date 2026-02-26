@@ -17,3 +17,5 @@ void change_field_modal_mineral_spawn_rule(HWND owner, dnr_mineral_spawn_rule_t*
 
 void change_field_modal_integer(HWND owner, void* value, int bitmask_size);
 void change_field_modal_float(HWND owner, float* value);
+
+void change_field_modal_char_info(HWND owner, CHAR_INFO* value);

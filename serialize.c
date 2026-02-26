@@ -652,7 +652,9 @@ void serialize_on_change_field(element_t element)
 	case TYPE_FLOAT:
 		change_field_modal_float(owner, element->value);
 		break;
-	/*case TYPE_CHAR_INFO:*/
+	case TYPE_CHAR_INFO:
+		change_field_modal_char_info(owner, element->value);
+		break;
 	}
 	serialize_redo_basic(element);
 }

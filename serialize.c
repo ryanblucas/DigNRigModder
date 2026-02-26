@@ -70,7 +70,7 @@ static void serialize_redo_basic(element_t element)
 	case TYPE_CHAR_INFO:
 	{
 		CHAR_INFO ci_value = *(CHAR_INFO*)element->value;
-		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - {char: %#04x, attributes: %#06x}", element->name, ci_value.Char.AsciiChar, ci_value.Attributes);
+		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - {char: %#04x, attributes: %#06x}", element->name, ci_value.Char.AsciiChar & 0xFF, ci_value.Attributes & 0xFFFF);
 		break;
 	}
 	case TYPE_UINT32_T:
@@ -168,7 +168,7 @@ static void serialize_array_internal(uint64_t type_hash, void* value, int start,
 		case TYPE_CHAR_INFO:
 		{
 			CHAR_INFO ci_value = *(CHAR_INFO*)value;
-			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%i - {char: %#04x, attributes: %#06x}", i, ci_value.Char.AsciiChar, ci_value.Attributes);
+			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%i - {char: %#04x, attributes: %#06x}", i, ci_value.Char.AsciiChar & 0xFF, ci_value.Attributes & 0xFFFF);
 			value = (CHAR_INFO*)value - 1;
 			break;
 		}
@@ -357,7 +357,7 @@ static HTREEITEM serialize_single_internal(bool post_populate, uint64_t type_has
 	case TYPE_CHAR_INFO:
 	{
 		CHAR_INFO ci_value = *(CHAR_INFO*)value;
-		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - {char: %#04x, attributes: %#06x}", wname, ci_value.Char.AsciiChar, ci_value.Attributes);
+		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - {char: %#04x, attributes: %#06x}", wname, ci_value.Char.AsciiChar & 0xFF, ci_value.Attributes & 0xFFFF);
 		break;
 	}
 	case TYPE_UINT32_T:

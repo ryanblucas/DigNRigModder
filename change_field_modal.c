@@ -170,9 +170,9 @@ static INT_PTR cfm_combo_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 	return 0;
 }
 
-static void cfm_enum_internal(HWND owner, int* value, WCHAR* array, int len, conversion_func type_to_index, conversion_func index_to_type)
+static void cfm_enum_internal(HWND owner, const WCHAR* title, int* value, WCHAR* array, int len, conversion_func type_to_index, conversion_func index_to_type)
 {
-	struct modal_open_struct mos = { .title = L"Change mineral type" };
+	struct modal_open_struct mos = { .title = title };
 	mos.choice_array = array;
 	mos.choice_length = len;
 	mos.choice_first = type_to_index ? type_to_index(*value) : *value;
@@ -197,7 +197,7 @@ void change_field_modal_mineral_size(HWND owner, dnr_mineral_size_t* value)
 	WCHAR* array = SERIALIZABLE_DNR_MINERAL_SIZE;
 #undef ADD_SERIALIZABLE_ENUM
 	int res = (int)(*value - MINERAL_SIZE_5);
-	cfm_enum_internal(owner, &res, array, 6, NULL, NULL);
+	cfm_enum_internal(owner, L"Change mineral size", &res, array, 6, NULL, NULL);
 	*value = res + MINERAL_SIZE_5;
 }
 
@@ -206,7 +206,10 @@ void change_field_modal_mineral_type(HWND owner, dnr_mineral_type_t* value)
 #define ADD_SERIALIZABLE_ENUM(name, value) #name L"\0"
 	WCHAR* array = SERIALIZABLE_DNR_MINERAL_TYPE;
 #undef ADD_SERIALIZABLE_ENUM
-	cfm_enum_internal(owner, (int*)value, array, 8, cfm_mineral_type_to_index, cfm_index_to_mineral_type);
+	/* dnr_mineral_type is not a 32-bit integer */
+	int _value = *value;
+	cfm_enum_internal(owner, L"Change mineral type", &_value, array, 8, cfm_mineral_type_to_index, cfm_index_to_mineral_type);
+	*value = _value;
 }
 
 void change_field_modal_rig_type(HWND owner, dnr_rig_type_t* value)
@@ -214,7 +217,7 @@ void change_field_modal_rig_type(HWND owner, dnr_rig_type_t* value)
 #define ADD_SERIALIZABLE_ENUM(name, value) #name L"\0"
 	WCHAR* array = SERIALIZABLE_DNR_RIG_TYPE;
 #undef ADD_SERIALIZABLE_ENUM
-	cfm_enum_internal(owner, (int*)value, array, 13, cfm_rig_type_to_index, cfm_index_to_rig_type);
+	cfm_enum_internal(owner, L"Change rig type", (int*)value, array, 13, cfm_rig_type_to_index, cfm_index_to_rig_type);
 }
 
 void change_field_modal_mineral_move_direction(HWND owner, dnr_mineral_move_direction_t* value)
@@ -227,7 +230,7 @@ void change_field_modal_mineral_move_direction(HWND owner, dnr_mineral_move_dire
 	{
 		res--;
 	}
-	cfm_enum_internal(owner, &res, array, 4, NULL, NULL);
+	cfm_enum_internal(owner, L"Change mineral move direction", &res, array, 4, NULL, NULL);
 	if (res == MOVE_DIRECTION_DOWN)
 	{
 		res++;
@@ -240,7 +243,7 @@ void change_field_modal_mineral_spawn_rule(HWND owner, dnr_mineral_spawn_rule_t*
 #define ADD_SERIALIZABLE_ENUM(name, value) #name L"\0"
 	WCHAR* array = SERIALIZABLE_DNR_MINERAL_SPAWN_RULE;
 #undef ADD_SERIALIZABLE_ENUM
-	cfm_enum_internal(owner, (int*)value, array, 10, NULL, NULL);
+	cfm_enum_internal(owner, L"Change mineral spawn rule", (int*)value, array, 10, NULL, NULL);
 }
 
 static INT_PTR cfm_text_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
@@ -364,7 +367,7 @@ static void cfm_invalidate_charinfo(HWND hwnd)
 	MINERAL_CONTROL_SET_CELL(GetDlgItem(hwnd, IDMINERAL), mos->value->Char.AsciiChar, mos->value->Attributes, DNR_DEFAULT_DIRT_COLOR);
 
 	char buf[256];
-	snprintf(buf, sizeof buf, "Character:%#04X\nAttribute:%#06X", mos->value->Char.AsciiChar & 0xFF, mos->value->Attributes & 0xFFFF);
+	snprintf(buf, sizeof buf, "Character:%#04x\nAttribute:%#06x", mos->value->Char.AsciiChar & 0xFF, mos->value->Attributes & 0xFFFF);
 	SetWindowTextA(GetDlgItem(hwnd, IDSELECTEDDESCRIPTION), buf);
 }
 

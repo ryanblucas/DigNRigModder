@@ -48,8 +48,9 @@ typedef enum color
 	LIGHT_WHITE
 } color_t;
 
+typedef uint32_t rgb_color_t;
 /* defined in screen.c */
-extern const uint32_t palette[16];
+extern const rgb_color_t palette[16];
 
 typedef uint16_t attribute_t;
 

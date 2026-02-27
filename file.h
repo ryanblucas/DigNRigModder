@@ -33,7 +33,6 @@ typedef enum mineral
 /* Dig-N-Rig is a 32-bit application, meaning its pointers are 32-bits and NOT 64-bits */
 typedef uint32_t dnr_pointer_t;
 typedef int32_t boolean32_t;
-typedef uint32_t rgb_color_t;
 
 #define ADD_SERIALIZABLE(type, name) type name;
 #define ADD_SERIALIZABLE_ARRAY(type, name, count) type name[count];

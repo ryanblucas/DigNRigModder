@@ -132,10 +132,10 @@ void screen_repaint(void);
 void screen_invalidate(void);
 void screen_clear(void);
 
-uint32_t screen_dirt_color(void);
+rgb_color_t screen_dirt_color(void);
 
 void screen_change_title(const char* title);
-void screen_change_dirt_color(uint32_t rgb);
+void screen_change_dirt_color(rgb_color_t rgb);
 
 void screen_set_char_region(const char* in, int x, int y, int wx, int wy);
 void screen_set_attrib_region(const attribute_t* in, int x, int y, int wx, int wy);
@@ -147,7 +147,7 @@ int screen_get_char_region(char* out, int x, int y, int wx, int wy);
 	If there are cells outside of the region provided, the result will still be in wx*wy dimensions. */
 int screen_get_attrib_region(attribute_t* out, int x, int y, int wx, int wy);
 
-sprite_t screen_sprite_create(int width, int height, uint32_t dirt_color, char* text, attribute_t* attrib);
+sprite_t screen_sprite_create(int width, int height, rgb_color_t dirt_color, char* text, attribute_t* attrib);
 void screen_sprite_destroy(sprite_t sprite);
 void screen_sprite_render(int x, int y, const sprite_t sprite);
 
@@ -163,5 +163,5 @@ int screen_sprite_get_attrib_region(const sprite_t sprite, attribute_t* out, int
 
 int screen_sprite_width(const sprite_t sprite);
 int screen_sprite_height(const sprite_t sprite);
-uint32_t screen_sprite_dirt_color(const sprite_t sprite);
-void screen_sprite_set_dirt_color(sprite_t sprite, uint32_t dirt_color);
+rgb_color_t screen_sprite_dirt_color(const sprite_t sprite);
+void screen_sprite_set_dirt_color(sprite_t sprite, rgb_color_t dirt_color);

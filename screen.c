@@ -19,7 +19,7 @@
 struct sprite
 {
 	int width, height;
-	uint32_t dirt_color;
+	rgb_color_t dirt_color;
 	CHAR_INFO data[];
 };
 
@@ -27,7 +27,7 @@ static HANDLE in, out;
 static screen_events_t events;
 static CHAR_INFO target[TARGET_WIDTH * TARGET_HEIGHT];
 
-const uint32_t palette[16] =
+const rgb_color_t palette[16] =
 {
 	RGB(0, 0, 0),
 	RGB(67, 52, 172),
@@ -189,7 +189,7 @@ void screen_clear(void)
 	memset(target, 0, sizeof target);
 }
 
-uint32_t screen_dirt_color(void)
+rgb_color_t screen_dirt_color(void)
 {
 	CONSOLE_SCREEN_BUFFER_INFOEX csbi = { .cbSize = sizeof csbi };
 	RUNTIME_ASSERT(GetConsoleScreenBufferInfoEx(out, &csbi));
@@ -201,7 +201,7 @@ void screen_change_title(const char* title)
 	RUNTIME_ASSERT(SetConsoleTitleA(title));
 }
 
-void screen_change_dirt_color(uint32_t rgb)
+void screen_change_dirt_color(rgb_color_t rgb)
 {
 	CONSOLE_SCREEN_BUFFER_INFOEX csbi = { .cbSize = sizeof csbi };
 	RUNTIME_ASSERT(GetConsoleScreenBufferInfoEx(out, &csbi));
@@ -325,7 +325,7 @@ int screen_get_attrib_region(attribute_t* out, int x, int y, int wx, int wy)
 	return screen_buffer_get_attrib_region(target, TARGET_WIDTH, TARGET_HEIGHT, out, x, y, wx, wy);
 }
 
-sprite_t screen_sprite_create(int width, int height, uint32_t dirt_color, char* text, attribute_t* attrib)
+sprite_t screen_sprite_create(int width, int height, rgb_color_t dirt_color, char* text, attribute_t* attrib)
 {
 	RUNTIME_ASSERT(text && attrib);
 	sprite_t res = dig_malloc(sizeof * res + width * height * sizeof * res->data);
@@ -400,7 +400,7 @@ uint32_t screen_sprite_dirt_color(const sprite_t sprite)
 	return sprite->dirt_color;
 }
 
-void screen_sprite_set_dirt_color(sprite_t sprite, uint32_t dirt_color)
+void screen_sprite_set_dirt_color(sprite_t sprite, rgb_color_t dirt_color)
 {
 	RUNTIME_ASSERT(sprite);
 	sprite->dirt_color = dirt_color;

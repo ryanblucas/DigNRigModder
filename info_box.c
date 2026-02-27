@@ -162,13 +162,26 @@ static LRESULT info_window_save_tree_control_proc(HWND hwnd, WPARAM wparam, LPAR
 			tvi.hItem = res;
 			tvi.mask = TVIF_PARAM;
 			TreeView_GetItem(nmtv->hdr.hwndFrom, &tvi);
-			serialize_on_change_field((element_t)tvi.lParam);
+			element_t element = (element_t)tvi.lParam;
+
+			serialize_on_change_field(element);
+
 			if (nmtv->hdr.hwndFrom == child_windows[CWI_SAVE_CURRENT_TREEVIEW])
 			{
 				int x = current_selection_index / WORLD_HEIGHT;
 				int y = current_selection_index % WORLD_HEIGHT;
 				RAISE_EVENT(events.block_handler, x, y);
 				info_state_update_current_cell_image(x, y);
+			}
+			else if (nmtv->hdr.hwndFrom == child_windows[CWI_SAVE_TREEVIEW])
+			{
+				char buf[64];
+				serialize_element_get_name(element, buf, sizeof buf);
+				element_t parent = serialize_element_get_parent(element);
+				if (strncmp(buf, "dirt_color", 11) == 0 && parent && serialize_element_get_type(parent) == TYPE_DNR_LAYER_HEADER_T)
+				{
+					RAISE_EVENT(events.dirt_color_handler, serialize_element_get_index(parent), *(rgb_color_t*)serialize_element_get_value(element));
+				}
 			}
 		}
 	}

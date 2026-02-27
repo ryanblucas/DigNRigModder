@@ -19,11 +19,13 @@ typedef enum info_mode
 
 typedef void (*info_handle_change_mode)(info_mode_t);
 typedef void (*info_handle_change_block)(int, int);
+typedef void (*info_handle_change_dirt_color)(int, rgb_color_t);
 
 typedef struct info_events
 {
 	info_handle_change_mode mode_handler;
 	info_handle_change_block block_handler;
+	info_handle_change_dirt_color dirt_color_handler;
 } info_events_t;
 
 void info_initialize(info_events_t events);

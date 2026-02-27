@@ -17,6 +17,59 @@ struct element
 	WCHAR name[64];
 };
 
+void serialize_element_get_name(element_t element, char* buf, size_t buf_size)
+{
+	WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, element->name, -1, buf, buf_size, NULL, NULL);
+}
+
+uint64_t serialize_element_get_type(element_t element)
+{
+	return element->type_hash;
+}
+
+void* serialize_element_get_value(element_t element)
+{
+	return element->value;
+}
+
+int serialize_element_get_count(element_t element)
+{
+	return element->count >= 0 ? element->count : (-element->count - 1);
+}
+
+HTREEITEM serialize_element_get_handle(element_t element)
+{
+	return element->tree_item;
+}
+
+element_t serialize_element_get_parent(element_t element)
+{
+	HTREEITEM parent_handle = TreeView_GetParent(element->window, element->tree_item);
+	if (!parent_handle)
+	{
+		return NULL;
+	}
+
+	TVITEMEXW tvi;
+	tvi.hItem = parent_handle;
+	tvi.mask = TVIF_PARAM;
+	if (!TreeView_GetItem(element->window, &tvi))
+	{
+		return NULL;
+	}
+	return (element_t)tvi.lParam;
+}
+
+int serialize_element_get_index(element_t element)
+{
+	element_t parent = serialize_element_get_parent(element);
+	if (parent && serialize_element_get_count(parent) > 0)
+	{
+		return wcstol(element->name, NULL, 0);
+	}
+	return 0;
+}
+
 static inline size_t serialize_type_size(uint64_t type_hash)
 {
 	switch (type_hash)
@@ -63,6 +116,12 @@ static void serialize_redo_basic(element_t element)
 	case TYPE_FLOAT:
 		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %f", element->name, *(float*)element->value);
 		break;
+	case TYPE_RGB_COLOR_T:
+	{
+		color_t c = *(color_t*)element->value;
+		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - RGB(%i, %i, %i)", element->name, c & 0xFF, (c >> 8) & 0xFF, (c >> 16) & 0xFF);
+		break;
+	}
 	case TYPE_BOOLEAN32_T:
 	case TYPE_INT32_T:
 		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %i", element->name, *(int32_t*)element->value);
@@ -149,7 +208,17 @@ static void serialize_array_internal(uint64_t type_hash, void* value, int start,
 		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%i", i);
 		tvins.itemex.pszText = buf;
 		tvins.itemex.cchTextMax = sizeof buf / sizeof * buf;
-		tvins.itemex.mask = TVIF_TEXT;
+		tvins.itemex.mask = TVIF_TEXT | TVIF_PARAM;
+
+		element_t element = dig_malloc(sizeof * element);
+		memset(element, 0, sizeof * element);
+		element->value = value;
+		element->type_hash = type_hash;
+		element->window = tree_window;
+		element->count = -1;
+		StringCchPrintfW(element->name, sizeof element->name / sizeof * element->name, L"%i", i);
+
+		tvins.itemex.lParam = (LPARAM)element;
 
 		tvins.hParent = tree_item;
 		tvins.hInsertAfter = TVI_FIRST;
@@ -160,6 +229,13 @@ static void serialize_array_internal(uint64_t type_hash, void* value, int start,
 			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%i - %f", i, *(float*)value);
 			value = (float*)value - 1;
 			break;
+		case TYPE_RGB_COLOR_T:
+		{
+			color_t c = *(color_t*)value;
+			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%i - RGB(%i, %i, %i)", i, c & 0xFF, (c >> 8) & 0xFF, (c >> 16) & 0xFF);
+			value = (color_t*)value - 1;
+			break;
+		}
 		case TYPE_BOOLEAN32_T:
 		case TYPE_INT32_T:
 			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%i - %i", i, *(int32_t*)value);
@@ -248,6 +324,8 @@ static void serialize_array_internal(uint64_t type_hash, void* value, int start,
 		{
 			dnr_sprite_t* item = (dnr_sprite_t*)value;
 			HTREEITEM next_tree_item = TreeView_InsertItem(tree_window, &tvins);
+			RUNTIME_ASSERT(next_tree_item);
+			element->tree_item = next_tree_item;
 			SERIALIZABLE_DNR_SPRITE
 			value = item - 1;
 			break;
@@ -257,6 +335,8 @@ static void serialize_array_internal(uint64_t type_hash, void* value, int start,
 		{
 			dnr_save_header_t* item = (dnr_save_header_t*)value;
 			HTREEITEM next_tree_item = TreeView_InsertItem(tree_window, &tvins);
+			RUNTIME_ASSERT(next_tree_item);
+			element->tree_item = next_tree_item;
 			SERIALIZABLE_DNR_SAVE_HEADER
 			value = item - 1;
 			continue;
@@ -266,6 +346,8 @@ static void serialize_array_internal(uint64_t type_hash, void* value, int start,
 		{
 			dnr_layer_header_t* item = (dnr_layer_header_t*)value;
 			HTREEITEM next_tree_item = TreeView_InsertItem(tree_window, &tvins);
+			RUNTIME_ASSERT(next_tree_item);
+			element->tree_item = next_tree_item;
 			SERIALIZABLE_DNR_LAYER_HEADER
 			value = item - 1;
 			continue;
@@ -275,6 +357,8 @@ static void serialize_array_internal(uint64_t type_hash, void* value, int start,
 		{
 			dnr_player_t* item = (dnr_player_t*)value;
 			HTREEITEM next_tree_item = TreeView_InsertItem(tree_window, &tvins);
+			RUNTIME_ASSERT(next_tree_item);
+			element->tree_item = next_tree_item;
 			SERIALIZABLE_DNR_PLAYER
 			value = item - 1;
 			continue;
@@ -283,13 +367,11 @@ static void serialize_array_internal(uint64_t type_hash, void* value, int start,
 		case TYPE_DNR_BLOCK_T:
 		{
 			dnr_block_t* item = (dnr_block_t*)value;
-			tvins.itemex.mask |= TVIF_PARAM;
-			element_t se = dig_malloc(sizeof * se);
-			*se = (struct element){ .type_hash = type_hash, .value = value, .count = 0 };
-			wcsncpy(se->name, tvins.itemex.pszText, sizeof se->name / sizeof * se->name - 1);
-			tvins.itemex.lParam = (LPARAM)se;
+			element->count = 0; /* this makes it so that the serialize_on_expand function knows to finish serializing this */
 
 			HTREEITEM next_tree_item = TreeView_InsertItem(tree_window, &tvins);
+			RUNTIME_ASSERT(next_tree_item);
+			element->tree_item = next_tree_item;
 
 			tvins.itemex.mask = 0;
 			tvins.hParent = next_tree_item;
@@ -304,13 +386,11 @@ static void serialize_array_internal(uint64_t type_hash, void* value, int start,
 		case TYPE_DNR_MINERAL_T:
 		{
 			dnr_mineral_t* item = (dnr_mineral_t*)value;
-			tvins.itemex.mask |= TVIF_PARAM;
-			element_t se = dig_malloc(sizeof * se);
-			*se = (struct element){ .type_hash = type_hash, .value = value, .count = 0 };
-			wcsncpy(se->name, tvins.itemex.pszText, sizeof se->name / sizeof * se->name - 1);
-			tvins.itemex.lParam = (LPARAM)se;
+			element->count = 0; /* this makes it so that the serialize_on_expand function knows to finish serializing this */
 
 			HTREEITEM next_tree_item = TreeView_InsertItem(tree_window, &tvins);
+			RUNTIME_ASSERT(next_tree_item);
+			element->tree_item = next_tree_item;
 
 			tvins.itemex.mask = 0;
 			tvins.hParent = next_tree_item;
@@ -330,6 +410,7 @@ static void serialize_array_internal(uint64_t type_hash, void* value, int start,
 
 		HTREEITEM item = TreeView_InsertItem(tree_window, &tvins);
 		RUNTIME_ASSERT(item);
+		element->tree_item = item;
 	}
 }
 
@@ -350,6 +431,12 @@ static HTREEITEM serialize_single_internal(bool post_populate, uint64_t type_has
 	case TYPE_FLOAT:
 		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %f", wname, *(float*)value);
 		break;
+	case TYPE_RGB_COLOR_T:
+	{
+		color_t c = *(color_t*)value;
+		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - RGB(%i, %i, %i)", wname, c & 0xFF, (c >> 8) & 0xFF, (c >> 16) & 0xFF);
+		break;
+	}
 	case TYPE_BOOLEAN32_T:
 	case TYPE_INT32_T:
 		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %i", wname, *(int32_t*)value);
@@ -557,7 +644,7 @@ void serialize_array(const char* type, void* value, int count, const char* name,
 	serialize_array_internal(type_hash, value, 0, 1, wname, tree_window, tree_item);
 }
 
-void serialize_delete_internal(HWND tree_window, HTREEITEM item)
+static void serialize_delete_internal(HWND tree_window, HTREEITEM item)
 {
 	if (!item)
 	{
@@ -581,7 +668,7 @@ void serialize_delete(HWND tree_window)
 
 void serialize_on_expand(element_t element)
 {
-	if (!element || element->count == -1)
+	if (!element || element->count < 0)
 	{
 		return;
 	}
@@ -591,7 +678,14 @@ void serialize_on_expand(element_t element)
 	char buf[128];
 	int res = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, element->name, -1, buf, sizeof buf, NULL, NULL);
 
-	TreeView_DeleteItem(element->window, TreeView_GetChild(element->window, element->tree_item));
+	HTREEITEM child = TreeView_GetChild(element->window, element->tree_item);
+	if (child)
+	{
+		TVITEMEXW tvi = { .mask = TVIF_PARAM, .hItem = child };
+		TreeView_GetItem(element->window, &tvi);
+		free((element_t)tvi.lParam);
+		TreeView_DeleteItem(element->window, child);
+	}
 	if (element->count == 0)
 	{
 		serialize_single_internal(true, element->type_hash, element->value, element->name, element->window, element->tree_item);
@@ -600,7 +694,7 @@ void serialize_on_expand(element_t element)
 	else
 	{
 		serialize_array_internal(element->type_hash, element->value, 0, element->count, element->name, element->window, element->tree_item);
-		element->count = -1;
+		element->count = -element->count - 1;
 	}
 
 	if (res)
@@ -654,6 +748,9 @@ void serialize_on_change_field(element_t element)
 		break;
 	case TYPE_CHAR_INFO:
 		change_field_modal_char_info(owner, element->value);
+		break;
+	case TYPE_RGB_COLOR_T:
+		change_field_modal_color(owner, element->value);
 		break;
 	}
 	serialize_redo_basic(element);

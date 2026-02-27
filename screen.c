@@ -399,3 +399,9 @@ uint32_t screen_sprite_dirt_color(const sprite_t sprite)
 	RUNTIME_ASSERT(sprite);
 	return sprite->dirt_color;
 }
+
+void screen_sprite_set_dirt_color(sprite_t sprite, uint32_t dirt_color)
+{
+	RUNTIME_ASSERT(sprite);
+	sprite->dirt_color = dirt_color;
+}

@@ -164,3 +164,4 @@ int screen_sprite_get_attrib_region(const sprite_t sprite, attribute_t* out, int
 int screen_sprite_width(const sprite_t sprite);
 int screen_sprite_height(const sprite_t sprite);
 uint32_t screen_sprite_dirt_color(const sprite_t sprite);
+void screen_sprite_set_dirt_color(sprite_t sprite, uint32_t dirt_color);

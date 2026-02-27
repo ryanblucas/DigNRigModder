@@ -19,3 +19,5 @@ void change_field_modal_integer(HWND owner, void* value, int bitmask_size);
 void change_field_modal_float(HWND owner, float* value);
 
 void change_field_modal_char_info(HWND owner, CHAR_INFO* value);
+
+void change_field_modal_color(HWND owner, color_t* value);

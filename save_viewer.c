@@ -138,6 +138,21 @@ static void save_viewer_handle_block_change(int x, int y)
 	screen_repaint();
 }
 
+static void save_viewer_handle_dirt_color_change(int layer_index, rgb_color_t new_color)
+{
+	if (layer_index < 0 || layer_index >= LAYER_COUNT)
+	{
+		return;
+	}
+	screen_sprite_set_dirt_color(cache[layer_index], new_color);
+	int mid = (y_pos + TARGET_HEIGHT / 2) / TARGET_HEIGHT;
+	if (mid == layer_index)
+	{
+		screen_change_dirt_color(screen_sprite_dirt_color(cache[layer_index]));
+	}
+	screen_repaint();
+}
+
 int main()
 {
 	debug_profiler_push();
@@ -156,6 +171,7 @@ int main()
 	{
 		.mode_handler = NULL,
 		.block_handler = save_viewer_handle_block_change,
+		.dirt_color_handler = save_viewer_handle_dirt_color_change,
 	});
 
 	debug_profiler_push();

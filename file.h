@@ -33,6 +33,7 @@ typedef enum mineral
 /* Dig-N-Rig is a 32-bit application, meaning its pointers are 32-bits and NOT 64-bits */
 typedef uint32_t dnr_pointer_t;
 typedef int32_t boolean32_t;
+typedef uint32_t rgb_color_t;
 
 #define ADD_SERIALIZABLE(type, name) type name;
 #define ADD_SERIALIZABLE_ARRAY(type, name, count) type name[count];
@@ -71,7 +72,7 @@ typedef struct dnr_layer_header
 	ADD_SERIALIZABLE(float, weather3) \
 	ADD_SERIALIZABLE(int32_t, total_block_count) \
 	ADD_SERIALIZABLE(int32_t, current_block_count) \
-	ADD_SERIALIZABLE(uint32_t, dirt_color)
+	ADD_SERIALIZABLE(rgb_color_t, dirt_color)
 SERIALIZABLE_DNR_LAYER_HEADER
 } dnr_layer_header_t;
 
@@ -84,7 +85,7 @@ typedef struct dnr_sprite
 	ADD_SERIALIZABLE(int32_t, height) \
 	ADD_SERIALIZABLE(dnr_pointer_t, ppchar_info_image) \
 	ADD_SERIALIZABLE(dnr_pointer_t, ppint_tile) \
-	ADD_SERIALIZABLE(uint32_t, dirt_color)
+	ADD_SERIALIZABLE(rgb_color_t, dirt_color)
 SERIALIZABLE_DNR_SPRITE
 } dnr_sprite_t;
 

@@ -13,6 +13,7 @@ typedef struct element* element_t;
 /* by running serialize_hash on each of the types as a string, you get this result. */
 
 #define TYPE_FLOAT 210624726069ULL
+#define TYPE_RGB_COLOR_T 13790352177619491131ULL
 #define TYPE_BOOLEAN32_T 13766221191973021547ULL
 #define TYPE_CHAR_INFO 249834764690065676ULL
 #define TYPE_INT32_T 229378475688636ULL
@@ -31,6 +32,15 @@ typedef struct element* element_t;
 #define TYPE_DNR_MINERAL_SIZE_T 12303576239702824387ULL
 #define TYPE_DNR_MINERAL_TYPE_T 12303576239558253438ULL
 #define TYPE_DNR_MINERAL_T 15207893016492402041ULL
+
+void serialize_element_get_name(element_t element, char* buf, size_t buf_size);
+uint64_t serialize_element_get_type(element_t element);
+void* serialize_element_get_value(element_t element);
+int serialize_element_get_count(element_t element);
+HTREEITEM serialize_element_get_handle(element_t element);
+
+element_t serialize_element_get_parent(element_t element);
+int serialize_element_get_index(element_t element);
 
 void serialize_single(const char* type, void* value, const char* name, HWND tree_window, HTREEITEM tree_item);
 void serialize_array(const char* type, void* value, int count, const char* name, HWND tree_window, HTREEITEM tree_item);

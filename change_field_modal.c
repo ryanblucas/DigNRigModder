@@ -431,3 +431,21 @@ void change_field_modal_char_info(HWND owner, CHAR_INFO* value)
 	struct modal_charinfo_open_struct mos = { .title = L"Change char info type", .value = value };
 	DialogBoxParamW(GetModuleHandleW(NULL), MAKEINTRESOURCEW(IDD_CHANGE_FIELD_CHARINFO), owner, cfm_charinfo_proc, (LPARAM)&mos);
 }
+
+void change_field_modal_color(HWND owner, color_t* value)
+{
+	CHOOSECOLOR cc = { 0 };
+	static COLORREF cust[16] = { 0 };
+
+	cc.lStructSize = sizeof cc;
+	cc.hwndOwner = owner;
+	cc.hInstance = NULL;
+	cc.lpCustColors = cust;
+	cc.rgbResult = (COLORREF)(*value);
+	cc.Flags = CC_FULLOPEN | CC_RGBINIT;
+
+	if (ChooseColorW(&cc))
+	{
+		*value = (color_t)cc.rgbResult;
+	}
+}

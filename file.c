@@ -322,7 +322,7 @@ dnr_state_t* file_state_load(const char* directory)
 	}
 
 	/* read up to end */
-	BINARY_ENSURE_CONDITION(fread(&res->reserved2, sizeof * res->reserved2, 1, file) == 1);
+	BINARY_ENSURE_CONDITION(fread(res->reserved2, sizeof res->reserved2, 1, file) == 1);
 	BINARY_ENSURE_CONDITION(fread(&res->has_liquid_resistance, sizeof res->has_liquid_resistance, 1, file) == 1);
 
 	fclose(file);
@@ -339,9 +339,35 @@ void file_state_unload(dnr_state_t* save)
 	free(save);
 }
 
-void file_state_save(const char* directory, const dnr_state_t* save)
+bool file_state_save(const char* directory, const dnr_state_t* save)
 {
+	FILE* file = fopen(directory, "wb");
+	if (!file)
+	{
+		debug_format("Could not open file \"%s\"\n", directory);
+		return false;
+	}
 
+	bool result = false;
+	
+	BINARY_ENSURE_CONDITION(fwrite(save, offsetof(dnr_state_t, stalactite_array), 1, file) == 1);
+	for (int i = 0; i < save->stalactite_count; i++)
+	{
+		BINARY_ENSURE_CONDITION(fwrite(&save->stalactite_array[i].exists, 1, 4, file) == 4);
+		BINARY_ENSURE_CONDITION(fwrite(&save->stalactite_array[i].x, 1, 4, file) == 4);
+		BINARY_ENSURE_CONDITION(fwrite(&save->stalactite_array[i].y, 1, 4, file) == 4);
+		BINARY_ENSURE_CONDITION(fwrite(&save->stalactite_array[i].falling, 1, 4, file) == 4);
+		BINARY_ENSURE_CONDITION(fwrite(&save->stalactite_array[i].activation_radius_2, 1, 4, file) == 4);
+		BINARY_ENSURE_CONDITION(fwrite(&save->stalactite_array[i].speed, 1, 4, file) == 4);
+	}
+
+	BINARY_ENSURE_CONDITION(fwrite(save->reserved2, sizeof save->reserved2, 1, file) == 1);
+	BINARY_ENSURE_CONDITION(fwrite(&save->has_liquid_resistance, sizeof save->has_liquid_resistance, 1, file) == 1);
+
+	result = true;
+cleanup:
+	fclose(file);
+	return result;
 }
 
 CHAR_INFO file_state_spritify_cell(const dnr_state_t* save, int x, int y)

@@ -67,8 +67,17 @@ static void save_viewer_handle_repaint()
 	screen_set_attrib_region(&selected, selected_x, selected_y - y_pos, 1, 1);
 }
 
-static void save_viewer_handle_keyboard(virtual_key_t vk)
+static void save_viewer_handle_keyboard(virtual_key_t vk, keyboard_control_t ctrl)
 {
+	if (ctrl & CTRL_LEFT_PRESSED)
+	{
+		if (vk == 'S')
+		{
+			debug_format("Saving to disk...\n");
+			file_state_save("C:\\Users\\fcsto\\OneDrive\\Documents\\DigiPen\\Dig-N-Rig\\profile1.sav", save);
+		}
+	}
+
 	if (vk == 'R')
 	{
 		debug_format("Reloading save...\n");

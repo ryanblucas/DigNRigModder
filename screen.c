@@ -128,7 +128,7 @@ void screen_loop(void)
 			{
 				continue;
 			}
-			RAISE_EVENT(events.keyboard, ker.wVirtualKeyCode);
+			RAISE_EVENT(events.keyboard, ker.wVirtualKeyCode, ker.dwControlKeyState);
 		}
 		else if (ir.EventType == MOUSE_EVENT)
 		{

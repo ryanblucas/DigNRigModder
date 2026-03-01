@@ -14,7 +14,7 @@
 #define SAVE_MINERAL_MAX_COUNT 0xC350
 
 /* This can be found at runtime by counting all the TileTypes that are == 0x7 */
-#define DEFAULT_STALACTITE_COUNT 224
+#define DEFAULT_STALACTITE_COUNT 242
 
 typedef enum mineral
 {
@@ -238,6 +238,8 @@ typedef struct dnr_mineral
 SERIALIZABLE_DNR_MINERAL
 } dnr_mineral_t;
 
+#pragma pack(1)
+
 typedef struct dnr_state
 {
 #define SERIALIZABLE_DNR_STATE_0 \
@@ -282,7 +284,7 @@ sprite_t file_sprite_load(const char* directory);
 
 dnr_state_t* file_state_load(const char* directory);
 void file_state_unload(dnr_state_t* save);
-void file_state_save(const char* directory, const dnr_state_t* save);
+bool file_state_save(const char* directory, const dnr_state_t* save);
 
 CHAR_INFO file_state_spritify_cell(const dnr_state_t* save, int x, int y);
 sprite_t file_state_spritify(const dnr_state_t* save, int layer_index);

@@ -7,8 +7,17 @@
 
 #include "types.h"
 
-typedef int virtual_key_t;
+typedef uint32_t keyboard_control_t;
+typedef uint16_t virtual_key_t;
+/* since windows.h is already included in some headers.. is it the move to remove those headers or just include it here too and get rid of this? */
 #ifndef _WIN_USER_
+
+#define CTRL_RIGHT_ALT_PRESSED		0x0001
+#define CTRL_LEFT_ALT_PRESSED		0x0002
+#define CTRL_RIGHT_PRESSED			0x0004
+#define CTRL_LEFT_PRESSED			0x0008
+#define CTRL_SHIFT_PRESSED			0x0010
+
 /* #define NOVIRTUALKEYCODES */
 
 #define VK_BACK           0x08
@@ -113,7 +122,7 @@ typedef int virtual_key_t;
 #endif
 
 typedef void (*screen_handle_repaint_t)();
-typedef void (*screen_handle_key_t)(virtual_key_t key);
+typedef void (*screen_handle_key_t)(virtual_key_t key, keyboard_control_t ctrl);
 typedef void (*screen_handle_mouse_button_t)(int x, int y);
 typedef void (*screen_handle_mouse_wheel_t)(int delta);
 

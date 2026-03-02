@@ -1,5 +1,4 @@
 Save viewer
-	Ask user for which save file to load
 	Selection should not be a single block, you should be able to select a rectangle of blocks
 	Determine how liquids are stored in save files
 

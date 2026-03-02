@@ -280,6 +280,16 @@ SERIALIZABLE_DNR_STATE_2
 #undef ADD_SERIALIZABLE_ARRAY
 #undef ADD_SERIALIZABLE_ENUM
 
+/* I think this would be very overkill if I used the serialize module, but we'll see */
+
+typedef struct editor_state
+{
+	int current_save;
+} editor_state;
+
+bool file_editor_load(editor_state* state);
+bool file_editor_save(const editor_state* state);
+
 sprite_t file_sprite_load(const char* directory);
 
 dnr_state_t* file_state_load(const char* directory);

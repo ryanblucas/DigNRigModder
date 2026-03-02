@@ -4,7 +4,8 @@
 
 #include "file.h"
 #include "debug.h"
-#include <math.h>
+#include <math.h>"
+#include "path.h"
 #include "screen.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -161,6 +162,64 @@ static void file_serialize_and_print_token(struct token* token)
 		debug_format("Decimal %f\n", token->data.decimal);
 		break;
 	}
+}
+
+bool file_editor_load(editor_state* state)
+{
+	struct file file = { 0 };
+	char directory[MAX_PATH];
+	file.handle = fopen(path_find_dnr_docs(directory, sizeof directory, "editor_config.ini"), "r");
+	if (!file.handle)
+	{
+		return false;
+	}
+
+	bool result = false;
+	struct token curr;
+	file_next(&file, &curr);
+	while (curr.type != TOKEN_EOF)
+	{
+		MATCH_AND_ADVANCE_TOKEN(&file, curr, TOKEN_HASHTAG);
+		MATCH_TOKEN(&file, curr, TOKEN_STRING);
+		if (strncmp(curr.data.str, "CurrentSave", DATA_STRING_MAX_SIZE) == 0)
+		{
+			file_next(&file, &curr);
+			MATCH_AND_ADVANCE_TOKEN(&file, curr, TOKEN_NEWLINE);
+			MATCH_TOKEN(&file, curr, TOKEN_INTEGER);
+			state->current_save = curr.data.integer;
+			file_next(&file, &curr);
+		}
+		else
+		{
+			debug_format("Invalid editor config header \"%s\"\n", curr.data.str);
+			goto cleanup;
+		}
+		while (curr.type == TOKEN_NEWLINE)
+		{
+			file_next(&file, &curr);
+		}
+	}
+
+	result = true;
+cleanup:
+	fclose(file.handle);
+	return result;
+}
+
+bool file_editor_save(const editor_state* state)
+{
+	char directory[MAX_PATH];
+	FILE* file = fopen(path_find_dnr_docs(directory, sizeof directory, "editor_config.ini"), "w");
+	if (!file)
+	{
+		debug_format("Failed to open editor config file for writing\n");
+		return false;
+	}
+
+	fprintf(file, "#CurrentSave\n%i\n", state->current_save);
+	
+	fclose(file);
+	return true;
 }
 
 sprite_t file_sprite_load(const char* directory)

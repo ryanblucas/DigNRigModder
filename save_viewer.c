@@ -3,10 +3,12 @@
 	Views save files
 */
 
+#include "change_field_modal.h"
 #include "file.h"
 #include "info_box.h"
 #include "path.h"
 #include "screen.h"
+#include <stdio.h>
 
 static sprite_t flag;
 static sprite_t cache[LAYER_COUNT];
@@ -16,6 +18,32 @@ static int y_pos;
 static int selected_x = -1, selected_y = -1;
 
 static char save_directory[MAX_PATH];
+static editor_state editor;
+
+static void save_viewer_prompt_which_save(void)
+{
+	bool valid_save = false;
+	while (editor.current_save <= 0 || editor.current_save >= 4 || !valid_save)
+	{
+		/* temporary use of change field modal function */
+		change_field_modal_integer(NULL, &editor.current_save, sizeof editor.current_save | SIZE_IS_SIGNED);
+		char directory[MAX_PATH];
+		path_find_dnr_save(directory, sizeof directory, editor.current_save);
+		FILE* file = fopen(directory, "rb");
+		if (!file)
+		{
+			continue;
+		}
+		fseek(file, 0, SEEK_END);
+		long file_size = ftell(file);
+		fclose(file);
+		if (file_size <= 0)
+		{
+			continue;
+		}
+		valid_save = true;
+	}
+}
 
 static void save_viewer_set_selected(int x, int y)
 {
@@ -79,21 +107,25 @@ static void save_viewer_handle_keyboard(virtual_key_t vk, keyboard_control_t ctr
 			debug_format("Saving to disk...\n");
 			file_state_save(save_directory, save);
 		}
-	}
-
-	if (vk == 'R')
-	{
-		debug_format("Reloading save...\n");
-		file_state_unload(save);
-		save = file_state_load(save_directory);
-
-		for (int i = 0; i < LAYER_COUNT; i++)
+		else if (vk == 'R')
 		{
-			cache[i] = file_state_spritify(save, i);
-		}
+			if (ctrl & CTRL_SHIFT_PRESSED)
+			{
+				save_viewer_prompt_which_save();
+				path_find_dnr_save(save_directory, sizeof save_directory, editor.current_save);
+			}
+			debug_format("Reloading save...\n");
+			file_state_unload(save);
+			save = file_state_load(save_directory);
 
-		info_state_set(save);
-		screen_repaint();
+			for (int i = 0; i < LAYER_COUNT; i++)
+			{
+				cache[i] = file_state_spritify(save, i);
+			}
+
+			info_state_set(save);
+			screen_repaint();
+		}
 	}
 	else if (vk == VK_UP)
 	{
@@ -167,6 +199,13 @@ static void save_viewer_handle_dirt_color_change(int layer_index, rgb_color_t ne
 
 int main()
 {
+	if (!file_editor_load(&editor))
+	{
+		editor.current_save = 1;
+		save_viewer_prompt_which_save();
+		file_editor_save(&editor);
+	}
+
 	debug_profiler_push();
 
 	screen_initialize((screen_events_t)
@@ -211,6 +250,8 @@ int main()
 	debug_profiler_pop("Application initialization");
 
 	screen_loop();
+
+	file_editor_save(&editor);
 
 	screen_sprite_destroy(flag);
 	file_state_unload(save);

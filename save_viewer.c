@@ -5,6 +5,7 @@
 
 #include "file.h"
 #include "info_box.h"
+#include "path.h"
 #include "screen.h"
 
 static sprite_t flag;
@@ -13,6 +14,8 @@ static dnr_state_t* save;
 static int y_pos;
 
 static int selected_x = -1, selected_y = -1;
+
+static char save_directory[MAX_PATH];
 
 static void save_viewer_set_selected(int x, int y)
 {
@@ -74,7 +77,7 @@ static void save_viewer_handle_keyboard(virtual_key_t vk, keyboard_control_t ctr
 		if (vk == 'S')
 		{
 			debug_format("Saving to disk...\n");
-			file_state_save("C:\\Users\\fcsto\\OneDrive\\Documents\\DigiPen\\Dig-N-Rig\\profile1.sav", save);
+			file_state_save(save_directory, save);
 		}
 	}
 
@@ -82,7 +85,7 @@ static void save_viewer_handle_keyboard(virtual_key_t vk, keyboard_control_t ctr
 	{
 		debug_format("Reloading save...\n");
 		file_state_unload(save);
-		save = file_state_load("C:\\Users\\fcsto\\OneDrive\\Documents\\DigiPen\\Dig-N-Rig\\profile1.sav");
+		save = file_state_load(save_directory);
 
 		for (int i = 0; i < LAYER_COUNT; i++)
 		{
@@ -184,13 +187,15 @@ int main()
 	});
 
 	debug_profiler_push();
-	/* paths are temporary */
-	save = file_state_load("C:\\Users\\fcsto\\OneDrive\\Documents\\DigiPen\\Dig-N-Rig\\profile1.sav");
-	flag = file_sprite_load("C:\\Program Files (x86)\\DigiPen\\Dig-N-Rig\\Sprites\\Checkpoint.sprite");
+
+	char buf[MAX_PATH];
+	save = file_state_load(path_find_dnr_save(save_directory, sizeof save_directory, 1));
+	flag = file_sprite_load(path_find_dnr_main(buf, sizeof buf, "Sprites\\Checkpoint.sprite"));
 	if (!save || !flag)
 	{
 		return 1;
 	}
+
 	debug_profiler_pop("Load assets");
 
 	debug_profiler_push();

@@ -42,6 +42,9 @@
     <ClCompile Include="charmap_control.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="path.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="types.h">
@@ -74,6 +77,9 @@
     <ClInclude Include="charmap_control.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="path.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />
@@ -82,5 +88,8 @@
     <ResourceCompile Include="change_field_modal.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="todo.txt" />
   </ItemGroup>
 </Project>

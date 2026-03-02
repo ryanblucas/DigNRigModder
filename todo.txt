@@ -1,0 +1,15 @@
+Save viewer
+	Ask user for which save file to load
+	Selection should not be a single block, you should be able to select a rectangle of blocks
+	Determine how liquids are stored in save files
+
+Create layer creator
+Create sprite creator
+Create campaign creator
+
+Important, yet not urgent
+	Refactor serialize
+	Add unit testing for every module
+	Remove windows.h headers and create a char_info struct instead
+	Add documentation to all functions and modules
+	Add more RUNTIME_ASSERTs, or remove them if that makes the most sense

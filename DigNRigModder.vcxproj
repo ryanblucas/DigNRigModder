@@ -135,6 +135,7 @@
     <ClCompile Include="file.c" />
     <ClCompile Include="info_box.c" />
     <ClCompile Include="mineral_control.c" />
+    <ClCompile Include="path.c" />
     <ClCompile Include="save_viewer.c" />
     <ClCompile Include="screen.c" />
     <ClCompile Include="serialize.c" />
@@ -146,6 +147,7 @@
     <ClInclude Include="file.h" />
     <ClInclude Include="info_box.h" />
     <ClInclude Include="mineral_control.h" />
+    <ClInclude Include="path.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="screen.h" />
     <ClInclude Include="serialize.h" />
@@ -156,6 +158,9 @@
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="change_field_modal.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="todo.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

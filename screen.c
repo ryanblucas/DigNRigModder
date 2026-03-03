@@ -138,13 +138,13 @@ void screen_loop(void)
 				WORD scroll = HIWORD(mer.dwButtonState);
 				RAISE_EVENT(events.mouse_wheel, (signed short)scroll / WHEEL_DELTA);
 			}
-			else if (mer.dwEventFlags == 0) /* release or click */
+			else if (mer.dwEventFlags == 0 && mer.dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED) /* release or click */
 			{
-				static DWORD previous_button_state = 0;
-				if (mer.dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED && previous_button_state ^ FROM_LEFT_1ST_BUTTON_PRESSED)
-				{
-					RAISE_EVENT(events.mouse_button, mer.dwMousePosition.X, mer.dwMousePosition.Y);
-				}
+				RAISE_EVENT(events.mouse_button, mer.dwMousePosition.X, mer.dwMousePosition.Y);
+			}
+			else if (mer.dwEventFlags == MOUSE_MOVED)
+			{
+				RAISE_EVENT(events.mouse_move, !!(mer.dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED), mer.dwMousePosition.X, mer.dwMousePosition.Y);
 			}
 		}
 		else if (ir.EventType == WINDOW_BUFFER_SIZE_EVENT)
@@ -221,8 +221,10 @@ void screen_change_dirt_color(rgb_color_t rgb)
 
 /* these functions are essentially the same logic, but it's more expensive to put it all in one function */
 
-static inline void screen_buffer_set_char_region(CHAR_INFO* buffer, int bwx, int bwy, const char* in, int x, int y, int wx, int wy)
+static inline void screen_buffer_set_char_region(CHAR_INFO* buffer, int bwx, int bwy, const char* in, region_t region)
 {
+	int x = region.x0, y = region.y0, wx = region.x1 - region.x0 + 1, wy = region.y1 - region.y0 + 1;
+
 	int top = max(y, 0),
 		bottom = min(y + wy, bwy);
 	int left = max(x, 0),
@@ -241,8 +243,10 @@ static inline void screen_buffer_set_char_region(CHAR_INFO* buffer, int bwx, int
 	}
 }
 
-static inline void screen_buffer_set_attrib_region(CHAR_INFO* buffer, int bwx, int bwy, const attribute_t* in, int x, int y, int wx, int wy)
+static inline void screen_buffer_set_attrib_region(CHAR_INFO* buffer, int bwx, int bwy, const attribute_t* in, region_t region)
 {
+	int x = region.x0, y = region.y0, wx = region.x1 - region.x0 + 1, wy = region.y1 - region.y0 + 1;
+
 	int top = max(y, 0),
 		bottom = min(y + wy, bwy);
 	int left = max(x, 0),
@@ -261,18 +265,25 @@ static inline void screen_buffer_set_attrib_region(CHAR_INFO* buffer, int bwx, i
 	}
 }
 
-void screen_set_char_region(const char* in, int x, int y, int wx, int wy)
+void screen_set_char_region(const char* in, region_t region)
 {
-	screen_buffer_set_char_region(target, TARGET_WIDTH, TARGET_HEIGHT, in, x, y, wx, wy);
+	screen_buffer_set_char_region(target, TARGET_WIDTH, TARGET_HEIGHT, in, region);
 }
 
-void screen_set_attrib_region(const attribute_t* in, int x, int y, int wx, int wy)
+void screen_set_attrib_region(const attribute_t* in, region_t region)
 {
-	screen_buffer_set_attrib_region(target, TARGET_WIDTH, TARGET_HEIGHT, in, x, y, wx, wy);
+	screen_buffer_set_attrib_region(target, TARGET_WIDTH, TARGET_HEIGHT, in, region);
 }
 
-static inline int screen_buffer_get_char_region(const CHAR_INFO* buffer, int bwx, int bwy, char* out, int x, int y, int wx, int wy)
+static inline int screen_buffer_get_char_region(const CHAR_INFO* buffer, int bwx, int bwy, char* out, region_t region)
 {
+	int x = region.x0, y = region.y0, wx = region.x1 - region.x0 + 1, wy = region.y1 - region.y0 + 1;
+
+	if (wx <= 0 || wy <= 0)
+	{
+		return 0;
+	}
+
 	memset(out, 0, wx * wy * sizeof * out);
 	int top = max(y, 0),
 		bottom = min(y + wy, bwy);
@@ -293,8 +304,15 @@ static inline int screen_buffer_get_char_region(const CHAR_INFO* buffer, int bwx
 	return (bottom - top) * (right - left);
 }
 
-static inline int screen_buffer_get_attrib_region(const CHAR_INFO* buffer, int bwx, int bwy, attribute_t* out, int x, int y, int wx, int wy)
+static inline int screen_buffer_get_attrib_region(const CHAR_INFO* buffer, int bwx, int bwy, attribute_t* out, region_t region)
 {
+	int x = region.x0, y = region.y0, wx = region.x1 - region.x0 + 1, wy = region.y1 - region.y0 + 1;
+
+	if (wx <= 0 || wy <= 0)
+	{
+		return 0;
+	}
+
 	memset(out, 0, wx * wy * sizeof * out);
 	int top = max(y, 0),
 		bottom = min(y + wy, bwy);
@@ -315,14 +333,14 @@ static inline int screen_buffer_get_attrib_region(const CHAR_INFO* buffer, int b
 	return (bottom - top) * (right - left);
 }
 
-int screen_get_char_region(char* out, int x, int y, int wx, int wy)
+int screen_get_char_region(char* out, region_t region)
 {
-	return screen_buffer_get_char_region(target, TARGET_WIDTH, TARGET_HEIGHT, out, x, y, wx, wy);
+	return screen_buffer_get_char_region(target, TARGET_WIDTH, TARGET_HEIGHT, out, region);
 }
 
-int screen_get_attrib_region(attribute_t* out, int x, int y, int wx, int wy)
+int screen_get_attrib_region(attribute_t* out, region_t region)
 {
-	return screen_buffer_get_attrib_region(target, TARGET_WIDTH, TARGET_HEIGHT, out, x, y, wx, wy);
+	return screen_buffer_get_attrib_region(target, TARGET_WIDTH, TARGET_HEIGHT, out, region);
 }
 
 sprite_t screen_sprite_create(int width, int height, rgb_color_t dirt_color, char* text, attribute_t* attrib)
@@ -362,24 +380,24 @@ void screen_sprite_render(int x, int y, const sprite_t sprite)
 	}
 }
 
-void screen_sprite_set_char_region(sprite_t sprite, const char* in, int x, int y, int wx, int wy)
+void screen_sprite_set_char_region(sprite_t sprite, const char* in, region_t region)
 {
-	screen_buffer_set_char_region(sprite->data, sprite->width, sprite->height, in, x, y, wx, wy);
+	screen_buffer_set_char_region(sprite->data, sprite->width, sprite->height, in, region);
 }
 
-void screen_sprite_set_attrib_region(sprite_t sprite, const attribute_t* in, int x, int y, int wx, int wy)
+void screen_sprite_set_attrib_region(sprite_t sprite, const attribute_t* in, region_t region)
 {
-	screen_buffer_set_attrib_region(sprite->data, sprite->width, sprite->height, in, x, y, wx, wy);
+	screen_buffer_set_attrib_region(sprite->data, sprite->width, sprite->height, in, region);
 }
 
-int screen_sprite_get_char_region(const sprite_t sprite, char* out, int x, int y, int wx, int wy)
+int screen_sprite_get_char_region(const sprite_t sprite, char* out, region_t region)
 {
-	return screen_buffer_get_char_region(sprite->data, sprite->width, sprite->height, out, x, y, wx, wy);
+	return screen_buffer_get_char_region(sprite->data, sprite->width, sprite->height, out, region);
 }
 
-int screen_sprite_get_attrib_region(const sprite_t sprite, attribute_t* out, int x, int y, int wx, int wy)
+int screen_sprite_get_attrib_region(const sprite_t sprite, attribute_t* out, region_t region)
 {
-	return screen_buffer_get_attrib_region(sprite->data, sprite->width, sprite->height, out, x, y, wx, wy);
+	return screen_buffer_get_attrib_region(sprite->data, sprite->width, sprite->height, out, region);
 }
 
 int screen_sprite_width(const sprite_t sprite)

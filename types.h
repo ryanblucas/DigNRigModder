@@ -54,6 +54,11 @@ extern const rgb_color_t palette[16];
 
 typedef uint16_t attribute_t;
 
+typedef struct region
+{
+	int x0, y0, x1, y1;
+} region_t;
+
 typedef struct sprite* sprite_t;
 
 extern inline void* dig_malloc(size_t size)
@@ -69,4 +74,45 @@ extern inline void* dig_malloc(size_t size)
 extern inline bool dig_inside_bounds(int x, int y)
 {
 	return x >= 0 && y >= 0 && x < WORLD_WIDTH && y < WORLD_HEIGHT;
+}
+
+/* not a fan... */
+#define INVALID_REGION ((region_t) { INT_MIN, INT_MIN, INT_MIN, INT_MIN })
+
+extern inline int region_width(region_t region)
+{
+	return abs(region.x1 - region.x0) + 1;
+}
+
+extern inline int region_height(region_t region)
+{
+	return abs(region.y1 - region.y0) + 1;
+}
+
+extern inline int region_size(region_t region)
+{
+	return region_width(region) * region_height(region);
+}
+
+extern inline region_t region_validate(region_t region)
+{
+	if (region.x1 < region.x0)
+	{
+		int temp = region.x0;
+		region.x0 = region.x1;
+		region.x1 = temp;
+	}
+	if (region.y1 < region.y0)
+	{
+		int temp = region.y0;
+		region.y0 = region.y1;
+		region.y1 = temp;
+	}
+	return region;
+}
+
+extern inline bool region_is_invalid(region_t region)
+{
+	region_t invalid = INVALID_REGION;
+	return region.x0 == invalid.x0 && region.y0 == invalid.y0 && region.x1 == invalid.x1 && region.y1 == invalid.y1;
 }

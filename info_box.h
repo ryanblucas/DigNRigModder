@@ -34,4 +34,5 @@ info_mode_t info_get_current_mode(void);
 
 dnr_state_t* info_state_get(void);
 void info_state_set(dnr_state_t* state);
+
 void info_cell_set_current(int x, int y);

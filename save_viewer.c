@@ -10,12 +10,16 @@
 #include "screen.h"
 #include <stdio.h>
 
+#define MAX_SELECTION_WIDTH 40
+#define MAX_SELECTION_HEIGHT 40
+#define MAX_SELECTION_SIZE (MAX_SELECTION_WIDTH * MAX_SELECTION_HEIGHT)
+
 static sprite_t flag;
 static sprite_t cache[LAYER_COUNT];
 static dnr_state_t* save;
 static int y_pos;
 
-static int selected_x = -1, selected_y = -1;
+static region_t selection_region;
 
 static char save_directory[MAX_PATH];
 static editor_state editor;
@@ -45,26 +49,6 @@ static void save_viewer_prompt_which_save(void)
 	}
 }
 
-static void save_viewer_set_selected(int x, int y)
-{
-	if (!dig_inside_bounds(x, y))
-	{
-		selected_x = selected_y = -1;
-		return;
-	}
-
-	selected_x = x;
-	selected_y = y;
-
-	if (y < y_pos || y >= y_pos + TARGET_HEIGHT)
-	{
-		y_pos = min(max(0, y - 16), TARGET_HEIGHT * 13 - 1);
-	}
-
-	info_cell_set_current(selected_x, selected_y);
-	screen_repaint();
-}
-
 static void save_viewer_move_window(int addend)
 {
 	static int prev_mid = 0;
@@ -92,10 +76,56 @@ static void save_viewer_handle_repaint()
 		screen_sprite_render((int)save->player.x_spawn, (int)save->player.y_spawn - y_pos, flag);
 	}
 
-	attribute_t selected;
-	screen_get_attrib_region(&selected, selected_x, selected_y - y_pos, 1, 1);
-	selected = ~selected & 0xFF;
-	screen_set_attrib_region(&selected, selected_x, selected_y - y_pos, 1, 1);
+	region_t screen_region = region_validate(selection_region);
+	screen_region.y0 -= y_pos;
+	screen_region.y1 -= y_pos;
+	
+	RUNTIME_ASSERT(region_width(screen_region) <= MAX_SELECTION_WIDTH && region_height(screen_region) <= MAX_SELECTION_HEIGHT);
+
+	attribute_t selected[MAX_SELECTION_SIZE];
+	screen_get_attrib_region(selected, screen_region);
+	for (int i = 0; i < region_size(screen_region); i++)
+	{
+		selected[i] = ~selected[i] & 0xFF;
+	}
+	screen_set_attrib_region(selected, screen_region);
+}
+
+static void save_viewer_delete_selection(void)
+{
+	region_t region = region_validate(selection_region);
+	for (int x = region.x0; x <= region.x1; x++)
+	{
+		for (int y = region.y0; y <= region.y1; y++)
+		{
+			dnr_block_t* block = &save->blocks[x * WORLD_HEIGHT + y];
+			block->health_current = 0;
+			block->visual.Attributes = 0;
+			block->visual.Char.AsciiChar = ' ';
+			block->block_exists = false;
+			block->rig_type = RIG_NONE;
+			block->mineral_move_direction = MOVE_DIRECTION_DOWN;
+			if (block->mineral_exists)
+			{
+				save->minerals[block->mineral_index].exists = false;
+				block->mineral_exists = false;
+				block->mineral_index = -1;
+			}
+			for (int i = 0; i < save->stalactite_count; i++)
+			{
+				if (save->stalactite_array[i].exists && (int)save->stalactite_array[i].x == x && (int)save->stalactite_array[i].y == y)
+				{
+					save->stalactite_array[i].exists = false;
+				}
+			}
+		}
+	}
+	for (int y = region.y0 / TARGET_HEIGHT; y <= region.y1 / TARGET_HEIGHT; y++)
+	{
+		cache[y] = file_state_spritify(save, y);
+	}
+	selection_region = INVALID_REGION;
+	screen_repaint();
 }
 
 static void save_viewer_handle_keyboard(virtual_key_t vk, keyboard_control_t ctrl)
@@ -135,6 +165,10 @@ static void save_viewer_handle_keyboard(virtual_key_t vk, keyboard_control_t ctr
 	{
 		save_viewer_move_window(-1);
 	}
+	else if (vk == VK_DELETE)
+	{
+		save_viewer_delete_selection();
+	}
 }
 
 static void save_viewer_handle_mouse_button(int x, int y)
@@ -142,28 +176,38 @@ static void save_viewer_handle_mouse_button(int x, int y)
 	int new_selected_x = x;
 	int new_selected_y = y + y_pos;
 
-	if (new_selected_x == selected_x && new_selected_y == selected_y)
+	if (new_selected_x == selection_region.x0 && new_selected_y == selection_region.y0 && region_size(selection_region) == 1)
 	{
-		selected_x = selected_y = -1;
-		info_cell_set_current(selected_x, selected_y);
+		selection_region = INVALID_REGION;
+		info_cell_set_current(new_selected_x, new_selected_y);
 		screen_repaint();
 		return;
 	}
-	selected_x = new_selected_x;
-	selected_y = new_selected_y;
-	info_cell_set_current(selected_x, selected_y);
+	selection_region.x0 = selection_region.x1 = new_selected_x;
+	selection_region.y0 = selection_region.y1 = new_selected_y;
+	info_cell_set_current(new_selected_x, new_selected_y);
 
 	screen_repaint();
+}
 
-	int block_index = (selected_x * WORLD_HEIGHT + selected_y);
-	debug_format("%i, %i\n", selected_x, selected_y);
-	debug_format("Cheat Engine block: \"Dig-N-Rig.exe\"+%X 0x54 array size\n", block_index * SAVE_BLOCK_STRUCT_SIZE + 0x661E00);
-	if (save->blocks[block_index].mineral_exists && save->blocks[block_index].mineral_index >= 0 
-		&& save->blocks[block_index].mineral_index < sizeof save->minerals / sizeof * save->minerals)
+static void save_viewer_handle_mouse_move(bool m1_down, int x, int y)
+{
+	if (!m1_down)
 	{
-		debug_format("Cheat Engine mineral: \"Dig-N-Rig.exe\"+%X 0x34 array size\n", save->blocks[block_index].mineral_index * SAVE_MINERAL_STRUCT_SIZE + 0x61890);
+		return;
 	}
-	debug_format("Cheat Engine screen: \"Dig-N-Rig.exe\"+65C5CC pointer with offset 0x%X\n", (x + y * WORLD_WIDTH) * 4);
+
+	int new_selected_x = x;
+	int new_selected_y = y + y_pos;
+	selection_region.x1 = min(new_selected_x, selection_region.x0 + MAX_SELECTION_WIDTH - 1);
+	selection_region.y1 = min(new_selected_y, selection_region.y0 + MAX_SELECTION_HEIGHT - 1);
+	selection_region.x1 = max(selection_region.x1, selection_region.x0 - MAX_SELECTION_WIDTH + 1);
+	selection_region.y1 = max(selection_region.y1, selection_region.y0 - MAX_SELECTION_HEIGHT + 1);
+	if (region_size(selection_region) != 1)
+	{
+		info_cell_set_current(-1, -1);
+	}
+	screen_repaint();
 }
 
 static void save_viewer_handle_mouse_wheel(int delta)
@@ -213,6 +257,7 @@ int main()
 		.repaint = save_viewer_handle_repaint,
 		.keyboard = save_viewer_handle_keyboard,
 		.mouse_button = save_viewer_handle_mouse_button,
+		.mouse_move = save_viewer_handle_mouse_move,
 		.mouse_wheel = save_viewer_handle_mouse_wheel
 	});
 
@@ -249,6 +294,7 @@ int main()
 
 	debug_profiler_pop("Application initialization");
 
+	selection_region = INVALID_REGION;
 	screen_loop();
 
 	file_editor_save(&editor);

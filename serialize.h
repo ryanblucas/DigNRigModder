@@ -33,6 +33,7 @@ typedef struct element* element_t;
 #define TYPE_DNR_MINERAL_TYPE_T 12303576239558253438ULL
 #define TYPE_DNR_MINERAL_T 15207893016492402041ULL
 
+size_t serialize_element_get_size(element_t element);
 void serialize_element_get_name(element_t element, char* buf, size_t buf_size);
 uint64_t serialize_element_get_type(element_t element);
 void* serialize_element_get_value(element_t element);
@@ -48,6 +49,6 @@ void serialize_array(const char* type, void* value, int count, const char* name,
 void serialize_delete(HWND tree_window);
 
 void serialize_on_expand(element_t element);
-void serialize_on_change_field(element_t element);
+bool serialize_on_change_field(element_t element);
 
 HTREEITEM serialize_tree_find_item(HWND tree_window, HTREEITEM root, const char* name);

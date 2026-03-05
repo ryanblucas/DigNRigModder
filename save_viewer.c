@@ -3,6 +3,7 @@
 	Views save files
 */
 
+#include "action_buffer.h"
 #include "change_field_modal.h"
 #include "file.h"
 #include "info_box.h"
@@ -13,6 +14,8 @@
 #define MAX_SELECTION_WIDTH 40
 #define MAX_SELECTION_HEIGHT 40
 #define MAX_SELECTION_SIZE (MAX_SELECTION_WIDTH * MAX_SELECTION_HEIGHT)
+
+static void save_viewer_handle_global_field_change(void* field);
 
 static sprite_t flag;
 static sprite_t cache[LAYER_COUNT];
@@ -94,6 +97,7 @@ static void save_viewer_handle_repaint()
 static void save_viewer_delete_selection(void)
 {
 	region_t region = region_validate(selection_region);
+	action_buffer_pre_add_block(save, region);
 	for (int x = region.x0; x <= region.x1; x++)
 	{
 		for (int y = region.y0; y <= region.y1; y++)
@@ -120,11 +124,34 @@ static void save_viewer_delete_selection(void)
 			}
 		}
 	}
+	action_buffer_post_add_block(save);
 	for (int y = region.y0 / TARGET_HEIGHT; y <= region.y1 / TARGET_HEIGHT; y++)
 	{
 		cache[y] = file_state_spritify(save, y);
 	}
 	selection_region = INVALID_REGION;
+	screen_repaint();
+}
+
+static void save_viewer_do_action(action_t* act)
+{
+	if (!act)
+	{
+		return;
+	}
+	if (act->type == ACTION_FIELD)
+	{
+		action_buffer_reverse_field(act);
+		save_viewer_handle_global_field_change(act->sub.field.ptr);
+		return;
+	}
+	action_buffer_reverse_block(save, act);
+	int top = act->sub.block.region.y0 / TARGET_HEIGHT;
+	int bottom = act->sub.block.region.y1 / TARGET_HEIGHT;
+	for (; top <= bottom; top++)
+	{
+		cache[top] = file_state_spritify(save, top);
+	}
 	screen_repaint();
 }
 
@@ -155,6 +182,14 @@ static void save_viewer_handle_keyboard(virtual_key_t vk, keyboard_control_t ctr
 
 			info_state_set(save);
 			screen_repaint();
+		}
+		else if (vk == 'Z')
+		{
+			save_viewer_do_action(action_buffer_back());
+		}
+		else if (vk == 'Y')
+		{
+			save_viewer_do_action(action_buffer_forward());
 		}
 	}
 	else if (vk == VK_UP)
@@ -226,13 +261,21 @@ static void save_viewer_handle_block_change(int x, int y)
 	screen_repaint();
 }
 
-static void save_viewer_handle_dirt_color_change(int layer_index, rgb_color_t new_color)
+static void save_viewer_handle_global_field_change(void* field)
 {
+	int layer_index;
+	for (layer_index = 0; layer_index < LAYER_COUNT; layer_index++)
+	{
+		if (field == &save->layer_headers[layer_index].dirt_color)
+		{
+			break;
+		}
+	}
 	if (layer_index < 0 || layer_index >= LAYER_COUNT)
 	{
 		return;
 	}
-	screen_sprite_set_dirt_color(cache[layer_index], new_color);
+	screen_sprite_set_dirt_color(cache[layer_index], *(rgb_color_t*)field);
 	int mid = (y_pos + TARGET_HEIGHT / 2) / TARGET_HEIGHT;
 	if (mid == layer_index)
 	{
@@ -267,9 +310,11 @@ int main()
 	{
 		.mode_handler = NULL,
 		.block_handler = save_viewer_handle_block_change,
-		.dirt_color_handler = save_viewer_handle_dirt_color_change,
+		.global_field_handler = save_viewer_handle_global_field_change,
 	});
 
+	action_buffer_initialize();
+	
 	debug_profiler_push();
 
 	char buf[MAX_PATH];
@@ -301,6 +346,8 @@ int main()
 
 	screen_sprite_destroy(flag);
 	file_state_unload(save);
+
+	action_buffer_destroy();
 	info_destroy();
 	screen_destroy();
 

@@ -45,6 +45,9 @@
     <ClCompile Include="path.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="action_buffer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="types.h">
@@ -78,6 +81,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="path.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="action_buffer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

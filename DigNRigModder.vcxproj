@@ -129,6 +129,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="action_buffer.c" />
     <ClCompile Include="change_field_modal.c" />
     <ClCompile Include="charmap_control.c" />
     <ClCompile Include="debug.c" />
@@ -141,6 +142,7 @@
     <ClCompile Include="serialize.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="action_buffer.h" />
     <ClInclude Include="change_field_modal.h" />
     <ClInclude Include="charmap_control.h" />
     <ClInclude Include="debug.h" />

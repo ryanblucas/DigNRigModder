@@ -4,6 +4,7 @@
 */
 
 #include "info_box.h"
+#include "action_buffer.h"
 #include "charmap_control.h"
 #include "debug.h"
 #include "mineral_control.h"
@@ -164,24 +165,33 @@ static LRESULT info_window_save_tree_control_proc(HWND hwnd, WPARAM wparam, LPAR
 			TreeView_GetItem(nmtv->hdr.hwndFrom, &tvi);
 			element_t element = (element_t)tvi.lParam;
 
-			serialize_on_change_field(element);
-
 			if (nmtv->hdr.hwndFrom == child_windows[CWI_SAVE_CURRENT_TREEVIEW])
 			{
 				int x = current_selection_index / WORLD_HEIGHT;
 				int y = current_selection_index % WORLD_HEIGHT;
+				region_t region = { x, y, x, y };
+				action_buffer_pre_add_block(state, region);
+
+				if (!serialize_on_change_field(element))
+				{
+					return 0;
+				}
+
 				RAISE_EVENT(events.block_handler, x, y);
 				info_state_update_current_cell_image(x, y);
+				action_buffer_post_add_block(state);
 			}
 			else if (nmtv->hdr.hwndFrom == child_windows[CWI_SAVE_TREEVIEW])
 			{
-				char buf[64];
-				serialize_element_get_name(element, buf, sizeof buf);
-				element_t parent = serialize_element_get_parent(element);
-				if (strncmp(buf, "dirt_color", 11) == 0 && parent && serialize_element_get_type(parent) == TYPE_DNR_LAYER_HEADER_T)
+				field_t begin_copy = field_create(serialize_element_get_value(element), serialize_element_get_size(element));
+
+				if (!serialize_on_change_field(element))
 				{
-					RAISE_EVENT(events.dirt_color_handler, serialize_element_get_index(parent), *(rgb_color_t*)serialize_element_get_value(element));
+					return 0;
 				}
+
+				RAISE_EVENT(events.global_field_handler, serialize_element_get_value(element));
+				action_buffer_add_field(serialize_element_get_size(element), serialize_element_get_value(element), begin_copy);
 			}
 		}
 	}

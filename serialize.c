@@ -18,6 +18,48 @@ struct element
 	WCHAR name[64];
 };
 
+static size_t serialize_hash_get_size(uint64_t type_hash)
+{
+	switch (type_hash)
+	{
+	case TYPE_UINT8_T:
+	case TYPE_DNR_MINERAL_SIZE_T:
+		return 1;
+	case TYPE_UINT16_T:
+	case TYPE_DNR_MINERAL_TYPE_T:
+		return 2;
+	case TYPE_FLOAT:
+	case TYPE_RGB_COLOR_T:
+	case TYPE_BOOLEAN32_T:
+	case TYPE_CHAR_INFO:
+	case TYPE_INT32_T:
+	case TYPE_UINT32_T:
+	case TYPE_DNR_POINTER_T:
+	case TYPE_DNR_RIG_TYPE_T:
+	case TYPE_DNR_MINERAL_MOVE_DIRECTION_T:
+	case TYPE_DNR_MINERAL_SPAWN_RULE_T:
+		return 4;
+	case TYPE_DNR_SPRITE_T:
+		return sizeof(dnr_sprite_t);
+	case TYPE_DNR_SAVE_HEADER_T:
+		return sizeof(dnr_save_header_t);
+	case TYPE_DNR_LAYER_HEADER_T:
+		return sizeof(dnr_layer_header_t);
+	case TYPE_DNR_PLAYER_T:
+		return sizeof(dnr_player_t);
+	case TYPE_DNR_BLOCK_T:
+		return sizeof(dnr_block_t);
+	case TYPE_DNR_MINERAL_T:
+		return sizeof(dnr_mineral_t);
+	}
+	return 0;
+}
+
+size_t serialize_element_get_size(element_t element)
+{
+	return serialize_hash_get_size(element->type_hash);
+}
+
 void serialize_element_get_name(element_t element, char* buf, size_t buf_size)
 {
 	WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, element->name, -1, buf, buf_size, NULL, NULL);
@@ -67,42 +109,6 @@ int serialize_element_get_index(element_t element)
 	if (parent && serialize_element_get_count(parent) > 0)
 	{
 		return wcstol(element->name, NULL, 0);
-	}
-	return 0;
-}
-
-static inline size_t serialize_type_size(uint64_t type_hash)
-{
-	switch (type_hash)
-	{
-	case TYPE_UINT8_T:
-	case TYPE_DNR_MINERAL_SIZE_T:
-		return 1;
-	case TYPE_UINT16_T:
-	case TYPE_DNR_MINERAL_TYPE_T:
-		return 2;
-	case TYPE_FLOAT:
-	case TYPE_BOOLEAN32_T:
-	case TYPE_CHAR_INFO:
-	case TYPE_INT32_T:
-	case TYPE_UINT32_T:
-	case TYPE_DNR_POINTER_T:
-	case TYPE_DNR_RIG_TYPE_T:
-	case TYPE_DNR_MINERAL_MOVE_DIRECTION_T:
-	case TYPE_DNR_MINERAL_SPAWN_RULE_T:
-		return 4;
-	case TYPE_DNR_SPRITE_T:
-		return sizeof(dnr_sprite_t);
-	case TYPE_DNR_SAVE_HEADER_T:
-		return sizeof(dnr_save_header_t);
-	case TYPE_DNR_LAYER_HEADER_T:
-		return sizeof(dnr_layer_header_t);
-	case TYPE_DNR_PLAYER_T:
-		return sizeof(dnr_player_t);
-	case TYPE_DNR_BLOCK_T:
-		return sizeof(dnr_block_t);
-	case TYPE_DNR_MINERAL_T:
-		return sizeof(dnr_mineral_t);
 	}
 	return 0;
 }
@@ -201,7 +207,7 @@ static void serialize_redo_basic(element_t element)
 
 static void serialize_array_internal(uint64_t type_hash, void* value, int start, int end, WCHAR* wname, HWND tree_window, HTREEITEM tree_item)
 {
-	value = (uint8_t*)value + serialize_type_size(type_hash) * (end - 1);
+	value = (uint8_t*)value + serialize_hash_get_size(type_hash) * (end - 1);
 	for (int i = end - 1; i >= start; i--)
 	{
 		TVINSERTSTRUCTW tvins = { 0 };
@@ -708,10 +714,11 @@ void serialize_on_expand(element_t element)
 	}
 }
 
-void serialize_on_change_field(element_t element)
+bool serialize_on_change_field(element_t element)
 {
 	HWND owner = GetParent(element->window);
 	RUNTIME_ASSERT(owner);
+	bool result = true;
 	switch (element->type_hash)
 	{
 	case TYPE_DNR_MINERAL_SIZE_T:
@@ -753,8 +760,15 @@ void serialize_on_change_field(element_t element)
 	case TYPE_RGB_COLOR_T:
 		change_field_modal_color(owner, element->value);
 		break;
+	default:
+		result = false;
+		break;
 	}
-	serialize_redo_basic(element);
+	if (result)
+	{
+		serialize_redo_basic(element);
+	}
+	return result;
 }
 
 HTREEITEM serialize_tree_find_item(HWND tree_window, HTREEITEM root, const char* name)

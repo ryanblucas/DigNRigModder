@@ -15,7 +15,7 @@
 #define MAX_SELECTION_HEIGHT 40
 #define MAX_SELECTION_SIZE (MAX_SELECTION_WIDTH * MAX_SELECTION_HEIGHT)
 
-static void save_viewer_handle_global_field_change(void* field);
+static void save_viewer_handle_global_field_change(const void* field);
 
 static sprite_t flag;
 static sprite_t cache[LAYER_COUNT];
@@ -142,7 +142,7 @@ static void save_viewer_do_action(action_t* act)
 	if (act->type == ACTION_FIELD)
 	{
 		action_buffer_reverse_field(act);
-		save_viewer_handle_global_field_change(act->sub.field.ptr);
+		save_viewer_handle_global_field_change(serialize_element_get_value(act->sub.field.element));
 		return;
 	}
 	action_buffer_reverse_block(save, act);
@@ -261,7 +261,7 @@ static void save_viewer_handle_block_change(int x, int y)
 	screen_repaint();
 }
 
-static void save_viewer_handle_global_field_change(void* field)
+static void save_viewer_handle_global_field_change(const void* field)
 {
 	int layer_index;
 	for (layer_index = 0; layer_index < LAYER_COUNT; layer_index++)

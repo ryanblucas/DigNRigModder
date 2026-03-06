@@ -6,7 +6,7 @@
 #pragma once
 
 #include "file.h"
-#include "types.h"
+#include "serialize.h"
 
 typedef enum info_mode
 {
@@ -19,7 +19,7 @@ typedef enum info_mode
 
 typedef void (*info_handle_change_mode)(info_mode_t new_mode);
 typedef void (*info_handle_change_block)(int x, int y);
-typedef void (*info_handle_change_global_field)(void* field);
+typedef void (*info_handle_change_global_field)(const void* field);
 
 typedef struct info_events
 {
@@ -36,3 +36,5 @@ dnr_state_t* info_state_get(void);
 void info_state_set(dnr_state_t* state);
 
 void info_cell_set_current(int x, int y);
+
+element_t info_element_find(bool global, const char* query);

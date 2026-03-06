@@ -92,17 +92,16 @@ void action_buffer_post_add_block(const dnr_state_t* state)
 	action_buffer_copy_region(state, block_action->region, block_action->next);
 }
 
-void action_buffer_add_field(size_t size, void* ptr, field_t previous)
+void action_buffer_add_field(element_t element, field_t previous)
 {
 	action_buffer_create_node();
 
 	buffer[position].type = ACTION_FIELD;
 	buffer[position].sub.field = (action_field_t)
 	{
-		.size = size,
-		.next = field_create(ptr, size),
+		.next = field_create(serialize_element_get_value(element), serialize_element_get_size(element)),
 		.previous = previous,
-		.ptr = ptr,
+		.element = element
 	};
 }
 
@@ -162,18 +161,7 @@ void action_buffer_reverse_field(action_t* action)
 {
 	RUNTIME_ASSERT(action->type == ACTION_FIELD);
 	action_field_t* field = &action->sub.field;
-	if (field->size == 4)
-	{
-		*(uint32_t*)field->ptr = field->previous;
-	}
-	else if (field->size == 2)
-	{
-		*(uint16_t*)field->ptr = field->previous;
-	}
-	else
-	{
-		*(uint8_t*)field->ptr = field->previous;
-	}
+	serialize_element_set_value(field->element, &field->previous);
 	field_t temp = field->previous;
 	field->previous = field->next;
 	field->next = temp;

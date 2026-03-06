@@ -33,15 +33,20 @@ typedef struct element* element_t;
 #define TYPE_DNR_MINERAL_TYPE_T 12303576239558253438ULL
 #define TYPE_DNR_MINERAL_T 15207893016492402041ULL
 
-size_t serialize_element_get_size(element_t element);
-void serialize_element_get_name(element_t element, char* buf, size_t buf_size);
-uint64_t serialize_element_get_type(element_t element);
-void* serialize_element_get_value(element_t element);
-int serialize_element_get_count(element_t element);
-HTREEITEM serialize_element_get_handle(element_t element);
+size_t serialize_element_get_size(const element_t element);
+void serialize_element_get_name(const element_t element, char* buf, size_t buf_size);
+uint64_t serialize_element_get_type(const element_t element);
+const void* serialize_element_get_value(const element_t element);
+int serialize_element_get_count(const element_t element);
+HTREEITEM serialize_element_get_handle(const element_t element);
+
+void serialize_element_set_value(element_t element, const void* value);
 
 element_t serialize_element_get_parent(element_t element);
-int serialize_element_get_index(element_t element);
+int serialize_element_get_index(const element_t element);
+element_t serialize_element_get_from_node(HWND window, HTREEITEM item);
+
+void serialize_element_delete(element_t element);
 
 void serialize_single(const char* type, void* value, const char* name, HWND tree_window, HTREEITEM tree_item);
 void serialize_array(const char* type, void* value, int count, const char* name, HWND tree_window, HTREEITEM tree_item);

@@ -18,6 +18,9 @@ struct element
 	WCHAR name[64];
 };
 
+static void serialize_redo_basic(element_t element);
+static void serialize_element_delete_internal(element_t element);
+
 static size_t serialize_hash_get_size(uint64_t type_hash)
 {
 	switch (type_hash)
@@ -55,34 +58,60 @@ static size_t serialize_hash_get_size(uint64_t type_hash)
 	return 0;
 }
 
-size_t serialize_element_get_size(element_t element)
+size_t serialize_element_get_size(const element_t element)
 {
 	return serialize_hash_get_size(element->type_hash);
 }
 
-void serialize_element_get_name(element_t element, char* buf, size_t buf_size)
+void serialize_element_get_name(const element_t element, char* buf, size_t buf_size)
 {
 	WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, element->name, -1, buf, buf_size, NULL, NULL);
 }
 
-uint64_t serialize_element_get_type(element_t element)
+uint64_t serialize_element_get_type(const element_t element)
 {
 	return element->type_hash;
 }
 
-void* serialize_element_get_value(element_t element)
+const void* serialize_element_get_value(const element_t element)
 {
 	return element->value;
 }
 
-int serialize_element_get_count(element_t element)
+int serialize_element_get_count(const element_t element)
 {
 	return element->count >= 0 ? element->count : (-element->count - 1);
 }
 
-HTREEITEM serialize_element_get_handle(element_t element)
+HTREEITEM serialize_element_get_handle(const element_t element)
 {
 	return element->tree_item;
+}
+
+void serialize_element_set_value(element_t element, const void* value)
+{
+	size_t size = serialize_hash_get_size(element->type_hash);
+	if (size == 4)
+	{
+		*(uint32_t*)element->value = *(uint32_t*)value;
+	}
+	else if (size == 2)
+	{
+		*(uint16_t*)element->value = *(uint16_t*)value;
+	}
+	else if (size == 1)
+	{
+		*(uint8_t*)element->value = *(uint8_t*)value;
+	}
+	else
+	{
+		memcpy(element->value, value, size);
+		element->count = -element->count - 1;
+		serialize_element_delete_internal(element);
+		serialize_on_expand(element);
+		return;
+	}
+	serialize_redo_basic(element);
 }
 
 element_t serialize_element_get_parent(element_t element)
@@ -103,7 +132,7 @@ element_t serialize_element_get_parent(element_t element)
 	return (element_t)tvi.lParam;
 }
 
-int serialize_element_get_index(element_t element)
+int serialize_element_get_index(const element_t element)
 {
 	element_t parent = serialize_element_get_parent(element);
 	if (parent && serialize_element_get_count(parent) > 0)
@@ -111,6 +140,42 @@ int serialize_element_get_index(element_t element)
 		return wcstol(element->name, NULL, 0);
 	}
 	return 0;
+}
+
+element_t serialize_element_get_from_node(HWND window, HTREEITEM item)
+{
+	if (!item)
+	{
+		item = TreeView_GetRoot(window);
+	}
+	TVITEMEXW tvi;
+	tvi.hItem = item;
+	tvi.mask = TVIF_PARAM;
+	TreeView_GetItem(window, &tvi);
+	return (element_t)tvi.lParam;
+}
+
+static void serialize_element_delete_internal(element_t element)
+{
+	HTREEITEM child = TreeView_GetChild(element->window, element->tree_item);
+	while (child)
+	{
+		TVITEMEXW tvi = { .mask = TVIF_PARAM, .hItem = child };
+		TreeView_GetItem(element->window, &tvi);
+		serialize_element_delete((element_t)tvi.lParam);
+		child = TreeView_GetNextSibling(element->window, child);
+	}
+}
+
+void serialize_element_delete(element_t element)
+{
+	if (!element)
+	{
+		return;
+	}
+	serialize_element_delete_internal(element);
+	TreeView_DeleteItem(element->window, element->tree_item);
+	free(element);
 }
 
 /* TO DO: lots of copied and redundant code here... */

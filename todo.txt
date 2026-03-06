@@ -1,5 +1,4 @@
 Save viewer
-	Action buffer for undoing and redoing
 	Selection should not be a single block, you should be able to select a rectangle of blocks
 		Since a region of blocks is guaranteed to not all have the same data, find what's common and display that in the info box.
 		Otherwise, display a blank field. All of this can be changed

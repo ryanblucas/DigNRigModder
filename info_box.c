@@ -191,7 +191,7 @@ static LRESULT info_window_save_tree_control_proc(HWND hwnd, WPARAM wparam, LPAR
 				}
 
 				RAISE_EVENT(events.global_field_handler, serialize_element_get_value(element));
-				action_buffer_add_field(serialize_element_get_size(element), serialize_element_get_value(element), begin_copy);
+				action_buffer_add_field(element, begin_copy);
 			}
 		}
 	}
@@ -488,4 +488,14 @@ void info_cell_set_current(int x, int y)
 
 	info_cell_set_current_treeview();
 	SetScrollPos(child_windows[CWI_SAVE_CURRENT_TREEVIEW], SB_VERT, pos, TRUE);
+}
+
+element_t info_element_find(bool global, const char* query)
+{
+	if (global)
+	{
+		return serialize_element_get_from_node(child_windows[CWI_SAVE_TREEVIEW], serialize_tree_find_item(child_windows[CWI_SAVE_TREEVIEW], TVI_ROOT, query));
+	}
+	return serialize_element_get_from_node(child_windows[CWI_SAVE_CURRENT_TREEVIEW], 
+		serialize_tree_find_item(child_windows[CWI_SAVE_CURRENT_TREEVIEW], TVI_ROOT, query));
 }

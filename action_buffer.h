@@ -6,7 +6,7 @@
 #pragma once
 
 #include "file.h"
-#include "types.h"
+#include "serialize.h"
 
 typedef struct complete_block
 {
@@ -40,8 +40,7 @@ typedef struct action_block
 
 typedef struct action_field
 {
-	size_t size;
-	void* ptr;
+	element_t element;
 	field_t previous;
 	field_t next;
 } action_field_t;
@@ -56,7 +55,7 @@ typedef struct action
 	} sub;
 } action_t;
 
-extern inline field_t field_create(void* ptr, size_t size)
+extern inline field_t field_create(const void* ptr, size_t size)
 {
 	field_t res;
 	RUNTIME_ASSERT(size <= sizeof res);
@@ -87,7 +86,7 @@ void action_buffer_pre_add_block(const dnr_state_t* state, region_t region);
 void action_buffer_post_add_block(const dnr_state_t* state);
 /* Adds field action to buffer. All of the parameters passed in are 1:1 what is created
    for the action_field_t struct. If this isn't the top of the buffer, it deletes everything in front of it */
-void action_buffer_add_field(size_t size, void* ptr, field_t previous);
+void action_buffer_add_field(element_t element, field_t previous);
 /* Goes back in the buffer. If there's no more left, returns false and doesn't write to action.
    This would be used for undoing */
 action_t* action_buffer_back(void);

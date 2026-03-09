@@ -116,3 +116,16 @@ extern inline bool region_is_invalid(region_t region)
 	region_t invalid = INVALID_REGION;
 	return region.x0 == invalid.x0 && region.y0 == invalid.y0 && region.x1 == invalid.x1 && region.y1 == invalid.y1;
 }
+
+extern inline bool region_is_inside(region_t region, int x, int y)
+{
+	region = region_validate(region);
+	return region.x0 <= x && region.x1 >= x && region.y0 <= y && region.y1 >= y;
+}
+
+extern inline region_t region_merge(region_t region1, region_t region2)
+{
+	region1 = region_validate(region1);
+	region2 = region_validate(region2);
+	return (region_t) { min(region1.x0, region2.x0), min(region1.y0, region2.y0), max(region1.x1, region2.x1), max(region1.y1, region2.y1) };
+}

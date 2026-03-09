@@ -1,8 +1,10 @@
 Save viewer
-	Allow regions to be moved around
+	Allow regions to be copied and pasted
 	Determine how liquids are stored in save files
 	Speed up region selection code
 
+Validate files
+Integrate game logic module to not repeat myself
 Create layer creator
 Create sprite creator
 Create campaign creator
@@ -10,6 +12,5 @@ Create campaign creator
 Important, yet not urgent
 	Refactor serialize
 	Add unit testing for every module
-	Remove windows.h headers and create a char_info struct instead
 	Add documentation to all functions and modules
 	Add more RUNTIME_ASSERTs, or remove them if that makes the most sense

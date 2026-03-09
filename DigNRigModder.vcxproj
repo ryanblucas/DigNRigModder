@@ -134,6 +134,7 @@
     <ClCompile Include="charmap_control.c" />
     <ClCompile Include="debug.c" />
     <ClCompile Include="file.c" />
+    <ClCompile Include="game.c" />
     <ClCompile Include="info_box.c" />
     <ClCompile Include="mineral_control.c" />
     <ClCompile Include="path.c" />
@@ -147,6 +148,7 @@
     <ClInclude Include="charmap_control.h" />
     <ClInclude Include="debug.h" />
     <ClInclude Include="file.h" />
+    <ClInclude Include="game.h" />
     <ClInclude Include="info_box.h" />
     <ClInclude Include="mineral_control.h" />
     <ClInclude Include="path.h" />

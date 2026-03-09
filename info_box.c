@@ -565,23 +565,23 @@ if (mask & (1 << position) && item1->name != item2->name) \
 } \
 position++;
 
-static int info_copy_similar_block_data(int mask, dnr_block_t* item1, const dnr_block_t* item2)
+static int info_copy_similar_block_data(HWND window, HTREEITEM root, int mask, dnr_block_t* item1, const dnr_block_t* item2)
 {
-	HWND window = child_windows[CWI_SAVE_CURRENT_TREEVIEW];
-	HTREEITEM root = serialize_tree_find_item(window, NULL, "block");
 	int position = 0;
 
 	CHECK_CONDITION(health_percentage);
 	CHECK_CONDITION(health_max);
 	CHECK_CONDITION(health_current);
-	if (item1->visual.Char.AsciiChar != item2->visual.Char.AsciiChar || item1->visual.Attributes != item2->visual.Attributes)
+	if (mask & (1 << position) && (item1->visual.Char.AsciiChar != item2->visual.Char.AsciiChar || item1->visual.Attributes != item2->visual.Attributes))
 	{
+		mask = mask ^ (1 << position);
 		HTREEITEM prev = serialize_tree_find_item(window, root, "visual");
 		if (prev)
 		{
 			serialize_element_enable(serialize_element_get_from_node(window, prev), false);
 		}
 	}
+	position++;
 	CHECK_CONDITION(block_exists);
 	CHECK_CONDITION(can_mine);
 	CHECK_CONDITION(mineral_exists);
@@ -594,9 +594,9 @@ static int info_copy_similar_block_data(int mask, dnr_block_t* item1, const dnr_
 	return mask;
 }
 
-static int info_copy_similar_mineral_data(int mask, dnr_mineral_t* item1, const dnr_mineral_t* item2)
+static int info_copy_similar_mineral_data(HWND window, HTREEITEM root, int mask, dnr_mineral_t* item1, const dnr_mineral_t* item2)
 {
-	if (!item1)
+	if (!item1 || !item1->exists)
 	{
 		return;
 	}
@@ -609,8 +609,6 @@ static int info_copy_similar_mineral_data(int mask, dnr_mineral_t* item1, const 
 		temp.type = item1->type + 1;
 		item2 = &temp;
 	}
-	HWND window = child_windows[CWI_SAVE_CURRENT_TREEVIEW];
-	HTREEITEM root = serialize_tree_find_item(window, NULL, "mineral");
 	int position = 0;
 
 	CHECK_CONDITION(size);
@@ -644,6 +642,9 @@ void info_cell_set_current_region(region_t region)
 	info_cell_set_current_region_treeview(&current_block, &current_mineral);
 
 	int block_mask = ~0, mineral_mask = ~0;
+	HWND window = child_windows[CWI_SAVE_CURRENT_TREEVIEW];
+	HTREEITEM block_root = serialize_tree_find_item(window, NULL, "block");
+	HTREEITEM mineral_root = serialize_tree_find_item(window, NULL, "mineral");
 
 	/* no stalactite because that's just a waste of time... */
 	for (int y = region.y0; y <= region.y1; y++)
@@ -651,8 +652,8 @@ void info_cell_set_current_region(region_t region)
 		for (int x = region.x0; x <= region.x1; x++)
 		{
 			dnr_block_t* block = &state->blocks[x * WORLD_HEIGHT + y];
-			block_mask = info_copy_similar_block_data(block_mask, &current_block, block);
-			mineral_mask = info_copy_similar_mineral_data(mineral_mask, &current_mineral, block->mineral_exists ? &state->minerals[block->mineral_index] : NULL);
+			block_mask = info_copy_similar_block_data(window, block_root, block_mask, &current_block, block);
+			mineral_mask = info_copy_similar_mineral_data(window, mineral_root, mineral_mask, &current_mineral, block->mineral_exists ? &state->minerals[block->mineral_index] : NULL);
 		}
 	}
 	

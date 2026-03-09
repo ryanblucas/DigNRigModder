@@ -96,6 +96,7 @@ static void save_viewer_handle_repaint()
 
 static void save_viewer_delete_selection(void)
 {
+	debug_profiler_push();
 	region_t region = region_validate(selection_region);
 	action_buffer_pre_add_block(save, region);
 	for (int x = region.x0; x <= region.x1; x++)
@@ -131,6 +132,7 @@ static void save_viewer_delete_selection(void)
 	}
 	selection_region = INVALID_REGION;
 	screen_repaint();
+	debug_profiler_pop("Deleting region");
 }
 
 static void save_viewer_do_action(action_t* act)

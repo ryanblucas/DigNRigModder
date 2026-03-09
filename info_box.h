@@ -36,5 +36,6 @@ dnr_state_t* info_state_get(void);
 void info_state_set(dnr_state_t* state);
 
 void info_cell_set_current(int x, int y);
+void info_cell_set_current_region(region_t region);
 
 element_t info_element_find(bool global, const char* query);

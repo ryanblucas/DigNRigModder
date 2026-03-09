@@ -16,6 +16,7 @@ struct element
 	void* value;
 	int count;
 	WCHAR name[64];
+	bool enabled;
 };
 
 static void serialize_redo_basic(element_t element);
@@ -88,6 +89,11 @@ HTREEITEM serialize_element_get_handle(const element_t element)
 	return element->tree_item;
 }
 
+bool serialize_element_is_enabled(element_t element)
+{
+	return element->enabled;
+}
+
 void serialize_element_set_value(element_t element, const void* value)
 {
 	size_t size = serialize_hash_get_size(element->type_hash);
@@ -111,6 +117,12 @@ void serialize_element_set_value(element_t element, const void* value)
 		serialize_on_expand(element);
 		return;
 	}
+	serialize_redo_basic(element);
+}
+
+void serialize_element_enable(element_t element, bool enable)
+{
+	element->enabled = enable;
 	serialize_redo_basic(element);
 }
 
@@ -182,6 +194,13 @@ void serialize_element_delete(element_t element)
 
 static void serialize_redo_basic(element_t element)
 {
+	if (!element->enabled)
+	{
+		TVITEMEX tvi = { .mask = TVIF_TEXT, .hItem = element->tree_item, .pszText = element->name, .cchTextMax = sizeof element->name / sizeof * element->name };
+		RUNTIME_ASSERT(TreeView_SetItem(element->window, &tvi));
+		return;
+	}
+
 	WCHAR buf[256];
 	switch (element->type_hash)
 	{
@@ -672,7 +691,7 @@ static inline uint64_t serialize_hash(const char* str)
 	return hash;
 }
 
-void serialize_single(const char* type, void* value, const char* name, HWND tree_window, HTREEITEM tree_item)
+element_t serialize_single(const char* type, void* value, const char* name, HWND tree_window, HTREEITEM tree_item)
 {
 	uint64_t type_hash = serialize_hash(type);
 	WCHAR wname[64];
@@ -686,9 +705,11 @@ void serialize_single(const char* type, void* value, const char* name, HWND tree
 
 	TVITEMEXW tvi = { .mask = TVIF_PARAM, .hItem = tree_item, .lParam = (LPARAM)se };
 	TreeView_SetItem(tree_window, &tvi);
+
+	return se;
 }
 
-void serialize_array(const char* type, void* value, int count, const char* name, HWND tree_window, HTREEITEM tree_item)
+element_t serialize_array(const char* type, void* value, int count, const char* name, HWND tree_window, HTREEITEM tree_item)
 {
 	uint64_t type_hash = serialize_hash(type);
 	WCHAR wname[64];
@@ -714,6 +735,8 @@ void serialize_array(const char* type, void* value, int count, const char* name,
 	tree_item = TreeView_InsertItem(tree_window, &tvins);
 	se->tree_item = tree_item;
 	serialize_array_internal(type_hash, value, 0, 1, wname, tree_window, tree_item);
+
+	return se;
 }
 
 static void serialize_delete_internal(HWND tree_window, HTREEITEM item)
@@ -831,6 +854,7 @@ bool serialize_on_change_field(element_t element)
 	}
 	if (result)
 	{
+		element->enabled = true;
 		serialize_redo_basic(element);
 	}
 	return result;
@@ -838,26 +862,29 @@ bool serialize_on_change_field(element_t element)
 
 HTREEITEM serialize_tree_find_item(HWND tree_window, HTREEITEM root, const char* name)
 {
+	WCHAR wname[64];
+	RUNTIME_ASSERT(MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, name, -1, wname, sizeof wname / sizeof * wname));
+
 	HTREEITEM curr = TreeView_GetChild(tree_window, root);
 	while (curr)
 	{
-		WCHAR wname[64], tname[64] = { 0 };
-		TVITEMEX tvix = { .mask = TVIF_TEXT, .pszText = tname, .cchTextMax = sizeof tname / sizeof * tname, .hItem = curr };
+		WCHAR tname[64] = { 0 };
+		TVITEMEX tvix = { .mask = TVIF_TEXT | TVIF_PARAM, .pszText = tname, .cchTextMax = sizeof tname / sizeof * tname, .hItem = curr };
 		TreeView_GetItem(tree_window, &tvix);
-
-		RUNTIME_ASSERT(MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, name, -1, wname, sizeof wname / sizeof * wname));
 		
-		if (!tvix.pszText)
+		WCHAR* ptr = tname;
+		if (tvix.lParam)
 		{
-			continue;
+			element_t element = (element_t)tvix.lParam;
+			ptr = element->name;
 		}
 
-		if (wcsncmp(wname, tvix.pszText, sizeof wname) == 0)
+		if (wcsncmp(wname, ptr, sizeof wname) == 0)
 		{
 			return curr;
 		}
 
 		curr = TreeView_GetNextSibling(tree_window, curr);
 	}
-	return curr;
+	return NULL;
 }

@@ -11,8 +11,8 @@
 #include "screen.h"
 #include <stdio.h>
 
-#define MAX_SELECTION_WIDTH 40
-#define MAX_SELECTION_HEIGHT 40
+#define MAX_SELECTION_WIDTH 90
+#define MAX_SELECTION_HEIGHT 60
 #define MAX_SELECTION_SIZE (MAX_SELECTION_WIDTH * MAX_SELECTION_HEIGHT)
 
 static void save_viewer_handle_global_field_change(const void* field);
@@ -206,18 +206,29 @@ static void save_viewer_handle_keyboard(virtual_key_t vk, keyboard_control_t ctr
 	}
 }
 
-static void save_viewer_handle_mouse_button(int x, int y)
+static void save_viewer_handle_mouse_button(bool m1_down, int x, int y)
 {
+	if (!m1_down)
+	{
+		if (!region_is_invalid(selection_region))
+		{
+			info_cell_set_current_region(selection_region);
+			screen_repaint();
+		}
+		return;
+	}
+
 	int new_selected_x = x;
 	int new_selected_y = y + y_pos;
 
 	if (new_selected_x == selection_region.x0 && new_selected_y == selection_region.y0 && region_size(selection_region) == 1)
 	{
+		info_cell_set_current(-1, -1);
 		selection_region = INVALID_REGION;
-		info_cell_set_current(new_selected_x, new_selected_y);
 		screen_repaint();
 		return;
 	}
+	
 	selection_region.x0 = selection_region.x1 = new_selected_x;
 	selection_region.y0 = selection_region.y1 = new_selected_y;
 	info_cell_set_current(new_selected_x, new_selected_y);
@@ -227,7 +238,7 @@ static void save_viewer_handle_mouse_button(int x, int y)
 
 static void save_viewer_handle_mouse_move(bool m1_down, int x, int y)
 {
-	if (!m1_down)
+	if (!m1_down || region_is_invalid(selection_region))
 	{
 		return;
 	}

@@ -56,6 +56,9 @@ static HWND child_windows[CWI_COUNT];
 
 static dnr_state_t* state;
 static int current_selection_index = -1;
+static region_t current_selection_region;
+static dnr_block_t current_block;
+static dnr_mineral_t current_mineral;
 
 static info_events_t events;
 
@@ -142,6 +145,63 @@ static LRESULT info_window_tab_control_proc(HWND hwnd, WPARAM wparam, LPARAM lpa
 	return 0;
 }
 
+static void info_window_save_tree_control_handle_double_click(HWND hwnd, HTREEITEM res)
+{
+	TVITEMEXW tvi;
+	tvi.hItem = res;
+	tvi.mask = TVIF_PARAM;
+	TreeView_GetItem(hwnd, &tvi);
+	element_t element = (element_t)tvi.lParam;
+
+	if (hwnd == child_windows[CWI_SAVE_CURRENT_TREEVIEW] && current_selection_index >= 0)
+	{
+		int x = current_selection_index / WORLD_HEIGHT;
+		int y = current_selection_index % WORLD_HEIGHT;
+		region_t region = { x, y, x, y };
+		action_buffer_pre_add_block(state, region);
+
+		if (!serialize_on_change_field(element))
+		{
+			return 0;
+		}
+
+		RAISE_EVENT(events.block_handler, x, y);
+		info_state_update_current_cell_image(x, y);
+		action_buffer_post_add_block(state);
+	}
+	else if (hwnd == child_windows[CWI_SAVE_CURRENT_TREEVIEW])
+	{
+		if (!serialize_on_change_field(element))
+		{
+			return 0;
+		}
+
+		action_buffer_pre_add_block(state, current_selection_region);
+		for (int y = current_selection_region.y0; y <= current_selection_region.y1; y++)
+		{
+			for (int x = current_selection_region.x0; x <= current_selection_region.x1; x++)
+			{
+				uint8_t* current = (uint8_t*)serialize_element_get_value(element);
+				memcpy((uint8_t*)&state->blocks[x * WORLD_HEIGHT + y] + (current - (uint8_t*)&current_block), current, serialize_element_get_size(element));
+				RAISE_EVENT(events.block_handler, x, y);
+			}
+		}
+		action_buffer_post_add_block(state);
+	}
+	else if (hwnd == child_windows[CWI_SAVE_TREEVIEW])
+	{
+		field_t begin_copy = field_create(serialize_element_get_value(element), serialize_element_get_size(element));
+
+		if (!serialize_on_change_field(element))
+		{
+			return 0;
+		}
+
+		RAISE_EVENT(events.global_field_handler, serialize_element_get_value(element));
+		action_buffer_add_field(element, begin_copy);
+	}
+}
+
 static LRESULT info_window_save_tree_control_proc(HWND hwnd, WPARAM wparam, LPARAM lparam)
 {
 	NMTREEVIEWW* nmtv = (NMTREEVIEWW*)lparam;
@@ -159,40 +219,7 @@ static LRESULT info_window_save_tree_control_proc(HWND hwnd, WPARAM wparam, LPAR
 		HTREEITEM res = TreeView_HitTest(nmtv->hdr.hwndFrom, &info);
 		if (res && info.flags & TVHT_ONITEM)
 		{
-			TVITEMEXW tvi;
-			tvi.hItem = res;
-			tvi.mask = TVIF_PARAM;
-			TreeView_GetItem(nmtv->hdr.hwndFrom, &tvi);
-			element_t element = (element_t)tvi.lParam;
-
-			if (nmtv->hdr.hwndFrom == child_windows[CWI_SAVE_CURRENT_TREEVIEW])
-			{
-				int x = current_selection_index / WORLD_HEIGHT;
-				int y = current_selection_index % WORLD_HEIGHT;
-				region_t region = { x, y, x, y };
-				action_buffer_pre_add_block(state, region);
-
-				if (!serialize_on_change_field(element))
-				{
-					return 0;
-				}
-
-				RAISE_EVENT(events.block_handler, x, y);
-				info_state_update_current_cell_image(x, y);
-				action_buffer_post_add_block(state);
-			}
-			else if (nmtv->hdr.hwndFrom == child_windows[CWI_SAVE_TREEVIEW])
-			{
-				field_t begin_copy = field_create(serialize_element_get_value(element), serialize_element_get_size(element));
-
-				if (!serialize_on_change_field(element))
-				{
-					return 0;
-				}
-
-				RAISE_EVENT(events.global_field_handler, serialize_element_get_value(element));
-				action_buffer_add_field(element, begin_copy);
-			}
+			info_window_save_tree_control_handle_double_click(nmtv->hdr.hwndFrom, res);
 		}
 	}
 	return 0;
@@ -326,6 +353,7 @@ static DWORD info_thread_proc(LPVOID param)
 
 void info_initialize(info_events_t _events)
 {
+	current_selection_region = INVALID_REGION;
 	events = _events;
 
 	INITCOMMONCONTROLSEX icc = { .dwSize = sizeof icc, .dwICC = ICC_TREEVIEW_CLASSES | ICC_TAB_CLASSES };
@@ -483,6 +511,7 @@ void info_cell_set_current(int x, int y)
 
 	info_state_update_current_cell_image(x, y);
 
+	current_selection_region = INVALID_REGION;
 	current_selection_index = x * WORLD_HEIGHT + y;
 	EnableWindow(child_windows[CWI_SAVE_GO_TO_LAYER_BUTTON], TRUE);
 
@@ -490,11 +519,161 @@ void info_cell_set_current(int x, int y)
 	SetScrollPos(child_windows[CWI_SAVE_CURRENT_TREEVIEW], SB_VERT, pos, TRUE);
 }
 
+static void info_cell_set_current_region_treeview(dnr_block_t* block, dnr_mineral_t* mineral)
+{
+#define ADD_SERIALIZABLE(type, name) serialize_single(#type, &item->name, #name, child_windows[CWI_SAVE_CURRENT_TREEVIEW], root);
+
+	{
+		HTREEITEM root = info_node_create(child_windows[CWI_SAVE_CURRENT_TREEVIEW], L"block");
+		dnr_block_t* item = block;
+		ADD_SERIALIZABLE(int32_t, health_percentage);
+		ADD_SERIALIZABLE(int32_t, health_max);
+		ADD_SERIALIZABLE(int32_t, health_current);
+		ADD_SERIALIZABLE(CHAR_INFO, visual);
+		ADD_SERIALIZABLE(boolean32_t, block_exists);
+		ADD_SERIALIZABLE(boolean32_t, can_mine);
+		ADD_SERIALIZABLE(boolean32_t, mineral_exists);
+		ADD_SERIALIZABLE(dnr_rig_type_t, rig_type);
+		ADD_SERIALIZABLE(dnr_mineral_move_direction_t, mineral_move_direction);
+		ADD_SERIALIZABLE(int32_t, damage);
+		ADD_SERIALIZABLE(dnr_mineral_spawn_rule_t, mineral_spawn_rule);
+		ADD_SERIALIZABLE(boolean32_t, can_remove_rig);
+		TreeView_Expand(child_windows[CWI_SAVE_CURRENT_TREEVIEW], root, TVE_EXPAND);
+	}
+
+	if (mineral)
+	{
+		HTREEITEM root = info_node_create(child_windows[CWI_SAVE_CURRENT_TREEVIEW], L"mineral");
+		dnr_mineral_t* item = mineral;
+		ADD_SERIALIZABLE(dnr_mineral_size_t, size);
+		ADD_SERIALIZABLE(dnr_mineral_type_t, type);
+		TreeView_Expand(child_windows[CWI_SAVE_CURRENT_TREEVIEW], root, TVE_EXPAND);
+	}
+
+#undef ADD_SERIALIZABLE
+}
+
+#define CHECK_CONDITION(name) \
+if (mask & (1 << position) && item1->name != item2->name) \
+{ \
+	mask = mask ^ (1 << position); \
+	HTREEITEM prev = serialize_tree_find_item(window, root, #name); \
+	if (prev) \
+	{ \
+		serialize_element_enable(serialize_element_get_from_node(window, prev), false); \
+	} \
+} \
+position++;
+
+static int info_copy_similar_block_data(int mask, dnr_block_t* item1, const dnr_block_t* item2)
+{
+	HWND window = child_windows[CWI_SAVE_CURRENT_TREEVIEW];
+	HTREEITEM root = serialize_tree_find_item(window, NULL, "block");
+	int position = 0;
+
+	CHECK_CONDITION(health_percentage);
+	CHECK_CONDITION(health_max);
+	CHECK_CONDITION(health_current);
+	if (item1->visual.Char.AsciiChar != item2->visual.Char.AsciiChar || item1->visual.Attributes != item2->visual.Attributes)
+	{
+		HTREEITEM prev = serialize_tree_find_item(window, root, "visual");
+		if (prev)
+		{
+			serialize_element_enable(serialize_element_get_from_node(window, prev), false);
+		}
+	}
+	CHECK_CONDITION(block_exists);
+	CHECK_CONDITION(can_mine);
+	CHECK_CONDITION(mineral_exists);
+	CHECK_CONDITION(rig_type);
+	CHECK_CONDITION(mineral_move_direction);
+	CHECK_CONDITION(damage);
+	CHECK_CONDITION(mineral_spawn_rule);
+	CHECK_CONDITION(can_remove_rig);
+
+	return mask;
+}
+
+static int info_copy_similar_mineral_data(int mask, dnr_mineral_t* item1, const dnr_mineral_t* item2)
+{
+	if (!item1)
+	{
+		return;
+	}
+	dnr_mineral_t temp = { 0 };
+	if (!item2)
+	{
+		item1->exists = false;
+		/* always going to fail for check below */
+		temp.size = item1->size + 1;
+		temp.type = item1->type + 1;
+		item2 = &temp;
+	}
+	HWND window = child_windows[CWI_SAVE_CURRENT_TREEVIEW];
+	HTREEITEM root = serialize_tree_find_item(window, NULL, "mineral");
+	int position = 0;
+
+	CHECK_CONDITION(size);
+	CHECK_CONDITION(type);
+
+	return mask;
+}
+
+#undef CHECK_CONDITION
+
+void info_cell_set_current_region(region_t region)
+{
+	if (!state)
+	{
+		debug_format("Tried to set current cell region with no state\n");
+		return;
+	}
+
+	debug_profiler_push();
+
+	region = region_validate(region);
+	RUNTIME_ASSERT(!region_is_invalid(region) && dig_inside_bounds(region.x0, region.y0) && dig_inside_bounds(region.x1, region.y1));
+
+	current_selection_index = -1;
+	current_selection_region = region;
+
+	current_block = state->blocks[region.x0 * WORLD_HEIGHT + region.y0];
+	current_mineral = current_block.mineral_exists ? state->minerals[current_block.mineral_index] : (dnr_mineral_t) { 0 };
+
+	TreeView_DeleteAllItems(child_windows[CWI_SAVE_CURRENT_TREEVIEW]);
+	info_cell_set_current_region_treeview(&current_block, &current_mineral);
+
+	int block_mask = ~0, mineral_mask = ~0;
+
+	/* no stalactite because that's just a waste of time... */
+	for (int y = region.y0; y <= region.y1; y++)
+	{
+		for (int x = region.x0; x <= region.x1; x++)
+		{
+			dnr_block_t* block = &state->blocks[x * WORLD_HEIGHT + y];
+			block_mask = info_copy_similar_block_data(block_mask, &current_block, block);
+			mineral_mask = info_copy_similar_mineral_data(mineral_mask, &current_mineral, block->mineral_exists ? &state->minerals[block->mineral_index] : NULL);
+		}
+	}
+	
+	if (!current_mineral.exists)
+	{
+		HWND window = child_windows[CWI_SAVE_CURRENT_TREEVIEW];
+		HTREEITEM root = serialize_tree_find_item(window, NULL, "mineral");
+		serialize_element_delete(serialize_element_get_from_node(window, serialize_tree_find_item(window, root, "size")));
+		serialize_element_delete(serialize_element_get_from_node(window, serialize_tree_find_item(window, root, "type")));
+		TreeView_DeleteItem(window, root);
+	}
+
+	debug_profiler_pop("Setting region");
+}
+
 element_t info_element_find(bool global, const char* query)
 {
 	if (global)
 	{
-		return serialize_element_get_from_node(child_windows[CWI_SAVE_TREEVIEW], serialize_tree_find_item(child_windows[CWI_SAVE_TREEVIEW], TVI_ROOT, query));
+		return serialize_element_get_from_node(child_windows[CWI_SAVE_TREEVIEW], 
+			serialize_tree_find_item(child_windows[CWI_SAVE_TREEVIEW], TVI_ROOT, query));
 	}
 	return serialize_element_get_from_node(child_windows[CWI_SAVE_CURRENT_TREEVIEW], 
 		serialize_tree_find_item(child_windows[CWI_SAVE_CURRENT_TREEVIEW], TVI_ROOT, query));

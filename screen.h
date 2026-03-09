@@ -123,7 +123,7 @@ typedef uint16_t virtual_key_t;
 
 typedef void (*screen_handle_repaint_t)();
 typedef void (*screen_handle_key_t)(virtual_key_t key, keyboard_control_t ctrl);
-typedef void (*screen_handle_mouse_button_t)(int x, int y);
+typedef void (*screen_handle_mouse_button_t)(bool m1_down, int x, int y);
 typedef void (*screen_handle_mouse_move_t)(bool m1_down, int x, int y);
 typedef void (*screen_handle_mouse_wheel_t)(int delta);
 

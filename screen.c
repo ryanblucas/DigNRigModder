@@ -133,19 +133,21 @@ void screen_loop(void)
 		else if (ir.EventType == MOUSE_EVENT)
 		{
 			MOUSE_EVENT_RECORD mer = ir.Event.MouseEvent;
+			static DWORD prevButtonState = 0;
 			if (mer.dwEventFlags == MOUSE_WHEELED)
 			{
 				WORD scroll = HIWORD(mer.dwButtonState);
 				RAISE_EVENT(events.mouse_wheel, (signed short)scroll / WHEEL_DELTA);
 			}
-			else if (mer.dwEventFlags == 0 && mer.dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED) /* release or click */
+			else if (mer.dwEventFlags == 0 && (mer.dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED || prevButtonState & FROM_LEFT_1ST_BUTTON_PRESSED))
 			{
-				RAISE_EVENT(events.mouse_button, mer.dwMousePosition.X, mer.dwMousePosition.Y);
+				RAISE_EVENT(events.mouse_button, mer.dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED, mer.dwMousePosition.X, mer.dwMousePosition.Y);
 			}
 			else if (mer.dwEventFlags == MOUSE_MOVED)
 			{
-				RAISE_EVENT(events.mouse_move, !!(mer.dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED), mer.dwMousePosition.X, mer.dwMousePosition.Y);
+				RAISE_EVENT(events.mouse_move, mer.dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED, mer.dwMousePosition.X, mer.dwMousePosition.Y);
 			}
+			prevButtonState = mer.dwButtonState;
 		}
 		else if (ir.EventType == WINDOW_BUFFER_SIZE_EVENT)
 		{

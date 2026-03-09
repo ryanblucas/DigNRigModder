@@ -39,8 +39,10 @@ uint64_t serialize_element_get_type(const element_t element);
 const void* serialize_element_get_value(const element_t element);
 int serialize_element_get_count(const element_t element);
 HTREEITEM serialize_element_get_handle(const element_t element);
+bool serialize_element_is_enabled(element_t element);
 
 void serialize_element_set_value(element_t element, const void* value);
+void serialize_element_enable(element_t element, bool enable);
 
 element_t serialize_element_get_parent(element_t element);
 int serialize_element_get_index(const element_t element);
@@ -48,12 +50,13 @@ element_t serialize_element_get_from_node(HWND window, HTREEITEM item);
 
 void serialize_element_delete(element_t element);
 
-void serialize_single(const char* type, void* value, const char* name, HWND tree_window, HTREEITEM tree_item);
-void serialize_array(const char* type, void* value, int count, const char* name, HWND tree_window, HTREEITEM tree_item);
+element_t serialize_single(const char* type, void* value, const char* name, HWND tree_window, HTREEITEM tree_item);
+element_t serialize_array(const char* type, void* value, int count, const char* name, HWND tree_window, HTREEITEM tree_item);
 
 void serialize_delete(HWND tree_window);
 
 void serialize_on_expand(element_t element);
 bool serialize_on_change_field(element_t element);
 
+/* name is the name of the element, but if no element exists there if uses the text of the node */
 HTREEITEM serialize_tree_find_item(HWND tree_window, HTREEITEM root, const char* name);

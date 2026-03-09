@@ -11,8 +11,8 @@
 #include "screen.h"
 #include <stdio.h>
 
-#define MAX_SELECTION_WIDTH 90
-#define MAX_SELECTION_HEIGHT 60
+#define MAX_SELECTION_WIDTH 120
+#define MAX_SELECTION_HEIGHT 80
 #define MAX_SELECTION_SIZE (MAX_SELECTION_WIDTH * MAX_SELECTION_HEIGHT)
 
 static void save_viewer_handle_global_field_change(const void* field);
@@ -210,7 +210,7 @@ static void save_viewer_handle_mouse_button(bool m1_down, int x, int y)
 {
 	if (!m1_down)
 	{
-		if (!region_is_invalid(selection_region))
+		if (!region_is_invalid(selection_region) && region_size(selection_region) > 1)
 		{
 			info_cell_set_current_region(selection_region);
 			screen_repaint();

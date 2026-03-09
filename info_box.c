@@ -165,7 +165,7 @@ static void info_window_save_tree_control_handle_double_click(HWND hwnd, HTREEIT
 			return 0;
 		}
 
-		RAISE_EVENT(events.block_handler, x, y);
+		RAISE_EVENT(events.block_handler, region);
 		info_state_update_current_cell_image(x, y);
 		action_buffer_post_add_block(state);
 	}
@@ -183,9 +183,9 @@ static void info_window_save_tree_control_handle_double_click(HWND hwnd, HTREEIT
 			{
 				uint8_t* current = (uint8_t*)serialize_element_get_value(element);
 				memcpy((uint8_t*)&state->blocks[x * WORLD_HEIGHT + y] + (current - (uint8_t*)&current_block), current, serialize_element_get_size(element));
-				RAISE_EVENT(events.block_handler, x, y);
 			}
 		}
+		RAISE_EVENT(events.block_handler, current_selection_region);
 		action_buffer_post_add_block(state);
 	}
 	else if (hwnd == child_windows[CWI_SAVE_TREEVIEW])

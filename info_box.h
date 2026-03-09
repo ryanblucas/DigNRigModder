@@ -18,7 +18,7 @@ typedef enum info_mode
 } info_mode_t;
 
 typedef void (*info_handle_change_mode)(info_mode_t new_mode);
-typedef void (*info_handle_change_block)(int x, int y);
+typedef void (*info_handle_change_block)(region_t region);
 typedef void (*info_handle_change_global_field)(const void* field);
 
 typedef struct info_events

@@ -1,8 +1,7 @@
 Save viewer
-	Selection should not be a single block, you should be able to select a rectangle of blocks
-		Since a region of blocks is guaranteed to not all have the same data, find what's common and display that in the info box.
-		Otherwise, display a blank field. All of this can be changed
+	Allow regions to be moved around
 	Determine how liquids are stored in save files
+	Speed up region selection code
 
 Create layer creator
 Create sprite creator

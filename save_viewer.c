@@ -261,14 +261,19 @@ static void save_viewer_handle_mouse_wheel(int delta)
 	save_viewer_move_window(delta * 10);
 }
 
-static void save_viewer_handle_block_change(int x, int y)
+static void save_viewer_handle_block_change(region_t region)
 {
-	int layer = y / TARGET_HEIGHT;
-	if (layer < 0 || layer >= LAYER_COUNT)
+	region = region_validate(region);
+	int layer_min = region.y0 / TARGET_HEIGHT;
+	int layer_max = region.y1 / TARGET_HEIGHT;
+	if (layer_min < 0 || layer_min >= LAYER_COUNT || layer_max < 0 || layer_max >= LAYER_COUNT)
 	{
 		return;
 	}
-	cache[layer] = file_state_spritify(save, layer);
+	for (int i = layer_min; i <= layer_max; i++)
+	{
+		cache[i] = file_state_spritify(save, i);
+	}
 	screen_repaint();
 }
 

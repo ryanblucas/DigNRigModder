@@ -75,55 +75,24 @@ static void save_viewer_start_move(int new_selected_x, int new_selected_y)
 
 static void save_viewer_stop_move(void)
 {
-	region_t region = region_validate(selection_region);
-	region_t total = region_merge(region,
-		(region_t) {move_x - hinge_x, move_y - hinge_y, move_x - hinge_x + region_width(region), move_y - hinge_y + region_height(region)
-	});
+	region_t src_region = region_validate(selection_region);
+	region_t dest_region = 
+	{ 
+		move_x - hinge_x,
+		move_y - hinge_y,
+		move_x - hinge_x + region_width(src_region) - 1, 
+		move_y - hinge_y + region_height(src_region) - 1
+	};
+
+	region_t total = region_merge(src_region, dest_region);
 	action_buffer_pre_add_block(save, total);
 
-	dnr_block_t* blocks = dig_malloc(region_size(region) * sizeof * blocks);
-	for (int y = 0; y < region_height(region); y++)
-	{
-		for (int x = 0; x < region_width(region); x++)
-		{
-			int adj_x = x + region.x0;
-			int adj_y = y + region.y0;
-			
-			dnr_block_t* old = game_get_block(save, adj_x, adj_y);
-			dnr_block_t* new = &blocks[x + y * region_width(region)];
-			
-			*new = *old;
-			new->x = move_x - hinge_x + x;
-			new->y = move_y - hinge_y + y;
-			new->layer_index = new->y / TARGET_HEIGHT;
-			
-			game_delete_block_partial(save, adj_x, adj_y);
-			
-			dnr_mineral_t* mineral = game_get_mineral(save, adj_x, adj_y);
-			if (mineral)
-			{
-				mineral->x -= old->x - new->x;
-				mineral->y -= old->y - new->y;
-			}
-			stalactite_t* stalactite = game_get_stalactite(save, adj_x, adj_y);
-			if (stalactite)
-			{
-				stalactite->x -= old->x - new->x;
-				stalactite->y -= old->y - new->y;
-			}
-		}
-	}
-	for (int y = 0; y < region_height(region); y++)
-	{
-		for (int x = 0; x < region_width(region); x++)
-		{
-			int adj_x = x + move_x - hinge_x;
-			int adj_y = y + move_y - hinge_y;
-			save->blocks[adj_y + adj_x * WORLD_HEIGHT] = blocks[x + y * region_width(region)];
-		}
-	}
-
+	complete_block_t* blocks = dig_malloc(region_size(src_region) * sizeof * blocks);
+	game_copy(save, src_region, blocks);
+	game_delete(save, src_region);
+	game_paste(save, dest_region, blocks);
 	free(blocks);
+
 	action_buffer_post_add_block(save);
 
 	save_viewer_invalidate_region(total);

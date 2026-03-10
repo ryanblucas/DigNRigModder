@@ -4,6 +4,7 @@
 
 #include "file.h"
 #include "debug.h"
+#include "game.h"
 #include <math.h>
 #include "path.h"
 #include "screen.h"
@@ -384,6 +385,11 @@ dnr_state_t* file_state_load(const char* directory)
 	BINARY_ENSURE_CONDITION(fread(res->reserved2, sizeof res->reserved2, 1, file) == 1);
 	BINARY_ENSURE_CONDITION(fread(&res->has_liquid_resistance, sizeof res->has_liquid_resistance, 1, file) == 1);
 
+	if (!game_is_valid(res))
+	{
+		debug_format("Read invalid save file\n");
+	}
+
 	fclose(file);
 	return res;
 
@@ -400,6 +406,11 @@ void file_state_unload(dnr_state_t* save)
 
 bool file_state_save(const char* directory, const dnr_state_t* save)
 {
+	if (!game_is_valid(save))
+	{
+		debug_format("Writing invalid save file!\n");
+	}
+
 	FILE* file = fopen(directory, "wb");
 	if (!file)
 	{

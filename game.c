@@ -5,6 +5,27 @@
 
 #include "game.h"
 
+#define CHECK_CONDITION(condition) if (!(condition)) { debug_format(#condition " failed at (%i, %i)\n", x, y); result = false; }
+
+bool game_is_valid(dnr_state_t* state)
+{
+	bool result = true;
+	for (int y = 0; y < WORLD_HEIGHT; y++)
+	{
+		for (int x = 0; x < WORLD_WIDTH; x++)
+		{
+			dnr_block_t* curr = game_get_block(state, x, y);
+			CHECK_CONDITION(curr->x == x && curr->y == y);
+			dnr_mineral_t* mineral = game_get_mineral(state, x, y);
+			if (mineral)
+			{
+				CHECK_CONDITION(curr->mineral_index >= 0 && curr->mineral_index < sizeof state->minerals / sizeof * state->minerals);
+			}
+		}
+	}
+	return result;
+}
+
 dnr_block_t* game_get_block(dnr_state_t* state, int x, int y)
 {
 	RUNTIME_ASSERT(dig_inside_bounds(x, y));

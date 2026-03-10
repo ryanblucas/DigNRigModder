@@ -213,26 +213,7 @@ static void save_viewer_delete_selection(void)
 	{
 		for (int y = region.y0; y <= region.y1; y++)
 		{
-			dnr_block_t* block = &save->blocks[x * WORLD_HEIGHT + y];
-			block->health_current = 0;
-			block->visual.Attributes = 0;
-			block->visual.Char.AsciiChar = ' ';
-			block->block_exists = false;
-			block->rig_type = RIG_NONE;
-			block->mineral_move_direction = MOVE_DIRECTION_DOWN;
-			if (block->mineral_exists)
-			{
-				save->minerals[block->mineral_index].exists = false;
-				block->mineral_exists = false;
-				block->mineral_index = -1;
-			}
-			for (int i = 0; i < save->stalactite_count; i++)
-			{
-				if (save->stalactite_array[i].exists && (int)save->stalactite_array[i].x == x && (int)save->stalactite_array[i].y == y)
-				{
-					save->stalactite_array[i].exists = false;
-				}
-			}
+			game_delete_block(save, x, y);
 		}
 	}
 	action_buffer_post_add_block(save);

@@ -162,7 +162,7 @@ static void info_window_save_tree_control_handle_double_click(HWND hwnd, HTREEIT
 
 		if (!serialize_on_change_field(element))
 		{
-			return 0;
+			return;
 		}
 
 		RAISE_EVENT(events.block_handler, region);
@@ -173,7 +173,7 @@ static void info_window_save_tree_control_handle_double_click(HWND hwnd, HTREEIT
 	{
 		if (!serialize_on_change_field(element))
 		{
-			return 0;
+			return;
 		}
 
 		action_buffer_pre_add_block(state, current_selection_region);
@@ -194,7 +194,7 @@ static void info_window_save_tree_control_handle_double_click(HWND hwnd, HTREEIT
 
 		if (!serialize_on_change_field(element))
 		{
-			return 0;
+			return;
 		}
 
 		RAISE_EVENT(events.global_field_handler, serialize_element_get_value(element));
@@ -295,18 +295,19 @@ static LRESULT info_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
 		PostQuitMessage(0);
 		return 0;
 	}
-	return DefWindowProcA(hwnd, msg, wparam, lparam);
+	return DefWindowProcW(hwnd, msg, wparam, lparam);
 }
 
 static void info_window_initialize(void)
 {
-	WNDCLASSW wc = { 0 };
+	WNDCLASSEXW wc = { 0 };
 
+	wc.cbSize = sizeof wc;
 	wc.lpfnWndProc = info_window_proc;
 	wc.lpszClassName = INFO_BOX_CLASS_NAME;
 	wc.hCursor = LoadCursorW(NULL, IDC_ARROW);
 
-	RUNTIME_ASSERT(RegisterClassW(&wc));
+	RUNTIME_ASSERT(RegisterClassExW(&wc));
 
 	HWND console_window = GetConsoleWindow();
 	RUNTIME_ASSERT(console_window);
@@ -321,8 +322,7 @@ static void info_window_initialize(void)
 	int wx = info_window_bounds.right - info_window_bounds.left;
 	int wy = info_window_bounds.bottom - info_window_bounds.top;
 
-	/* why is passing a wide string for title wrong here? */
-	window = CreateWindowExW(INFO_BOX_WINDOW_STYLE_EX, INFO_BOX_CLASS_NAME, "Dig-N-Rig Modder", INFO_BOX_WINDOW_STYLE, x, y, wx, wy, NULL, NULL, NULL, NULL);
+	window = CreateWindowExW(INFO_BOX_WINDOW_STYLE_EX, INFO_BOX_CLASS_NAME, L"Dig-N-Rig Modder", INFO_BOX_WINDOW_STYLE, x, y, wx, wy, NULL, NULL, NULL, NULL);
 	RUNTIME_ASSERT(window);
 }
 
@@ -598,7 +598,7 @@ static int info_copy_similar_mineral_data(HWND window, HTREEITEM root, int mask,
 {
 	if (!item1 || !item1->exists)
 	{
-		return;
+		return mask;
 	}
 	dnr_mineral_t temp = { 0 };
 	if (!item2)

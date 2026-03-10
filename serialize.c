@@ -66,7 +66,7 @@ size_t serialize_element_get_size(const element_t element)
 
 void serialize_element_get_name(const element_t element, char* buf, size_t buf_size)
 {
-	WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, element->name, -1, buf, buf_size, NULL, NULL);
+	WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, element->name, -1, buf, (int)buf_size, NULL, NULL);
 }
 
 uint64_t serialize_element_get_type(const element_t element)

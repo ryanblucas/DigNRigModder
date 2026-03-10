@@ -5,13 +5,13 @@
 
 #include "game.h"
 
-dnr_block_t* game_get_block(const dnr_state_t* state, int x, int y)
+dnr_block_t* game_get_block(dnr_state_t* state, int x, int y)
 {
 	RUNTIME_ASSERT(dig_inside_bounds(x, y));
 	return &state->blocks[y + x * WORLD_HEIGHT];
 }
 
-dnr_mineral_t* game_get_mineral(const dnr_state_t* state, int x, int y)
+dnr_mineral_t* game_get_mineral(dnr_state_t* state, int x, int y)
 {
 	RUNTIME_ASSERT(dig_inside_bounds(x, y));
 	dnr_block_t* block = game_get_block(state, x, y);
@@ -24,7 +24,7 @@ dnr_mineral_t* game_get_mineral(const dnr_state_t* state, int x, int y)
 	return NULL;
 }
 
-stalactite_t* game_get_stalactite(const dnr_state_t* state, int x, int y)
+stalactite_t* game_get_stalactite(dnr_state_t* state, int x, int y)
 {
 	RUNTIME_ASSERT(dig_inside_bounds(x, y));
 	for (int i = 0; i < state->stalactite_count; i++)

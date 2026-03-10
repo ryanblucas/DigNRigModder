@@ -4,7 +4,7 @@
 
 #include "file.h"
 #include "debug.h"
-#include <math.h>"
+#include <math.h>
 #include "path.h"
 #include "screen.h"
 #include <stdio.h>

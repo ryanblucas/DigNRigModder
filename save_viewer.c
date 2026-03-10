@@ -92,6 +92,7 @@ static void save_viewer_stop_move(void)
 			*new = *old;
 			new->x = move_x - hinge_x + x;
 			new->y = move_y - hinge_y + y;
+			new->layer_index = new->y / TARGET_HEIGHT;
 			
 			game_delete_block_partial(save, adj_x, adj_y);
 			

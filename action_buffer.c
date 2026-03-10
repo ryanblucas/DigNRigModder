@@ -140,6 +140,16 @@ void action_buffer_reverse_block(dnr_state_t* state, action_t* action)
 			RUNTIME_ASSERT(state->blocks[j].mineral_index >= 0 && state->blocks[j].mineral_index < sizeof state->minerals / sizeof * state->minerals);
 			state->minerals[state->blocks[j].mineral_index] = ba->previous[i].mineral;
 		}
+		if (ba->next[i].stalactite.exists)
+		{
+			for (int k = 0; k < state->stalactite_count; k++)
+			{
+				if (state->stalactite_array[k].x == ba->next[i].stalactite.x && state->stalactite_array[k].y == ba->next[i].stalactite.y)
+				{
+					state->stalactite_array[k].exists = false;
+				}
+			}
+		}
 		if (ba->previous[i].stalactite.exists)
 		{
 			for (int k = 0; k < state->stalactite_count; k++)

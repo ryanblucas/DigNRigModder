@@ -33,6 +33,7 @@ static editor_state editor;
 
 static inline void save_viewer_invalidate_region(region_t region)
 {
+	region = region_validate(region);
 	for (int y = region.y0 / TARGET_HEIGHT; y <= region.y1 / TARGET_HEIGHT; y++)
 	{
 		cache[y] = file_state_spritify(save, y);
@@ -71,19 +72,22 @@ static void save_viewer_start_move(int new_selected_x, int new_selected_y)
 
 static void save_viewer_stop_move(void)
 {
-	action_buffer_pre_add_block(save, region_merge(selection_region, 
-		(region_t) { move_x - hinge_x, move_y - hinge_y, move_x - hinge_x + region_width(selection_region), move_y - hinge_y + region_height(selection_region) }));
+	region_t region = region_validate(selection_region);
+	region_t total = region_merge(region,
+		(region_t) {move_x - hinge_x, move_y - hinge_y, move_x - hinge_x + region_width(region), move_y - hinge_y + region_height(region)
+	});
+	action_buffer_pre_add_block(save, total);
 
-	dnr_block_t* blocks = dig_malloc(region_size(selection_region) * sizeof * blocks);
-	for (int y = 0; y < region_height(selection_region); y++)
+	dnr_block_t* blocks = dig_malloc(region_size(region) * sizeof * blocks);
+	for (int y = 0; y < region_height(region); y++)
 	{
-		for (int x = 0; x < region_width(selection_region); x++)
+		for (int x = 0; x < region_width(region); x++)
 		{
-			int adj_x = x + selection_region.x0;
-			int adj_y = y + selection_region.y0;
+			int adj_x = x + region.x0;
+			int adj_y = y + region.y0;
 			
 			dnr_block_t* old = game_get_block(save, adj_x, adj_y);
-			dnr_block_t* new = &blocks[x + y * region_width(selection_region)];
+			dnr_block_t* new = &blocks[x + y * region_width(region)];
 			
 			*new = *old;
 			new->x = move_x - hinge_x + x;
@@ -105,20 +109,20 @@ static void save_viewer_stop_move(void)
 			}
 		}
 	}
-	for (int y = 0; y < region_height(selection_region); y++)
+	for (int y = 0; y < region_height(region); y++)
 	{
-		for (int x = 0; x < region_width(selection_region); x++)
+		for (int x = 0; x < region_width(region); x++)
 		{
 			int adj_x = x + move_x - hinge_x;
 			int adj_y = y + move_y - hinge_y;
-			save->blocks[adj_y + adj_x * WORLD_HEIGHT] = blocks[x + y * region_width(selection_region)];
+			save->blocks[adj_y + adj_x * WORLD_HEIGHT] = blocks[x + y * region_width(region)];
 		}
 	}
 
 	free(blocks);
 	action_buffer_post_add_block(save);
 
-	save_viewer_invalidate_region((region_t) { 0, move_y - hinge_y, 0, move_y - hinge_y + region_height(selection_region) });
+	save_viewer_invalidate_region(total);
 
 	hinge_x = hinge_y = -1;
 	move_x = move_y = -1;

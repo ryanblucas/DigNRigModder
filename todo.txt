@@ -3,13 +3,12 @@ Save viewer
 	Determine how liquids are stored in save files
 	Speed up region selection code
 
-Validate files
-Integrate game logic module to not repeat myself
 Create layer creator
 Create sprite creator
 Create campaign creator
 
 Important, yet not urgent
+	Determine all the reserved fields
 	Refactor serialize
 	Add unit testing for every module
 	Add documentation to all functions and modules

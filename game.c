@@ -26,6 +26,105 @@ bool game_is_valid(dnr_state_t* state)
 	return result;
 }
 
+void game_copy(const dnr_state_t* state, region_t region, complete_block_t* arr)
+{
+	region = region_validate(region);
+	memset(arr, 0, region_size(region) * sizeof * arr);
+	for (int y = 0; y < region_height(region); y++)
+	{
+		for (int x = 0; x < region_width(region); x++)
+		{
+			int index = y * region_width(region) + x;
+			int state_index = (region.x0 + x) * WORLD_HEIGHT + (region.y0 + y);
+			arr[index].block = state->blocks[state_index];
+			if (state->blocks[state_index].mineral_exists)
+			{
+				RUNTIME_ASSERT(state->blocks[state_index].mineral_index >= 0 && state->blocks[state_index].mineral_index < sizeof state->minerals / sizeof * state->minerals);
+				arr[index].mineral = state->minerals[state->blocks[state_index].mineral_index];
+			}
+			for (int i = 0; i < state->stalactite_count; i++)
+			{
+				if (state->stalactite_array[i].exists && (int)state->stalactite_array[i].x == region.x0 + x && (int)state->stalactite_array[i].y == region.y0 + y)
+				{
+					arr[index].stalactite = state->stalactite_array[i];
+					break;
+				}
+			}
+		}
+	}
+}
+
+void game_paste(dnr_state_t* state, region_t region, const complete_block_t* arr)
+{
+	region = region_validate(region);
+	for (int y = 0; y < region_height(region); y++)
+	{
+		for (int x = 0; x < region_width(region); x++)
+		{
+			int index = y * region_width(region) + x;
+			int state_index = (region.x0 + x) * WORLD_HEIGHT + (region.y0 + y);
+			
+			state->blocks[state_index] = arr[index].block;
+			state->blocks[state_index].x = region.x0 + x;
+			state->blocks[state_index].y = region.y0 + y;
+			state->blocks[state_index].layer_index = state->blocks[state_index].y / TARGET_HEIGHT;
+
+			if (arr[index].mineral.exists)
+			{
+				dnr_mineral_t copy = arr[index].mineral;
+				copy.x = copy.x - (int)copy.x + region.x0 + x;
+				copy.y = copy.y - (int)copy.y + region.y0 + y;
+				game_add_mineral(state, &copy);
+			}
+			if (arr[index].stalactite.exists)
+			{
+				stalactite_t copy = arr[index].stalactite;
+				copy.x = copy.x - (int)copy.x + region.x0 + x;
+				copy.y = copy.y - (int)copy.y + region.y0 + y;
+				game_add_stalactite(state, copy);
+			}
+		}
+	}
+}
+
+void game_delete(dnr_state_t* state, region_t region)
+{
+	for (int x = region.x0; x <= region.x1; x++)
+	{
+		for (int y = region.y0; y <= region.y1; y++)
+		{
+			game_delete_block(state, x, y);
+		}
+	}
+}
+
+bool game_add_mineral(dnr_state_t* state, dnr_mineral_t* mineral)
+{
+	for (int i = 0; i < sizeof state->minerals / sizeof * state->minerals; i++)
+	{
+		if (!state->minerals[i].exists)
+		{
+			state->minerals[i] = *mineral;
+			mineral->index = i;
+			return true;
+		}
+	}
+	return false;
+}
+
+bool game_add_stalactite(dnr_state_t* state, stalactite_t stalactite)
+{
+	for (int i = 0; i < state->stalactite_count; i++)
+	{
+		if (!state->stalactite_array[i].exists)
+		{
+			state->stalactite_array[i] = stalactite;
+			return true;
+		}
+	}
+	return false;
+}
+
 dnr_block_t* game_get_block(dnr_state_t* state, int x, int y)
 {
 	RUNTIME_ASSERT(dig_inside_bounds(x, y));

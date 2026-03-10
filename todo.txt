@@ -1,5 +1,4 @@
 Save viewer
-	Allow regions to be copied and pasted
 	Determine how liquids are stored in save files
 	Speed up region selection code
 

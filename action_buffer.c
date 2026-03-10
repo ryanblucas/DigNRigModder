@@ -44,33 +44,6 @@ static void action_buffer_create_node(void)
 	}
 }
 
-static void action_buffer_copy_region(const dnr_state_t* state, region_t region, complete_block_t* arr)
-{
-	memset(arr, 0, region_size(region) * sizeof * arr);
-	for (int y = 0; y < region_height(region); y++)
-	{
-		for (int x = 0; x < region_width(region); x++)
-		{
-			int index = y * region_width(region) + x;
-			int state_index = (region.x0 + x) * WORLD_HEIGHT + (region.y0 + y);
-			arr[index].block = state->blocks[state_index];
-			if (state->blocks[state_index].mineral_exists)
-			{
-				RUNTIME_ASSERT(state->blocks[state_index].mineral_index >= 0 && state->blocks[state_index].mineral_index < sizeof state->minerals / sizeof * state->minerals);
-				arr[index].mineral = state->minerals[state->blocks[state_index].mineral_index];
-			}
-			for (int i = 0; i < state->stalactite_count; i++)
-			{
-				if (state->stalactite_array[i].exists && (int)state->stalactite_array[i].x == region.x0 + x && (int)state->stalactite_array[i].y == region.y0 + y)
-				{
-					arr[index].stalactite = state->stalactite_array[i];
-					break;
-				}
-			}
-		}
-	}
-}
-
 void action_buffer_pre_add_block(const dnr_state_t* state, region_t region)
 {
 	action_buffer_create_node();
@@ -80,7 +53,7 @@ void action_buffer_pre_add_block(const dnr_state_t* state, region_t region)
 	action_block_t* block_action = &buffer[position].sub.block;
 	block_action->region = region;
 	block_action->previous = dig_malloc(region_size(region) * sizeof * block_action->previous);
-	action_buffer_copy_region(state, region, block_action->previous);
+	game_copy(state, region, block_action->previous);
 }
 
 void action_buffer_post_add_block(const dnr_state_t* state)
@@ -89,7 +62,7 @@ void action_buffer_post_add_block(const dnr_state_t* state)
 
 	action_block_t* block_action = &buffer[position].sub.block;
 	block_action->next = dig_malloc(region_size(block_action->region) * sizeof * block_action->next);
-	action_buffer_copy_region(state, block_action->region, block_action->next);
+	game_copy(state, block_action->region, block_action->next);
 }
 
 void action_buffer_add_field(element_t element, field_t previous)

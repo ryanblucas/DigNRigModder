@@ -6,14 +6,8 @@
 #pragma once
 
 #include "file.h"
+#include "game.h"
 #include "serialize.h"
-
-typedef struct complete_block
-{
-	dnr_block_t block;
-	dnr_mineral_t mineral;
-	stalactite_t stalactite;
-} complete_block_t;
 
 typedef struct complete_field
 {

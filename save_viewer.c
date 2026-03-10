@@ -31,6 +31,9 @@ static sprite_t selection_visual;
 static char save_directory[MAX_PATH];
 static editor_state editor;
 
+static region_t clipboard_region;
+static complete_block_t* clipboard_data;
+
 static inline void save_viewer_invalidate_region(region_t region)
 {
 	region = region_validate(region);
@@ -134,6 +137,49 @@ static void save_viewer_stop_move(void)
 	screen_repaint();
 }
 
+static void save_viewer_copy(void)
+{
+	if (region_is_invalid(selection_region))
+	{
+		return;
+	}
+
+	if (clipboard_data)
+	{
+		free(clipboard_data);
+	}
+
+	clipboard_region = region_validate(selection_region);
+	clipboard_data = dig_malloc(region_size(clipboard_region) * sizeof * clipboard_data);
+	game_copy(save, clipboard_region, clipboard_data);
+}
+
+static void save_viewer_paste(void)
+{
+	if (!clipboard_data)
+	{
+		return;
+	}
+
+	int origin_x = min(selection_region.x0, selection_region.x1);
+	int origin_y = min(selection_region.y0, selection_region.y1);
+	region_t dest = { origin_x, origin_y, origin_x + region_width(clipboard_region) - 1, origin_y + region_height(clipboard_region) - 1 };
+
+	action_buffer_pre_add_block(save, dest);
+
+	game_delete(save, selection_region);
+	game_paste(save, dest, clipboard_data);
+
+	action_buffer_post_add_block(save);
+
+	free(clipboard_data);
+	clipboard_data = NULL;
+
+	selection_region = dest;
+	save_viewer_invalidate_region(dest);
+	screen_repaint();
+}
+
 static void save_viewer_prompt_which_save(void)
 {
 	bool valid_save = false;
@@ -214,13 +260,9 @@ static void save_viewer_delete_selection(void)
 	debug_profiler_push();
 	region_t region = region_validate(selection_region);
 	action_buffer_pre_add_block(save, region);
-	for (int x = region.x0; x <= region.x1; x++)
-	{
-		for (int y = region.y0; y <= region.y1; y++)
-		{
-			game_delete_block(save, x, y);
-		}
-	}
+
+	game_delete(save, region);
+
 	action_buffer_post_add_block(save);
 	save_viewer_invalidate_region(selection_region);
 	selection_region = INVALID_REGION;
@@ -280,6 +322,14 @@ static void save_viewer_handle_keyboard(virtual_key_t vk, keyboard_control_t ctr
 		else if (vk == 'Y')
 		{
 			save_viewer_do_action(action_buffer_forward());
+		}
+		else if (vk == 'C')
+		{
+			save_viewer_copy();
+		}
+		else if (vk == 'V')
+		{
+			save_viewer_paste();
 		}
 	}
 	else if (vk == VK_UP)
@@ -471,6 +521,8 @@ int main()
 
 	screen_sprite_destroy(flag);
 	file_state_unload(save);
+
+	free(clipboard_data);
 
 	action_buffer_destroy();
 	info_destroy();

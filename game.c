@@ -69,12 +69,13 @@ void game_paste(dnr_state_t* state, region_t region, const complete_block_t* arr
 			state->blocks[state_index].y = region.y0 + y;
 			state->blocks[state_index].layer_index = state->blocks[state_index].y / TARGET_HEIGHT;
 
-			if (arr[index].mineral.exists)
+			if (arr[index].block.mineral_exists)
 			{
 				dnr_mineral_t copy = arr[index].mineral;
 				copy.x = copy.x - (int)copy.x + region.x0 + x;
 				copy.y = copy.y - (int)copy.y + region.y0 + y;
 				game_add_mineral(state, &copy);
+				state->blocks[state_index].mineral_index = copy.index;
 			}
 			if (arr[index].stalactite.exists)
 			{

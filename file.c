@@ -382,8 +382,11 @@ dnr_state_t* file_state_load(const char* directory)
 	}
 
 	/* read up to end */
-	BINARY_ENSURE_CONDITION(fread(res->reserved2, sizeof res->reserved2, 1, file) == 1);
-	BINARY_ENSURE_CONDITION(fread(&res->has_liquid_resistance, sizeof res->has_liquid_resistance, 1, file) == 1);
+	long curr = ftell(file);
+	fseek(file, 0, SEEK_END);
+	long size = ftell(file);
+	fseek(file, curr, SEEK_SET);
+	BINARY_ENSURE_CONDITION(fread((uint8_t*)res + offsetof(dnr_state_t, stalactite_count) + sizeof res->stalactite_count, size - curr, 1, file) == 1);
 
 	if (!game_is_valid(res))
 	{

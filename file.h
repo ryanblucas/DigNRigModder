@@ -99,10 +99,13 @@ typedef struct dnr_player
 	ADD_SERIALIZABLE(int32_t, depth) \
 	ADD_SERIALIZABLE(float, x_spawn) \
 	ADD_SERIALIZABLE(float, y_spawn) \
-	ADD_SERIALIZABLE_ARRAY(uint8_t, reserved1, 0x18) \
+	ADD_SERIALIZABLE_ARRAY(uint32_t, reserved1, 0x2) \
+	ADD_SERIALIZABLE(float, jetpack_capacity) \
+	ADD_SERIALIZABLE_ARRAY(uint32_t, reserved2, 0x2) \
+	ADD_SERIALIZABLE(int32_t, battery_count) \
 	ADD_SERIALIZABLE(int32_t, health) \
 	ADD_SERIALIZABLE(int32_t, max_health) \
-	ADD_SERIALIZABLE_ARRAY(uint8_t, reserved2, 0x2C) \
+	ADD_SERIALIZABLE_ARRAY(uint8_t, reserved3, 0x2C) \
 	ADD_SERIALIZABLE_ARRAY(int32_t, mineral_count, MINERAL_COUNT) \
 	ADD_SERIALIZABLE(int32_t, fake_ladder_count) \
 	ADD_SERIALIZABLE(int32_t, ladder_count) \
@@ -113,7 +116,7 @@ typedef struct dnr_player
 	ADD_SERIALIZABLE(int32_t, fake_scooper_count) \
 	ADD_SERIALIZABLE(int32_t, scooper_count) \
 	ADD_SERIALIZABLE(int32_t, item_hud_length) \
-	ADD_SERIALIZABLE_ARRAY(uint8_t, reserved3, 0x30)
+	ADD_SERIALIZABLE_ARRAY(uint8_t, reserved4, 0x30)
 SERIALIZABLE_DNR_PLAYER
 } dnr_player_t;
 
@@ -281,7 +284,11 @@ SERIALIZABLE_DNR_STATE_2
 	int stalactite_count;
 
 #define SERIALIZABLE_DNR_STATE_3 \
-	ADD_SERIALIZABLE_ARRAY(uint8_t, reserved2, 0x6AC) \
+	ADD_SERIALIZABLE_ARRAY(uint8_t, reserved2, 0x6A0) \
+	ADD_SERIALIZABLE(boolean32_t, save_with_flag) \
+	ADD_SERIALIZABLE(int16_t, spawn_x) \
+	ADD_SERIALIZABLE(int16_t, spawn_y) \
+	ADD_SERIALIZABLE(boolean32_t, show_flag) \
 	ADD_SERIALIZABLE(boolean32_t, has_liquid_resistance)
 SERIALIZABLE_DNR_STATE_3
 } dnr_state_t;

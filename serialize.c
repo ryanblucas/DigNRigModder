@@ -81,7 +81,7 @@ const void* serialize_element_get_value(const element_t element)
 
 int serialize_element_get_count(const element_t element)
 {
-	return element->count >= 0 ? element->count : (-element->count - 1);
+	return abs(element->count);
 }
 
 HTREEITEM serialize_element_get_handle(const element_t element)
@@ -519,188 +519,6 @@ static void serialize_array_internal(uint64_t type_hash, void* value, int start,
 	}
 }
 
-static HTREEITEM serialize_single_internal(bool post_populate, uint64_t type_hash, void* value, WCHAR* wname, HWND tree_window, HTREEITEM tree_item)
-{
-	TVINSERTSTRUCTW tvins = { 0 };
-
-	WCHAR buf[256];
-	tvins.itemex.pszText = buf;
-	tvins.itemex.cchTextMax = sizeof buf / sizeof * buf;
-	tvins.itemex.mask = TVIF_TEXT;
-
-	tvins.hParent = tree_item;
-	tvins.hInsertAfter = TVI_LAST;
-
-	switch (type_hash)
-	{
-	case TYPE_FLOAT:
-		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %f", wname, *(float*)value);
-		break;
-	case TYPE_RGB_COLOR_T:
-	{
-		color_t c = *(color_t*)value;
-		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - RGB(%i, %i, %i)", wname, c & 0xFF, (c >> 8) & 0xFF, (c >> 16) & 0xFF);
-		break;
-	}
-	case TYPE_INT16_T:
-		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %i", wname, *(int16_t*)value);
-		break;
-	case TYPE_INT8_T:
-		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %i", wname, *(int8_t*)value);
-		break;
-	case TYPE_BOOLEAN32_T:
-	case TYPE_INT32_T:
-		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %i", wname, *(int32_t*)value);
-		break;
-	case TYPE_CHAR_INFO:
-	{
-		CHAR_INFO ci_value = *(CHAR_INFO*)value;
-		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - {char: %#04x, attributes: %#06x}", wname, ci_value.Char.AsciiChar & 0xFF, ci_value.Attributes & 0xFFFF);
-		break;
-	}
-	case TYPE_UINT32_T:
-	case TYPE_DNR_POINTER_T:
-		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#010x", wname, *(uint32_t*)value);
-		break;
-	case TYPE_UINT16_T:
-		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#06x", wname, *(uint16_t*)value);
-		break;
-	case TYPE_UINT8_T:
-		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#04x", wname, *(uint8_t*)value);
-		break;
-
-#define ADD_SERIALIZABLE_ENUM(enum_name, enum_value) case enum_value: StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - " L#enum_name, wname); break;
-
-	case TYPE_DNR_RIG_TYPE_T:
-		switch (*(dnr_rig_type_t*)value)
-		{
-			SERIALIZABLE_DNR_RIG_TYPE
-		default:
-			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#010x", wname, *(dnr_rig_type_t*)value);
-			break;
-		}
-		break;
-	case TYPE_DNR_MINERAL_MOVE_DIRECTION_T:
-		switch (*(dnr_mineral_move_direction_t*)value)
-		{
-			SERIALIZABLE_DNR_MINERAL_MOVE_DIRECTION
-		default:
-			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#010x", wname, *(dnr_mineral_move_direction_t*)value);
-			break;
-		}
-		break;
-	case TYPE_DNR_MINERAL_SPAWN_RULE_T:
-		switch (*(dnr_mineral_spawn_rule_t*)value)
-		{
-			SERIALIZABLE_DNR_MINERAL_SPAWN_RULE
-		default:
-			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#010x", wname, *(dnr_mineral_spawn_rule_t*)value);
-			break;
-		}
-		break;
-	case TYPE_DNR_MINERAL_SIZE_T:
-		switch (*(dnr_mineral_size_t*)value)
-		{
-			SERIALIZABLE_DNR_MINERAL_SIZE
-		default:
-			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#004x", wname, *(dnr_mineral_size_t*)value);
-			break;
-		}
-		break;
-	case TYPE_DNR_MINERAL_TYPE_T:
-		switch (*(dnr_mineral_type_t*)value)
-		{
-			SERIALIZABLE_DNR_MINERAL_TYPE
-		default:
-			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#006x", wname, *(dnr_mineral_type_t*)value);
-			break;
-		}
-		break;
-
-#undef ADD_SERIALIZABLE_ENUM
-
-#define ADD_SERIALIZABLE(type, name) serialize_single(#type, &item->name, #name, tree_window, next_tree_item);
-#define ADD_SERIALIZABLE_ARRAY(type, name, count) serialize_array(#type, &item->name, count, #name, tree_window, next_tree_item);
-
-	case TYPE_DNR_SPRITE_T:
-	{
-		dnr_sprite_t* item = (dnr_sprite_t*)value;
-		tvins.itemex.pszText = wname;
-		tvins.itemex.cchTextMax = 0;
-		HTREEITEM next_tree_item = TreeView_InsertItem(tree_window, &tvins);
-		SERIALIZABLE_DNR_SPRITE
-		return next_tree_item;
-	}
-
-	case TYPE_DNR_SAVE_HEADER_T:
-	{
-		dnr_save_header_t* item = (dnr_save_header_t*)value;
-		tvins.itemex.pszText = wname;
-		tvins.itemex.cchTextMax = 0;
-		HTREEITEM next_tree_item = TreeView_InsertItem(tree_window, &tvins);
-		SERIALIZABLE_DNR_SAVE_HEADER
-		return next_tree_item;
-	}
-
-	case TYPE_DNR_LAYER_HEADER_T:
-	{
-		dnr_layer_header_t* item = (dnr_layer_header_t*)value;
-		tvins.itemex.pszText = wname;
-		tvins.itemex.cchTextMax = 0;
-		HTREEITEM next_tree_item = TreeView_InsertItem(tree_window, &tvins);
-		SERIALIZABLE_DNR_LAYER_HEADER
-		return next_tree_item;
-	}
-
-	case TYPE_DNR_PLAYER_T:
-	{
-		dnr_player_t* item = (dnr_player_t*)value;
-		tvins.itemex.pszText = wname;
-		tvins.itemex.cchTextMax = 0;
-		HTREEITEM next_tree_item = TreeView_InsertItem(tree_window, &tvins);
-		SERIALIZABLE_DNR_PLAYER
-		return next_tree_item;
-	}
-
-	case TYPE_DNR_BLOCK_T:
-	{
-		dnr_block_t* item = (dnr_block_t*)value;
-		HTREEITEM next_tree_item = tree_item;
-		if (!post_populate)
-		{
-			tvins.itemex.pszText = wname;
-			tvins.itemex.cchTextMax = 0;
-			next_tree_item = TreeView_InsertItem(tree_window, &tvins);
-		}
-		SERIALIZABLE_DNR_BLOCK
-		return next_tree_item;
-	}
-
-	case TYPE_DNR_MINERAL_T:
-	{
-		dnr_mineral_t* item = (dnr_mineral_t*)value;
-		HTREEITEM next_tree_item = tree_item;
-		if (!post_populate)
-		{
-			tvins.itemex.pszText = wname;
-			tvins.itemex.cchTextMax = 0;
-			next_tree_item = TreeView_InsertItem(tree_window, &tvins);
-		}
-		SERIALIZABLE_DNR_MINERAL
-		return next_tree_item;
-	}
-
-#undef ADD_SERIALIZABLE
-#undef ADD_SERIALIZABLE_ARRAY
-	default:
-		RUNTIME_ASSERT(false);
-	}
-
-	HTREEITEM item = TreeView_InsertItem(tree_window, &tvins);
-	RUNTIME_ASSERT(item);
-	return item;
-}
-
 static inline uint64_t serialize_hash(const char* str)
 {
 	uint64_t hash = 5381;
@@ -717,7 +535,188 @@ element_t serialize_single(const char* type, void* value, const char* name, HWND
 	WCHAR wname[64];
 	RUNTIME_ASSERT(MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, name, -1, wname, sizeof wname / sizeof * wname));
 
-	tree_item = serialize_single_internal(false, type_hash, value, wname, tree_window, tree_item);
+	TVINSERTSTRUCTW tvins = { 0 };
+
+	WCHAR buf[256];
+	tvins.itemex.pszText = buf;
+	tvins.itemex.cchTextMax = sizeof buf / sizeof * buf;
+	tvins.itemex.mask = TVIF_TEXT;
+
+	tvins.hParent = tree_item;
+	tvins.hInsertAfter = TVI_LAST;
+
+	switch (type_hash)
+	{
+	case TYPE_FLOAT:
+		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %f", wname, *(float*)value);
+		tree_item = TreeView_InsertItem(tree_window, &tvins);
+		break;
+	case TYPE_RGB_COLOR_T:
+	{
+		color_t c = *(color_t*)value;
+		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - RGB(%i, %i, %i)", wname, c & 0xFF, (c >> 8) & 0xFF, (c >> 16) & 0xFF);
+		tree_item = TreeView_InsertItem(tree_window, &tvins);
+		break;
+	}
+	case TYPE_INT16_T:
+		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %i", wname, *(int16_t*)value);
+		tree_item = TreeView_InsertItem(tree_window, &tvins);
+		break;
+	case TYPE_INT8_T:
+		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %i", wname, *(int8_t*)value);
+		tree_item = TreeView_InsertItem(tree_window, &tvins);
+		break;
+	case TYPE_BOOLEAN32_T:
+	case TYPE_INT32_T:
+		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %i", wname, *(int32_t*)value);
+		tree_item = TreeView_InsertItem(tree_window, &tvins);
+		break;
+	case TYPE_CHAR_INFO:
+	{
+		CHAR_INFO ci_value = *(CHAR_INFO*)value;
+		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - {char: %#04x, attributes: %#06x}", wname, ci_value.Char.AsciiChar & 0xFF, ci_value.Attributes & 0xFFFF);
+		tree_item = TreeView_InsertItem(tree_window, &tvins);
+		break;
+	}
+	case TYPE_UINT32_T:
+	case TYPE_DNR_POINTER_T:
+		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#010x", wname, *(uint32_t*)value);
+		tree_item = TreeView_InsertItem(tree_window, &tvins);
+		break;
+	case TYPE_UINT16_T:
+		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#06x", wname, *(uint16_t*)value);
+		tree_item = TreeView_InsertItem(tree_window, &tvins);
+		break;
+	case TYPE_UINT8_T:
+		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#04x", wname, *(uint8_t*)value);
+		tree_item = TreeView_InsertItem(tree_window, &tvins);
+		break;
+
+#define ADD_SERIALIZABLE_ENUM(enum_name, enum_value) case enum_value: StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - " L#enum_name, wname); break;
+
+	case TYPE_DNR_RIG_TYPE_T:
+		switch (*(dnr_rig_type_t*)value)
+		{
+			SERIALIZABLE_DNR_RIG_TYPE
+		default:
+			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#010x", wname, *(dnr_rig_type_t*)value);
+			break;
+		}
+		tree_item = TreeView_InsertItem(tree_window, &tvins);
+		break;
+	case TYPE_DNR_MINERAL_MOVE_DIRECTION_T:
+		switch (*(dnr_mineral_move_direction_t*)value)
+		{
+			SERIALIZABLE_DNR_MINERAL_MOVE_DIRECTION
+		default:
+			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#010x", wname, *(dnr_mineral_move_direction_t*)value);
+			break;
+		}
+		tree_item = TreeView_InsertItem(tree_window, &tvins);
+		break;
+	case TYPE_DNR_MINERAL_SPAWN_RULE_T:
+		switch (*(dnr_mineral_spawn_rule_t*)value)
+		{
+			SERIALIZABLE_DNR_MINERAL_SPAWN_RULE
+		default:
+			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#010x", wname, *(dnr_mineral_spawn_rule_t*)value);
+			break;
+		}
+		tree_item = TreeView_InsertItem(tree_window, &tvins);
+		break;
+	case TYPE_DNR_MINERAL_SIZE_T:
+		switch (*(dnr_mineral_size_t*)value)
+		{
+			SERIALIZABLE_DNR_MINERAL_SIZE
+		default:
+			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#004x", wname, *(dnr_mineral_size_t*)value);
+			break;
+		}
+		tree_item = TreeView_InsertItem(tree_window, &tvins);
+		break;
+	case TYPE_DNR_MINERAL_TYPE_T:
+		switch (*(dnr_mineral_type_t*)value)
+		{
+			SERIALIZABLE_DNR_MINERAL_TYPE
+		default:
+			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#006x", wname, *(dnr_mineral_type_t*)value);
+			break;
+		}
+		tree_item = TreeView_InsertItem(tree_window, &tvins);
+		break;
+
+#undef ADD_SERIALIZABLE_ENUM
+
+#define ADD_SERIALIZABLE(type, name) serialize_single(#type, &item->name, #name, tree_window, tree_item);
+#define ADD_SERIALIZABLE_ARRAY(type, name, count) serialize_array(#type, &item->name, count, #name, tree_window, tree_item);
+
+	case TYPE_DNR_SPRITE_T:
+	{
+		dnr_sprite_t* item = (dnr_sprite_t*)value;
+		tvins.itemex.pszText = wname;
+		tvins.itemex.cchTextMax = 0;
+		tree_item = TreeView_InsertItem(tree_window, &tvins);
+		SERIALIZABLE_DNR_SPRITE
+		break;
+	}
+
+	case TYPE_DNR_SAVE_HEADER_T:
+	{
+		dnr_save_header_t* item = (dnr_save_header_t*)value;
+		tvins.itemex.pszText = wname;
+		tvins.itemex.cchTextMax = 0;
+		tree_item = TreeView_InsertItem(tree_window, &tvins);
+		SERIALIZABLE_DNR_SAVE_HEADER
+		break;
+	}
+
+	case TYPE_DNR_LAYER_HEADER_T:
+	{
+		dnr_layer_header_t* item = (dnr_layer_header_t*)value;
+		tvins.itemex.pszText = wname;
+		tvins.itemex.cchTextMax = 0;
+		tree_item = TreeView_InsertItem(tree_window, &tvins);
+		SERIALIZABLE_DNR_LAYER_HEADER
+		break;
+	}
+
+	case TYPE_DNR_PLAYER_T:
+	{
+		dnr_player_t* item = (dnr_player_t*)value;
+		tvins.itemex.pszText = wname;
+		tvins.itemex.cchTextMax = 0;
+		tree_item = TreeView_InsertItem(tree_window, &tvins);
+		SERIALIZABLE_DNR_PLAYER
+		break;
+	}
+
+	case TYPE_DNR_BLOCK_T:
+	{
+		dnr_block_t* item = (dnr_block_t*)value;
+		tvins.itemex.pszText = wname;
+		tvins.itemex.cchTextMax = 0;
+		tree_item = TreeView_InsertItem(tree_window, &tvins);
+		SERIALIZABLE_DNR_BLOCK
+		break;
+	}
+
+	case TYPE_DNR_MINERAL_T:
+	{
+		dnr_mineral_t* item = (dnr_mineral_t*)value;
+		tvins.itemex.pszText = wname;
+		tvins.itemex.cchTextMax = 0;
+		tree_item = TreeView_InsertItem(tree_window, &tvins);
+		SERIALIZABLE_DNR_MINERAL
+		break;
+	}
+
+#undef ADD_SERIALIZABLE
+#undef ADD_SERIALIZABLE_ARRAY
+	default:
+		RUNTIME_ASSERT(false);
+	}
+
+	RUNTIME_ASSERT(tree_item);
 
 	element_t se = dig_malloc(sizeof * se);
 	*se = (struct element){ .window = tree_window, .tree_item = tree_item, .type_hash = type_hash, .value = value, .count = 0 };
@@ -783,7 +782,7 @@ void serialize_delete(HWND tree_window)
 
 void serialize_on_expand(element_t element)
 {
-	if (!element || element->count < 0)
+	if (!element || element->count <= 0)
 	{
 		return;
 	}
@@ -801,15 +800,10 @@ void serialize_on_expand(element_t element)
 		free((element_t)tvi.lParam);
 		TreeView_DeleteItem(element->window, child);
 	}
-	if (element->count == 0)
-	{
-		serialize_single_internal(true, element->type_hash, element->value, element->name, element->window, element->tree_item);
-		element->count = -1;
-	}
-	else
+	if (element->count != 0)
 	{
 		serialize_array_internal(element->type_hash, element->value, 0, element->count, element->name, element->window, element->tree_item);
-		element->count = -element->count - 1;
+		element->count = -element->count;
 	}
 
 	if (res)

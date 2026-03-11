@@ -190,6 +190,11 @@ static void info_window_save_tree_control_handle_double_click(HWND hwnd, HTREEIT
 	}
 	else if (hwnd == child_windows[CWI_SAVE_TREEVIEW])
 	{
+		/* only should change elementary fields */
+		if (serialize_element_get_size(element) > 4 || serialize_element_get_count(element) > 1)
+		{
+			return;
+		}
 		field_t begin_copy = field_create(serialize_element_get_value(element), serialize_element_get_size(element));
 
 		if (!serialize_on_change_field(element))

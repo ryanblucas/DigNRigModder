@@ -141,9 +141,6 @@ static void save_viewer_paste(void)
 
 	action_buffer_post_add_block(save);
 
-	free(clipboard_data);
-	clipboard_data = NULL;
-
 	selection_region = dest;
 	save_viewer_invalidate_region(dest);
 	screen_repaint();

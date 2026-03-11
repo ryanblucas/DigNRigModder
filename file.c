@@ -434,8 +434,8 @@ bool file_state_save(const char* directory, const dnr_state_t* save)
 		BINARY_ENSURE_CONDITION(fwrite(&save->stalactite_array[i].speed, 1, 4, file) == 4);
 	}
 
-	BINARY_ENSURE_CONDITION(fwrite(save->reserved2, sizeof save->reserved2, 1, file) == 1);
-	BINARY_ENSURE_CONDITION(fwrite(&save->has_liquid_resistance, sizeof save->has_liquid_resistance, 1, file) == 1);
+	size_t offset = offsetof(dnr_state_t, stalactite_count) + sizeof save->stalactite_count;
+	BINARY_ENSURE_CONDITION(fwrite((uint8_t*)save + offset, sizeof * save - offset, 1, file) == 1);
 
 	result = true;
 cleanup:

@@ -7,7 +7,7 @@
 
 #define CHECK_CONDITION(condition) if (!(condition)) { debug_format(#condition " failed at (%i, %i)\n", x, y); result = false; }
 
-bool game_is_valid(dnr_state_t* state)
+bool game_is_valid(const dnr_state_t* state)
 {
 	bool result = true;
 	for (int y = 0; y < WORLD_HEIGHT; y++)

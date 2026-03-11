@@ -417,9 +417,7 @@ static void info_state_set_tree_view(dnr_state_t* user_state)
 #define ADD_SERIALIZABLE(type, name) serialize_single(#type, &item->name, #name, child_windows[CWI_SAVE_TREEVIEW], NULL);
 #define ADD_SERIALIZABLE_ARRAY(type, name, count) serialize_array(#type, &item->name, count, #name, child_windows[CWI_SAVE_TREEVIEW], NULL);
 
-	SERIALIZABLE_DNR_STATE_0
-	SERIALIZABLE_DNR_STATE_1
-	SERIALIZABLE_DNR_STATE_2
+	SERIALIZABLE_DNR_STATE
 
 #undef ADD_SERIALIZABLE
 #undef ADD_SERIALIZABLE_ARRAY

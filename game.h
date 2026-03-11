@@ -15,7 +15,7 @@ typedef struct complete_block
 } complete_block_t;
 
 /* Determines if a game state is valid */
-bool game_is_valid(dnr_state_t* state);
+bool game_is_valid(const dnr_state_t* state);
 
 /* copies a region from state into arr in region */
 void game_copy(const dnr_state_t* state, region_t region, complete_block_t* arr);

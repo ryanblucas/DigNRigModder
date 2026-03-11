@@ -217,6 +217,12 @@ static void serialize_redo_basic(element_t element)
 	case TYPE_INT32_T:
 		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %i", element->name, *(int32_t*)element->value);
 		break;
+	case TYPE_INT16_T:
+		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %i", element->name, *(int16_t*)element->value);
+		break;
+	case TYPE_INT8_T:
+		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %i", element->name, *(int8_t*)element->value);
+		break;
 	case TYPE_CHAR_INFO:
 	{
 		CHAR_INFO ci_value = *(CHAR_INFO*)element->value;
@@ -327,6 +333,14 @@ static void serialize_array_internal(uint64_t type_hash, void* value, int start,
 			value = (color_t*)value - 1;
 			break;
 		}
+		case TYPE_INT16_T:
+			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%i - %i", i, *(int16_t*)element->value);
+			value = (int16_t*)value - 1;
+			break;
+		case TYPE_INT8_T:
+			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%i - %i", i, *(int8_t*)element->value);
+			value = (int8_t*)value - 1;
+			break;
 		case TYPE_BOOLEAN32_T:
 		case TYPE_INT32_T:
 			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%i - %i", i, *(int32_t*)value);
@@ -528,6 +542,12 @@ static HTREEITEM serialize_single_internal(bool post_populate, uint64_t type_has
 		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - RGB(%i, %i, %i)", wname, c & 0xFF, (c >> 8) & 0xFF, (c >> 16) & 0xFF);
 		break;
 	}
+	case TYPE_INT16_T:
+		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %i", wname, *(int16_t*)value);
+		break;
+	case TYPE_INT8_T:
+		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %i", wname, *(int8_t*)value);
+		break;
 	case TYPE_BOOLEAN32_T:
 	case TYPE_INT32_T:
 		StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %i", wname, *(int32_t*)value);

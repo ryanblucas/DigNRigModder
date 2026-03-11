@@ -261,20 +261,39 @@ SERIALIZABLE_DNR_STATE_0
 
 #define SERIALIZABLE_DNR_STATE_1 \
 	ADD_SERIALIZABLE_ARRAY(boolean32_t, elements_discovered, MINERAL_COUNT) \
-	ADD_SERIALIZABLE_ARRAY(uint32_t, reserved1, 7) \
-	ADD_SERIALIZABLE_ARRAY(CHAR_INFO, vac_pak_contents, 1000)
+	ADD_SERIALIZABLE(int32_t, vac_pak_size) \
+	ADD_SERIALIZABLE(int32_t, vac_pak_capacity) \
+	ADD_SERIALIZABLE(boolean32_t, vac_pak_exists) \
+	ADD_SERIALIZABLE(int16_t, vac_pak_x)
 SERIALIZABLE_DNR_STATE_1
+
+	/* ignore */
+	int16_t padding; 
+
+#define SERIALIZABLE_DNR_STATE_2 \
+	ADD_SERIALIZABLE(boolean32_t, vac_pak_not_moving) \
+	ADD_SERIALIZABLE(int32_t, vac_pak_range_squared) \
+	ADD_SERIALIZABLE(boolean32_t, can_use_vacuum) \
+	ADD_SERIALIZABLE_ARRAY(CHAR_INFO, vac_pak_contents, 1000)
+SERIALIZABLE_DNR_STATE_2
 
 	stalactite_t* stalactite_array;
 	int stalactite_count;
 
-#define SERIALIZABLE_DNR_STATE_2 \
+#define SERIALIZABLE_DNR_STATE_3 \
 	ADD_SERIALIZABLE_ARRAY(uint8_t, reserved2, 0x6AC) \
 	ADD_SERIALIZABLE(boolean32_t, has_liquid_resistance)
-SERIALIZABLE_DNR_STATE_2
+SERIALIZABLE_DNR_STATE_3
 } dnr_state_t;
 
+#define SERIALIZABLE_DNR_STATE SERIALIZABLE_DNR_STATE_0 SERIALIZABLE_DNR_STATE_1 SERIALIZABLE_DNR_STATE_2 SERIALIZABLE_DNR_STATE_3
+
 #pragma pack()
+
+/* classic */
+enum {
+	DNR_STATE_T_SIZE_CHECK = 1 / (sizeof(dnr_state_t) == 23444176)
+};
 
 #undef ADD_SERIALIZABLE
 #undef ADD_SERIALIZABLE_ARRAY

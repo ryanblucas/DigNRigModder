@@ -21,7 +21,7 @@
 #define INFO_BOX_WINDOW_STYLE (WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX)
 #define INFO_BOX_WINDOW_STYLE_EX (WS_EX_OVERLAPPEDWINDOW)
 #define INFO_BOX_CLIENT_WIDTH 450
-#define INFO_BOX_CLIENT_HEIGHT 400
+#define INFO_BOX_CLIENT_HEIGHT 392
 #define INFO_BOX_CELL_SIZE 72
 
 #define INFO_BOX_MSG_STATE_READY (WM_USER + 0x10)
@@ -34,10 +34,14 @@ enum child_window_index
 	CWI_SAVE_TREEVIEW,
 	CWI_SAVE_CURRENT_CELL,
 	CWI_SAVE_CURRENT_TREEVIEW,
-	CWI_SAVE_GO_TO_LAYER_BUTTON,
+	CWI_SAVE_BRUSH_CELL,
+	CWI_SAVE_ERASE_BUTTON,
+	CWI_SAVE_SELECT_BUTTON,
+	CWI_SAVE_BRUSH_BUTTON,
+	CWI_SAVE_BRUSH_SIZE_THUMB,
 
 	CWI_SAVE_START = CWI_SAVE_TREEVIEW,
-	CWI_SAVE_END = CWI_SAVE_GO_TO_LAYER_BUTTON,
+	CWI_SAVE_END = CWI_SAVE_BRUSH_SIZE_THUMB,
 
 	CWI_COUNT
 };
@@ -53,6 +57,8 @@ static DWORD thread_id;
 
 static info_mode_t current_mode;
 static HWND child_windows[CWI_COUNT];
+
+static info_tool_t current_tool;
 
 static dnr_state_t* state;
 static int current_selection_index = -1;
@@ -75,22 +81,33 @@ static void info_tab_save(HWND hwnd)
 		RECT rect = { 0, 0, INFO_BOX_CLIENT_WIDTH, INFO_BOX_CLIENT_HEIGHT };
 		TabCtrl_AdjustRect(tab_control, FALSE, &rect);
 
-		child_windows[CWI_SAVE_TREEVIEW] = CreateWindowExW(0, WC_TREEVIEWW, NULL, WS_VISIBLE | WS_CHILD | WS_BORDER | TVS_HASLINES | TVS_LINESATROOT | TVS_HASBUTTONS, 2, 198, INFO_BOX_CLIENT_WIDTH - 4, 200, hwnd, NULL, NULL, NULL);
+		child_windows[CWI_SAVE_TREEVIEW] = CreateWindowExW(0, WC_TREEVIEWW, NULL, WS_VISIBLE | WS_CHILD | WS_BORDER | TVS_HASLINES | TVS_LINESATROOT | TVS_HASBUTTONS, 2, 190, INFO_BOX_CLIENT_WIDTH - 4, 200, hwnd, NULL, NULL, NULL);
 		RUNTIME_ASSERT(child_windows[CWI_SAVE_TREEVIEW]);
 		SendMessageW(child_windows[CWI_SAVE_TREEVIEW], WM_SETFONT, (WPARAM)font_text, (LPARAM)FALSE);
 
 		child_windows[CWI_SAVE_CURRENT_CELL] = CreateWindowExW(0, MINERAL_CONTROL_CLASS_NAME, NULL, WS_VISIBLE | WS_CHILD, 3, 25, 72, 72, hwnd, NULL, NULL, NULL);
 		RUNTIME_ASSERT(child_windows[CWI_SAVE_CURRENT_CELL]);
+		child_windows[CWI_SAVE_BRUSH_CELL] = CreateWindowExW(0, MINERAL_CONTROL_CLASS_NAME, NULL, WS_VISIBLE | WS_CHILD, 56, 170, 16, 16, hwnd, NULL, NULL, NULL);
+		RUNTIME_ASSERT(child_windows[CWI_SAVE_BRUSH_CELL]);
 
-		child_windows[CWI_SAVE_CURRENT_TREEVIEW] = CreateWindowExW(0, WC_TREEVIEWW, NULL, WS_VISIBLE | WS_CHILD | WS_BORDER | TVS_HASLINES | TVS_LINESATROOT | TVS_HASBUTTONS, 76, 25, 372, 174, hwnd, NULL, NULL, NULL);
+		child_windows[CWI_SAVE_CURRENT_TREEVIEW] = CreateWindowExW(0, WC_TREEVIEWW, NULL, WS_VISIBLE | WS_CHILD | WS_BORDER | TVS_HASLINES | TVS_LINESATROOT | TVS_HASBUTTONS, 76, 25, 372, 166, hwnd, NULL, NULL, NULL);
 		RUNTIME_ASSERT(child_windows[CWI_SAVE_CURRENT_TREEVIEW]);
 		SendMessageW(child_windows[CWI_SAVE_CURRENT_TREEVIEW], WM_SETFONT, (WPARAM)font_text, (LPARAM)FALSE);
 
-		child_windows[CWI_SAVE_GO_TO_LAYER_BUTTON] = CreateWindowExW(0, L"BUTTON", L"Go to layer", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 3, 98, 72, 22, hwnd, NULL, NULL, NULL);
-		RUNTIME_ASSERT(child_windows[CWI_SAVE_GO_TO_LAYER_BUTTON]);
+		child_windows[CWI_SAVE_ERASE_BUTTON] = CreateWindowExW(0, L"BUTTON", L"Erase", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 3, 98, 72, 22, hwnd, NULL, NULL, NULL);
+		child_windows[CWI_SAVE_SELECT_BUTTON] = CreateWindowExW(0, L"BUTTON", L"Select", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 3, 121, 72, 22, hwnd, NULL, NULL, NULL);
+		child_windows[CWI_SAVE_BRUSH_BUTTON] = CreateWindowExW(0, L"BUTTON", L"Brush", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 3, 144, 72, 22, hwnd, NULL, NULL, NULL);
+		child_windows[CWI_SAVE_BRUSH_SIZE_THUMB] = CreateWindowExW(0, TRACKBAR_CLASSW, L"Brush size", WS_VISIBLE | WS_CHILD | TBS_AUTOTICKS | TBS_ENABLESELRANGE, 3, 167, 50, 22, hwnd, NULL, NULL, NULL);
+		SendMessageW(child_windows[CWI_SAVE_BRUSH_SIZE_THUMB], TBM_SETRANGE, TRUE, MAKELONG(1, 6));
 
-		SendMessageW(child_windows[CWI_SAVE_GO_TO_LAYER_BUTTON], WM_SETFONT, (WPARAM)font_text, (LPARAM)FALSE);
-		EnableWindow(child_windows[CWI_SAVE_GO_TO_LAYER_BUTTON], FALSE);
+		for (int i = 0; i < 4; i++)
+		{
+			RUNTIME_ASSERT(child_windows[CWI_SAVE_ERASE_BUTTON + i]);
+			SendMessageW(child_windows[CWI_SAVE_ERASE_BUTTON + i], WM_SETFONT, (WPARAM)font_text, (LPARAM)FALSE);
+		}
+		current_tool = TOOL_SELECT;
+		EnableWindow(child_windows[CWI_SAVE_SELECT_BUTTON], FALSE);
+		RAISE_EVENT(events.tool_handler, current_tool);
 	}
 
 	for (int i = CWI_SAVE_START; i <= CWI_SAVE_END; i++)
@@ -264,20 +281,35 @@ static LRESULT info_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
 	}
 	case WM_COMMAND:
 	{
-		if (HIWORD(wparam) != BN_CLICKED || current_selection_index == -1)
+		if (HIWORD(wparam) != BN_CLICKED)
 		{
 			return 0;
 		}
+		EnableWindow(child_windows[CWI_SAVE_ERASE_BUTTON + current_tool], TRUE);
 		HWND button_clicked = (HWND)lparam;
-		if (button_clicked == child_windows[CWI_SAVE_GO_TO_LAYER_BUTTON])
+		if (button_clicked == child_windows[CWI_SAVE_ERASE_BUTTON])
 		{
-			char buf[64];
-			snprintf(buf, sizeof buf, "layer_headers - %i", LAYER_COUNT);
-			HTREEITEM headers = serialize_tree_find_item(child_windows[CWI_SAVE_TREEVIEW], TVI_ROOT, buf);
-			TreeView_Expand(child_windows[CWI_SAVE_TREEVIEW], headers, TVE_EXPAND);
-			snprintf(buf, sizeof buf, "%i", current_selection_index % WORLD_HEIGHT / TARGET_HEIGHT);
-			TreeView_Expand(child_windows[CWI_SAVE_TREEVIEW], serialize_tree_find_item(child_windows[CWI_SAVE_TREEVIEW], headers, buf), TVE_EXPAND);
+			current_tool = TOOL_ERASER;
 		}
+		else if (button_clicked == child_windows[CWI_SAVE_SELECT_BUTTON])
+		{
+			current_tool = TOOL_SELECT;
+		}
+		else if (button_clicked == child_windows[CWI_SAVE_BRUSH_BUTTON])
+		{
+			current_tool = TOOL_BRUSH;
+		}
+		EnableWindow(button_clicked, FALSE);
+		RAISE_EVENT(events.tool_handler, current_tool);
+		return 0;
+	}
+	case WM_HSCROLL:
+	{
+		if ((HWND)lparam != child_windows[CWI_SAVE_BRUSH_SIZE_THUMB] || LOWORD(wparam) != SB_ENDSCROLL)
+		{
+			return 0;
+		}
+		RAISE_EVENT(events.brush_size_handler, SendMessageW(child_windows[CWI_SAVE_BRUSH_SIZE_THUMB], TBM_GETPOS, 0, 0));
 		return 0;
 	}
 	case INFO_BOX_MSG_STATE_READY:
@@ -500,7 +532,6 @@ void info_cell_set_current(int x, int y)
 		return;
 	}
 
-	EnableWindow(child_windows[CWI_SAVE_GO_TO_LAYER_BUTTON], FALSE);
 	int pos = GetScrollPos(child_windows[CWI_SAVE_CURRENT_TREEVIEW], SB_VERT);
 	TreeView_DeleteAllItems(child_windows[CWI_SAVE_CURRENT_TREEVIEW]);
 
@@ -516,7 +547,6 @@ void info_cell_set_current(int x, int y)
 
 	current_selection_region = INVALID_REGION;
 	current_selection_index = x * WORLD_HEIGHT + y;
-	EnableWindow(child_windows[CWI_SAVE_GO_TO_LAYER_BUTTON], TRUE);
 
 	info_cell_set_current_treeview();
 	SetScrollPos(child_windows[CWI_SAVE_CURRENT_TREEVIEW], SB_VERT, pos, TRUE);

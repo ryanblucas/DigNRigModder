@@ -270,8 +270,14 @@ static void save_viewer_handle_keyboard(virtual_key_t vk, keyboard_control_t ctr
 				path_find_dnr_save(save_directory, sizeof save_directory, editor.current_save);
 			}
 			debug_format("Reloading save...\n");
+			dnr_state_t* next = file_state_load(save_directory);
+			if (!next)
+			{
+				debug_format("Failed to reopen save! Try saving again.\n");
+				return;
+			}
 			file_state_unload(save);
-			save = file_state_load(save_directory);
+			save = next;
 
 			for (int i = 0; i < LAYER_COUNT; i++)
 			{
@@ -425,6 +431,16 @@ static void save_viewer_handle_global_field_change(const void* field)
 	screen_repaint();
 }
 
+static void save_viewer_handle_tool_change(info_tool_t tool)
+{
+	debug_format("%i\n", tool);
+}
+
+static void save_viewer_handle_brush_size_change(int brush_size)
+{
+	debug_format("%i\n", brush_size);
+}
+
 int main()
 {
 	if (!file_editor_load(&editor))
@@ -449,22 +465,31 @@ int main()
 
 	info_initialize((info_events_t)
 	{
-		.mode_handler = NULL,
 		.block_handler = save_viewer_handle_block_change,
 		.global_field_handler = save_viewer_handle_global_field_change,
+		.tool_handler = save_viewer_handle_tool_change,
+		.brush_size_handler = save_viewer_handle_brush_size_change,
 	});
 
 	action_buffer_initialize();
 	
 	debug_profiler_push();
 
-	char buf[MAX_PATH];
-	save = file_state_load(path_find_dnr_save(save_directory, sizeof save_directory, 1));
-	flag = file_sprite_load(path_find_dnr_main(buf, sizeof buf, "Sprites\\Checkpoint.sprite"));
-	if (!save || !flag)
+	save = file_state_load(path_find_dnr_save(save_directory, sizeof save_directory, editor.current_save));
+	if (!save)
 	{
-		return 1;
+		save_viewer_prompt_which_save();
+		file_editor_save(&editor);
+		save = file_state_load(path_find_dnr_save(save_directory, sizeof save_directory, editor.current_save));
+		if (!save)
+		{
+			debug_format("Failed to open a save file on launch\n");
+			return 1;
+		}
 	}
+	char buf[MAX_PATH];
+	flag = file_sprite_load(path_find_dnr_main(buf, sizeof buf, "Sprites\\Checkpoint.sprite"));
+	RUNTIME_ASSERT(flag);
 
 	debug_profiler_pop("Load assets");
 

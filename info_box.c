@@ -66,6 +66,8 @@ static region_t current_selection_region;
 static dnr_block_t current_block;
 static dnr_mineral_t current_mineral;
 
+static complete_block_t brush;
+
 static info_events_t events;
 
 static inline void info_tab_create(const LPWSTR name, info_mode_t index)
@@ -175,9 +177,19 @@ static void info_window_save_tree_control_handle_double_click(HWND hwnd, HTREEIT
 		int x = current_selection_index / WORLD_HEIGHT;
 		int y = current_selection_index % WORLD_HEIGHT;
 		region_t region = { x, y, x, y };
+
+		complete_block_t start;
+		game_copy(state, region, &start);
 		action_buffer_pre_add_block(state, region);
 
 		if (!serialize_on_change_field(element))
+		{
+			return;
+		}
+
+		complete_block_t end;
+		game_copy(state, region, &end);
+		if (memcmp(&start, &end, sizeof start) == 0)
 		{
 			return;
 		}
@@ -188,11 +200,15 @@ static void info_window_save_tree_control_handle_double_click(HWND hwnd, HTREEIT
 	}
 	else if (hwnd == child_windows[CWI_SAVE_CURRENT_TREEVIEW])
 	{
+		void* previous = serialize_element_get_value(element);
 		if (!serialize_on_change_field(element))
 		{
 			return;
 		}
-
+		if (memcmp(previous, serialize_element_get_value(element), serialize_element_get_size(element)) == 0)
+		{
+			return;
+		}
 		action_buffer_pre_add_block(state, current_selection_region);
 		for (int y = current_selection_region.y0; y <= current_selection_region.y1; y++)
 		{
@@ -212,13 +228,12 @@ static void info_window_save_tree_control_handle_double_click(HWND hwnd, HTREEIT
 		{
 			return;
 		}
-		field_t begin_copy = field_create(serialize_element_get_value(element), serialize_element_get_size(element));
 
+		field_t begin_copy = field_create(serialize_element_get_value(element), serialize_element_get_size(element));
 		if (!serialize_on_change_field(element))
 		{
 			return;
 		}
-
 		RAISE_EVENT(events.global_field_handler, serialize_element_get_value(element));
 		action_buffer_add_field(element, begin_copy);
 	}
@@ -532,23 +547,33 @@ void info_cell_set_current(int x, int y)
 		return;
 	}
 
-	int pos = GetScrollPos(child_windows[CWI_SAVE_CURRENT_TREEVIEW], SB_VERT);
-	TreeView_DeleteAllItems(child_windows[CWI_SAVE_CURRENT_TREEVIEW]);
-
 	if (x == -1 && y == -1)
 	{
+		current_selection_index = -1;
 		MINERAL_CONTROL_SET_CELL(child_windows[CWI_SAVE_CURRENT_CELL], 0, 0, 0);
+		if (current_tool == TOOL_SELECT)
+		{
+			TreeView_DeleteAllItems(child_windows[CWI_SAVE_CURRENT_TREEVIEW]);
+		}
 		return;
 	}
 
 	RUNTIME_ASSERT(x >= 0 && y >= 0 && x < WORLD_WIDTH && y < WORLD_HEIGHT);
 
-	info_state_update_current_cell_image(x, y);
-
 	current_selection_region = INVALID_REGION;
 	current_selection_index = x * WORLD_HEIGHT + y;
 
+	if (current_tool != TOOL_SELECT)
+	{
+		return;
+	}
+
+	int pos = GetScrollPos(child_windows[CWI_SAVE_CURRENT_TREEVIEW], SB_VERT);
+	TreeView_DeleteAllItems(child_windows[CWI_SAVE_CURRENT_TREEVIEW]);
+
+	info_state_update_current_cell_image(x, y);
 	info_cell_set_current_treeview();
+
 	SetScrollPos(child_windows[CWI_SAVE_CURRENT_TREEVIEW], SB_VERT, pos, TRUE);
 }
 
@@ -660,16 +685,30 @@ void info_cell_set_current_region(region_t region)
 		return;
 	}
 
-	debug_profiler_push();
+	if (region_is_invalid(region))
+	{
+		if (current_tool == TOOL_SELECT)
+		{
+			TreeView_DeleteAllItems(child_windows[CWI_SAVE_CURRENT_TREEVIEW]);
+		}
+		return;
+	}
 
 	region = region_validate(region);
-	RUNTIME_ASSERT(!region_is_invalid(region) && dig_inside_bounds(region.x0, region.y0) && dig_inside_bounds(region.x1, region.y1));
+	RUNTIME_ASSERT(dig_inside_bounds(region.x0, region.y0) && dig_inside_bounds(region.x1, region.y1));
 
 	current_selection_index = -1;
 	current_selection_region = region;
 
 	current_block = state->blocks[region.x0 * WORLD_HEIGHT + region.y0];
 	current_mineral = current_block.mineral_exists ? state->minerals[current_block.mineral_index] : (dnr_mineral_t) { 0 };
+
+	if (current_tool != TOOL_SELECT)
+	{
+		return;
+	}
+
+	debug_profiler_push();
 
 	TreeView_DeleteAllItems(child_windows[CWI_SAVE_CURRENT_TREEVIEW]);
 	info_cell_set_current_region_treeview(&current_block, &current_mineral);

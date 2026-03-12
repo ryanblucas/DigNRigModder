@@ -85,23 +85,28 @@ static void save_viewer_stop_move(void)
 	};
 
 	region_t total = region_merge(src_region, dest_region);
-	action_buffer_pre_add_block(save, total);
 
-	complete_block_t* blocks = dig_malloc(region_size(src_region) * sizeof * blocks);
-	game_copy(save, src_region, blocks);
-	game_delete(save, src_region);
-	game_paste(save, dest_region, blocks);
-	free(blocks);
+	if (memcmp(&src_region, &dest_region, sizeof src_region) != 0)
+	{
+		action_buffer_pre_add_block(save, total);
 
-	action_buffer_post_add_block(save);
+		complete_block_t* blocks = dig_malloc(region_size(src_region) * sizeof * blocks);
+		game_copy(save, src_region, blocks);
+		game_delete(save, src_region);
+		game_paste(save, dest_region, blocks);
+		free(blocks);
 
-	save_viewer_invalidate_region(total);
+		action_buffer_post_add_block(save);
+
+		save_viewer_invalidate_region(total);
+	}
 
 	hinge_x = hinge_y = -1;
 	move_x = move_y = -1;
 	selection_region = INVALID_REGION;
 	screen_sprite_destroy(selection_visual);
 	selection_visual = NULL;
+	info_cell_set_current(-1, -1);
 
 	screen_repaint();
 }
@@ -196,6 +201,11 @@ static void save_viewer_handle_repaint()
 	if (save->player.y_spawn > top * TARGET_HEIGHT && save->player.y_spawn < (bottom + 1) * TARGET_HEIGHT)
 	{
 		screen_sprite_render((int)save->player.x_spawn, (int)save->player.y_spawn - y_pos, flag);
+	}
+
+	if (region_is_invalid(selection_region))
+	{
+		return;
 	}
 
 	region_t screen_region = region_validate(selection_region);
@@ -340,14 +350,6 @@ static void save_viewer_handle_mouse_button(bool m1_down, int x, int y)
 	if (!region_is_invalid(selection_region) && region_is_inside(selection_region, new_selected_x, new_selected_y))
 	{
 		save_viewer_start_move(new_selected_x, new_selected_y);
-		return;
-	}
-
-	if (new_selected_x == selection_region.x0 && new_selected_y == selection_region.y0 && region_size(selection_region) == 1)
-	{
-		info_cell_set_current(-1, -1);
-		selection_region = INVALID_REGION;
-		screen_repaint();
 		return;
 	}
 	

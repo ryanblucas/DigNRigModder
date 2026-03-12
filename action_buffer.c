@@ -67,12 +67,17 @@ void action_buffer_post_add_block(const dnr_state_t* state)
 
 void action_buffer_add_field(element_t element, field_t previous)
 {
+	field_t next = field_create(serialize_element_get_value(element), serialize_element_get_size(element));
+	if (next == previous)
+	{
+		return;
+	}
 	action_buffer_create_node();
 
 	buffer[position].type = ACTION_FIELD;
 	buffer[position].sub.field = (action_field_t)
 	{
-		.next = field_create(serialize_element_get_value(element), serialize_element_get_size(element)),
+		.next = next,
 		.previous = previous,
 		.element = element
 	};

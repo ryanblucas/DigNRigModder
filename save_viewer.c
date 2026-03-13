@@ -249,7 +249,7 @@ static void save_viewer_handle_repaint()
 		free(selected);
 		return;
 	}
-	save_viewer_invert_region(selection_region);
+	save_viewer_invert_region(region_validate(selection_region));
 }
 
 static void save_viewer_delete_selection(void)

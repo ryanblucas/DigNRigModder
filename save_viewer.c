@@ -554,10 +554,6 @@ static void save_viewer_eraser_handle_mouse_move(bool m1_down, int x, int y)
 
 static void save_viewer_handle_mouse_button(bool m1_down, int x, int y)
 {
-	if (m1_down)
-	{
-		debug_format("down");
-	}
 	info_tool_t current = info_get_current_tool();
 	if (current == TOOL_SELECT)
 	{

@@ -78,6 +78,8 @@ void action_buffer_destroy(void);
 void action_buffer_pre_add_block(const dnr_state_t* state, region_t region);
 /* Finalizes block action to buffer from pre_add_block. */
 void action_buffer_post_add_block(const dnr_state_t* state);
+/* Adds block action to buffer. */
+void action_buffer_add_block(const complete_block_t* prev, const complete_block_t* curr, region_t region);
 /* Adds field action to buffer. All of the parameters passed in are 1:1 what is created
    for the action_field_t struct. If this isn't the top of the buffer, it deletes everything in front of it */
 void action_buffer_add_field(element_t element, field_t previous);

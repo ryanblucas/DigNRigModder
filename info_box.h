@@ -6,7 +6,11 @@
 #pragma once
 
 #include "file.h"
+#include "game.h"
 #include "serialize.h"
+
+#define INFO_BRUSH_MIN_SIZE 1
+#define INFO_BRUSH_MAX_SIZE 6
 
 typedef enum info_mode
 {
@@ -27,6 +31,7 @@ typedef enum info_tool
 typedef void (*info_handle_change_mode)(info_mode_t new_mode);
 typedef void (*info_handle_change_tool)(info_tool_t new_tool);
 typedef void (*info_handle_change_brush_size)(int size);
+typedef void (*info_handle_change_brush_block)(complete_block_t* brush);
 typedef void (*info_handle_change_block)(region_t region);
 typedef void (*info_handle_change_global_field)(const void* field);
 
@@ -41,7 +46,11 @@ typedef struct info_events
 
 void info_initialize(info_events_t events);
 void info_destroy(void);
+
 info_mode_t info_get_current_mode(void);
+info_tool_t info_get_current_tool(void);
+void info_get_current_brush_block(complete_block_t* res);
+int info_get_current_brush_size(void);
 
 dnr_state_t* info_state_get(void);
 void info_state_set(dnr_state_t* state);

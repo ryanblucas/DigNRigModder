@@ -23,6 +23,11 @@ static sprite_t cache[LAYER_COUNT];
 static dnr_state_t* save;
 static int y_pos;
 
+static int erase_before_reserved;
+static int erase_before_size;
+static complete_block_t* erase_before;
+static region_t erase_region;
+
 static region_t selection_region;
 static int hinge_x = -1, hinge_y = -1;
 static int move_x = -1, move_y = -1;
@@ -39,6 +44,7 @@ static inline void save_viewer_invalidate_region(region_t region)
 	region = region_validate(region);
 	for (int y = region.y0 / TARGET_HEIGHT; y <= region.y1 / TARGET_HEIGHT; y++)
 	{
+		screen_sprite_destroy(cache[y]);
 		cache[y] = file_state_spritify(save, y);
 	}
 }
@@ -191,6 +197,25 @@ static void save_viewer_move_window(int addend)
 	screen_repaint();
 }
 
+static void save_viewer_invert_region(region_t region)
+{
+	if (region_is_invalid(region))
+	{
+		return;
+	}
+	region = region_keep_inside(region, (region_t) { 0, 0, WORLD_WIDTH - 1, WORLD_HEIGHT - 1 });
+	region.y0 -= y_pos;
+	region.y1 -= y_pos;
+	attribute_t* selected = dig_malloc(region_size(region) * sizeof * selected);
+	screen_get_attrib_region(selected, region);
+	for (int i = 0; i < region_size(region); i++)
+	{
+		selected[i] = ~selected[i] & 0xFF;
+	}
+	screen_set_attrib_region(selected, region);
+	free(selected);
+}
+
 static void save_viewer_handle_repaint()
 {
 	int top = y_pos / TARGET_HEIGHT;
@@ -208,27 +233,21 @@ static void save_viewer_handle_repaint()
 		return;
 	}
 
-	region_t screen_region = region_validate(selection_region);
-	screen_region.y0 -= y_pos;
-	screen_region.y1 -= y_pos;
-
-	attribute_t* selected = dig_malloc(region_size(screen_region) * sizeof * selected);
 	if (hinge_x >= 0 && hinge_y >= 0)
 	{
+		region_t screen_region = region_validate(selection_region);
+		screen_region.y0 -= y_pos;
+		screen_region.y1 -= y_pos;
+
+		attribute_t* selected = dig_malloc(region_size(screen_region) * sizeof * selected);
 		memset(selected, 0, region_size(screen_region) * sizeof * selected);
+
 		screen_set_attrib_region(selected, screen_region);
 		screen_sprite_render(move_x - hinge_x, move_y - y_pos - hinge_y, selection_visual);
+		free(selected);
+		return;
 	}
-	else
-	{
-		screen_get_attrib_region(selected, screen_region);
-		for (int i = 0; i < region_size(screen_region); i++)
-		{
-			selected[i] = ~selected[i] & 0xFF;
-		}
-		screen_set_attrib_region(selected, screen_region);
-	}
-	free(selected);
+	save_viewer_invert_region(selection_region);
 }
 
 static void save_viewer_delete_selection(void)
@@ -289,10 +308,7 @@ static void save_viewer_handle_keyboard(virtual_key_t vk, keyboard_control_t ctr
 			file_state_unload(save);
 			save = next;
 
-			for (int i = 0; i < LAYER_COUNT; i++)
-			{
-				cache[i] = file_state_spritify(save, i);
-			}
+			save_viewer_invalidate_region((region_t) { 0, 0, WORLD_WIDTH - 1, WORLD_HEIGHT - 1 });
 
 			info_state_set(save);
 			screen_repaint();
@@ -328,7 +344,7 @@ static void save_viewer_handle_keyboard(virtual_key_t vk, keyboard_control_t ctr
 	}
 }
 
-static void save_viewer_handle_mouse_button(bool m1_down, int x, int y)
+static void save_viewer_select_handle_mouse_button(bool m1_down, int x, int y)
 {
 	if (!m1_down)
 	{
@@ -352,7 +368,7 @@ static void save_viewer_handle_mouse_button(bool m1_down, int x, int y)
 		save_viewer_start_move(new_selected_x, new_selected_y);
 		return;
 	}
-	
+
 	selection_region.x0 = selection_region.x1 = new_selected_x;
 	selection_region.y0 = selection_region.y1 = new_selected_y;
 	info_cell_set_current(new_selected_x, new_selected_y);
@@ -360,7 +376,7 @@ static void save_viewer_handle_mouse_button(bool m1_down, int x, int y)
 	screen_repaint();
 }
 
-static void save_viewer_handle_mouse_move(bool m1_down, int x, int y)
+static void save_viewer_select_handle_mouse_move(bool m1_down, int x, int y)
 {
 	if (!m1_down || region_is_invalid(selection_region))
 	{
@@ -389,6 +405,183 @@ static void save_viewer_handle_mouse_move(bool m1_down, int x, int y)
 	screen_repaint();
 }
 
+static void save_viewer_eraser_handle_mouse_button(bool m1_down, int x, int y)
+{
+	if (m1_down)
+	{
+		y += y_pos;
+		int radius = info_get_current_brush_size() - 1;
+		erase_region = region_keep_inside(
+			(region_t) { x - radius, y - radius, x + radius, y + radius }, 
+			(region_t) { 0, 0, WORLD_WIDTH - 1, WORLD_HEIGHT - 1 });
+		return;
+	}
+
+	if (region_is_invalid(erase_region))
+	{
+		return;
+	}
+
+	complete_block_t* new = dig_malloc(region_size(erase_region) * sizeof * new * 2);
+	game_copy(save, erase_region, new);
+	erase_region = region_validate(erase_region);
+	for (int i = 0; i < erase_before_size; i++)
+	{
+		complete_block_t* curr = erase_before + i;
+		new[(curr->block.x - erase_region.x0) + (curr->block.y - erase_region.y0) * region_width(erase_region)] = *curr;
+	}
+	game_copy(save, erase_region, new + region_size(erase_region));
+	action_buffer_add_block(new, new + region_size(erase_region), erase_region);
+	free(new);
+
+	erase_region = INVALID_REGION;
+	erase_before_size = 0;
+}
+
+static void save_viewer_add_to_erase_list(const complete_block_t* block)
+{
+	for (int j = 0; j < erase_before_size; j++)
+	{
+		if (erase_before[j].block.x == block->block.x && erase_before[j].block.y == block->block.y)
+		{
+			return;
+		}
+	}
+
+	erase_before[erase_before_size++] = *block;
+	if (erase_before_size < erase_before_reserved)
+	{
+		return;
+	}
+
+	size_t buf_size = erase_before_reserved * sizeof * erase_before;
+	erase_before_reserved *= 2;
+	complete_block_t* next = dig_malloc(buf_size * 2);
+	memcpy(next, erase_before, buf_size);
+	free(erase_before);
+	erase_before = next;
+}
+
+static void save_viewer_erase(int x, int y, int radius)
+{
+	region_t region = { x - radius, y - radius, x + radius, y + radius };
+	region = region_keep_inside(region, (region_t) { 0, 0, WORLD_WIDTH - 1, WORLD_HEIGHT - 1 });
+
+	complete_block_t* temp = dig_malloc(sizeof * temp * region_size(region));
+	game_copy(save, region, temp);
+
+	game_delete(save, region);
+
+	for (int i = 0; i < region_size(region); i++)
+	{
+		save_viewer_add_to_erase_list(&temp[i]);
+	}
+	free(temp);
+}
+
+static void save_viewer_eraser_handle_mouse_move(bool m1_down, int x, int y)
+{
+	static int prev_selected_x = -1;
+	static int prev_selected_y = -1;
+
+	if (!m1_down || region_is_invalid(erase_region))
+	{
+		prev_selected_x = prev_selected_y = -1;
+		return;
+	}
+
+	int new_selected_x = x;
+	int new_selected_y = y + y_pos;
+	int radius = info_get_current_brush_size() - 1;
+
+	region_t final;
+	if (prev_selected_x == -1 && prev_selected_y == -1)
+	{
+		final = (region_t){ new_selected_x - radius, new_selected_y - radius, new_selected_x + radius, new_selected_y + radius };
+		save_viewer_erase(new_selected_x, new_selected_y, radius);
+	}
+	else
+	{
+		final = region_validate((region_t) { new_selected_x, new_selected_y, prev_selected_x, prev_selected_y });
+		RUNTIME_ASSERT(dig_inside_bounds(final.x0, final.y0) && dig_inside_bounds(final.x1, final.y1));
+		final.x0 -= radius;
+		final.y0 -= radius;
+		final.x1 += radius;
+		final.y1 += radius;
+		final = region_keep_inside(final, (region_t) { 0, 0, WORLD_WIDTH - 1, WORLD_HEIGHT - 1 });
+		erase_region = region_merge(erase_region, final);
+
+		int cx = new_selected_x;
+		int cy = new_selected_y;
+		int dx = abs(cx - prev_selected_x);
+		int dy = -abs(cy - prev_selected_y);
+		int ix = cx < prev_selected_x ? 1 : -1;
+		int iy = cy < prev_selected_y ? 1 : -1;
+		
+		int error = dx + dy;
+
+		/* theres probably a way of doing this more efficiently for a line with a thickness */
+		while (true)
+		{
+			save_viewer_erase(cx, cy, radius);
+			if (error * 2 <= dx)
+			{
+				if (cy == prev_selected_y)
+				{
+					break;
+				}
+				cy += iy;
+				error += dx;
+			}
+			if (error * 2 >= dy)
+			{
+				if (cx == prev_selected_x)
+				{
+					break;
+				}
+				cx += ix;
+				error += dy;
+			}
+		}
+	}
+
+	save_viewer_invalidate_region(final);
+	screen_repaint();
+
+	prev_selected_x = new_selected_x;
+	prev_selected_y = new_selected_y;
+}
+
+static void save_viewer_handle_mouse_button(bool m1_down, int x, int y)
+{
+	if (m1_down)
+	{
+		debug_format("down");
+	}
+	info_tool_t current = info_get_current_tool();
+	if (current == TOOL_SELECT)
+	{
+		save_viewer_select_handle_mouse_button(m1_down, x, y);
+	}
+	else if (current == TOOL_ERASER)
+	{
+		save_viewer_eraser_handle_mouse_button(m1_down, x, y);
+	}
+}
+
+static void save_viewer_handle_mouse_move(bool m1_down, int x, int y)
+{
+	info_tool_t current = info_get_current_tool();
+	if (current == TOOL_SELECT)
+	{
+		save_viewer_select_handle_mouse_move(m1_down, x, y);
+	}
+	else if (current == TOOL_ERASER)
+	{
+		save_viewer_eraser_handle_mouse_move(m1_down, x, y);
+	}
+}
+
 static void save_viewer_handle_mouse_wheel(int delta)
 {
 	save_viewer_move_window(delta * 10);
@@ -397,16 +590,7 @@ static void save_viewer_handle_mouse_wheel(int delta)
 static void save_viewer_handle_block_change(region_t region)
 {
 	region = region_validate(region);
-	int layer_min = region.y0 / TARGET_HEIGHT;
-	int layer_max = region.y1 / TARGET_HEIGHT;
-	if (layer_min < 0 || layer_min >= LAYER_COUNT || layer_max < 0 || layer_max >= LAYER_COUNT)
-	{
-		return;
-	}
-	for (int i = layer_min; i <= layer_max; i++)
-	{
-		cache[i] = file_state_spritify(save, i);
-	}
+	save_viewer_invalidate_region(region);
 	screen_repaint();
 }
 
@@ -433,14 +617,19 @@ static void save_viewer_handle_global_field_change(const void* field)
 	screen_repaint();
 }
 
-static void save_viewer_handle_tool_change(info_tool_t tool)
+void save_viewer_handle_tool_change(info_tool_t tool)
 {
-	debug_format("%i\n", tool);
-}
+	hinge_x = hinge_y = -1;
+	move_x = move_y = -1;
+	selection_region = erase_region = INVALID_REGION;
+	erase_before_size = 0;
+	screen_sprite_destroy(selection_visual);
+	selection_visual = NULL;
 
-static void save_viewer_handle_brush_size_change(int brush_size)
-{
-	debug_format("%i\n", brush_size);
+	if (cache[0])
+	{
+		screen_repaint();
+	}
 }
 
 int main()
@@ -470,7 +659,6 @@ int main()
 		.block_handler = save_viewer_handle_block_change,
 		.global_field_handler = save_viewer_handle_global_field_change,
 		.tool_handler = save_viewer_handle_tool_change,
-		.brush_size_handler = save_viewer_handle_brush_size_change,
 	});
 
 	action_buffer_initialize();
@@ -507,7 +695,9 @@ int main()
 
 	debug_profiler_pop("Application initialization");
 
-	selection_region = INVALID_REGION;
+	selection_region = erase_region = INVALID_REGION;
+	erase_before_reserved = MAX_SELECTION_SIZE;
+	erase_before = dig_malloc(sizeof * erase_before * erase_before_reserved);
 	screen_loop();
 
 	file_editor_save(&editor);
@@ -516,6 +706,7 @@ int main()
 	file_state_unload(save);
 
 	free(clipboard_data);
+	free(erase_before);
 
 	action_buffer_destroy();
 	info_destroy();

@@ -65,6 +65,20 @@ void action_buffer_post_add_block(const dnr_state_t* state)
 	game_copy(state, block_action->region, block_action->next);
 }
 
+void action_buffer_add_block(complete_block_t* prev, complete_block_t* curr, region_t region)
+{
+	action_buffer_create_node();
+	buffer[position].type = ACTION_BLOCK;
+	action_block_t* block_action = &buffer[position].sub.block;
+	block_action->region = region;
+
+	size_t buf_size = region_size(region) * sizeof * prev;
+	block_action->previous = dig_malloc(buf_size);
+	block_action->next = dig_malloc(buf_size);
+	memcpy(block_action->previous, prev, buf_size);
+	memcpy(block_action->next, curr, buf_size);
+}
+
 void action_buffer_add_field(element_t element, field_t previous)
 {
 	field_t next = field_create(serialize_element_get_value(element), serialize_element_get_size(element));

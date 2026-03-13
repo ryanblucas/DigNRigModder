@@ -129,3 +129,12 @@ extern inline region_t region_merge(region_t region1, region_t region2)
 	region2 = region_validate(region2);
 	return (region_t) { min(region1.x0, region2.x0), min(region1.y0, region2.y0), max(region1.x1, region2.x1), max(region1.y1, region2.y1) };
 }
+
+extern inline region_t region_keep_inside(region_t r1, region_t r2)
+{
+	r1.x0 = max(r1.x0, r2.x0);
+	r1.y0 = max(r1.y0, r2.y0);
+	r1.x1 = min(r1.x1, r2.x1);
+	r1.y1 = min(r1.y1, r2.y1);
+	return r1;
+}

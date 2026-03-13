@@ -67,6 +67,7 @@ static dnr_block_t current_block;
 static dnr_mineral_t current_mineral;
 
 static complete_block_t brush;
+static int brush_size = 1;
 
 static info_events_t events;
 
@@ -100,7 +101,7 @@ static void info_tab_save(HWND hwnd)
 		child_windows[CWI_SAVE_SELECT_BUTTON] = CreateWindowExW(0, L"BUTTON", L"Select", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 3, 121, 72, 22, hwnd, NULL, NULL, NULL);
 		child_windows[CWI_SAVE_BRUSH_BUTTON] = CreateWindowExW(0, L"BUTTON", L"Brush", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 3, 144, 72, 22, hwnd, NULL, NULL, NULL);
 		child_windows[CWI_SAVE_BRUSH_SIZE_THUMB] = CreateWindowExW(0, TRACKBAR_CLASSW, L"Brush size", WS_VISIBLE | WS_CHILD | TBS_AUTOTICKS | TBS_ENABLESELRANGE, 3, 167, 50, 22, hwnd, NULL, NULL, NULL);
-		SendMessageW(child_windows[CWI_SAVE_BRUSH_SIZE_THUMB], TBM_SETRANGE, TRUE, MAKELONG(1, 6));
+		SendMessageW(child_windows[CWI_SAVE_BRUSH_SIZE_THUMB], TBM_SETRANGE, TRUE, MAKELONG(INFO_BRUSH_MIN_SIZE, INFO_BRUSH_MAX_SIZE));
 
 		for (int i = 0; i < 4; i++)
 		{
@@ -315,6 +316,8 @@ static LRESULT info_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
 			current_tool = TOOL_BRUSH;
 		}
 		EnableWindow(button_clicked, FALSE);
+		MINERAL_CONTROL_SET_CELL(child_windows[CWI_SAVE_CURRENT_CELL], 0, 0, 0);
+		TreeView_DeleteAllItems(child_windows[CWI_SAVE_CURRENT_TREEVIEW]);
 		RAISE_EVENT(events.tool_handler, current_tool);
 		return 0;
 	}
@@ -324,7 +327,8 @@ static LRESULT info_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
 		{
 			return 0;
 		}
-		RAISE_EVENT(events.brush_size_handler, SendMessageW(child_windows[CWI_SAVE_BRUSH_SIZE_THUMB], TBM_GETPOS, 0, 0));
+		brush_size = SendMessageW(child_windows[CWI_SAVE_BRUSH_SIZE_THUMB], TBM_GETPOS, 0, 0);
+		RAISE_EVENT(events.brush_size_handler, brush_size);
 		return 0;
 	}
 	case INFO_BOX_MSG_STATE_READY:
@@ -444,6 +448,21 @@ void info_destroy(void)
 info_mode_t info_get_current_mode(void)
 {
 	return current_mode;
+}
+
+info_tool_t info_get_current_tool(void)
+{
+	return current_tool;
+}
+
+void info_get_current_brush_block(complete_block_t* res)
+{
+	*res = brush;
+}
+
+int info_get_current_brush_size(void)
+{
+	return brush_size;
 }
 
 dnr_state_t* info_state_get(void)

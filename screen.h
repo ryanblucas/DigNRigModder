@@ -8,6 +8,12 @@
 #include "types.h"
 #include <Windows.h>
 
+#define CTRL_RIGHT_ALT_PRESSED		RIGHT_ALT_PRESSED
+#define CTRL_LEFT_ALT_PRESSED		LEFT_ALT_PRESSED
+#define CTRL_RIGHT_PRESSED			RIGHT_CTRL_PRESSED
+#define CTRL_LEFT_PRESSED			LEFT_CTRL_PRESSED
+#define CTRL_SHIFT_PRESSED			SHIFT_PRESSED
+
 typedef uint32_t keyboard_control_t;
 typedef uint16_t virtual_key_t;
 

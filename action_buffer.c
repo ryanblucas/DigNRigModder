@@ -65,7 +65,7 @@ void action_buffer_post_add_block(const dnr_state_t* state)
 	game_copy(state, block_action->region, block_action->next);
 }
 
-void action_buffer_add_block(complete_block_t* prev, complete_block_t* curr, region_t region)
+void action_buffer_add_block(const complete_block_t* prev, const complete_block_t* curr, region_t region)
 {
 	action_buffer_create_node();
 	buffer[position].type = ACTION_BLOCK;

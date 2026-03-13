@@ -15,10 +15,9 @@ bool game_is_valid(const dnr_state_t* state)
 	{
 		for (int x = 0; x < WORLD_WIDTH; x++)
 		{
-			dnr_block_t* curr = game_get_block(state, x, y);
+			const dnr_block_t* curr = &state->blocks[y + x * WORLD_HEIGHT];
 			CHECK_CONDITION(curr->x == x && curr->y == y);
-			dnr_mineral_t* mineral = game_get_mineral(state, x, y);
-			if (mineral)
+			if (curr->mineral_exists)
 			{
 				CHECK_CONDITION(curr->mineral_index >= 0 && curr->mineral_index < sizeof state->minerals / sizeof * state->minerals);
 			}
@@ -127,16 +126,10 @@ bool game_add_stalactite(dnr_state_t* state, stalactite_t stalactite)
 	return false;
 }
 
-dnr_block_t* game_get_block(dnr_state_t* state, int x, int y)
+static dnr_mineral_t* game_get_mineral(dnr_state_t* state, int x, int y)
 {
 	RUNTIME_ASSERT(dig_inside_bounds(x, y));
-	return &state->blocks[y + x * WORLD_HEIGHT];
-}
-
-dnr_mineral_t* game_get_mineral(dnr_state_t* state, int x, int y)
-{
-	RUNTIME_ASSERT(dig_inside_bounds(x, y));
-	dnr_block_t* block = game_get_block(state, x, y);
+	dnr_block_t* block = &state->blocks[y + x * WORLD_HEIGHT];
 	if (block->mineral_exists && block->mineral_index >= 0 && block->mineral_index < sizeof state->minerals / sizeof * state->minerals)
 	{
 		return &state->minerals[block->mineral_index];
@@ -146,7 +139,7 @@ dnr_mineral_t* game_get_mineral(dnr_state_t* state, int x, int y)
 	return NULL;
 }
 
-stalactite_t* game_get_stalactite(dnr_state_t* state, int x, int y)
+static stalactite_t* game_get_stalactite(dnr_state_t* state, int x, int y)
 {
 	RUNTIME_ASSERT(dig_inside_bounds(x, y));
 	for (int i = 0; i < state->stalactite_count; i++)
@@ -176,11 +169,7 @@ void game_delete_block(dnr_state_t* state, int x, int y)
 
 void game_delete_block_partial(dnr_state_t* state, int x, int y)
 {
-	dnr_block_t* block = game_get_block(state, x, y);
-	if (!block)
-	{
-		return;
-	}
+	dnr_block_t* block = &state->blocks[y + x * WORLD_HEIGHT];
 	block->health_current = 0;
 	block->visual.Attributes = 0;
 	block->visual.Char.AsciiChar = ' ';

@@ -171,7 +171,7 @@ static void info_window_change_current(element_t element)
 {
 	if (current_tool == TOOL_BRUSH)
 	{
-		void* previous = serialize_element_get_value(element);
+		const void* previous = serialize_element_get_value(element);
 		if (!serialize_on_change_field(element))
 		{
 			return;
@@ -209,7 +209,7 @@ static void info_window_change_current(element_t element)
 		action_buffer_post_add_block(state);
 		return;
 	}
-	void* previous = serialize_element_get_value(element);
+	const void* previous = serialize_element_get_value(element);
 	if (!serialize_on_change_field(element))
 	{
 		return;
@@ -349,7 +349,7 @@ static LRESULT info_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
 		{
 			return 0;
 		}
-		brush_size = SendMessageW(child_windows[CWI_SAVE_BRUSH_SIZE_THUMB], TBM_GETPOS, 0, 0);
+		brush_size = (int)SendMessageW(child_windows[CWI_SAVE_BRUSH_SIZE_THUMB], TBM_GETPOS, 0, 0);
 		RAISE_EVENT(events.brush_size_handler, brush_size);
 		return 0;
 	}

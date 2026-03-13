@@ -30,11 +30,6 @@ bool game_add_mineral(dnr_state_t* state, dnr_mineral_t* mineral);
 /* Finds spot to put stalactite, otherwise return false */
 bool game_add_stalactite(dnr_state_t* state, stalactite_t stalactite);
 
-/* Deletes everything at a block, including the mineral and stalactite */
-void game_delete_block(dnr_state_t* state, int x, int y);
-/* Deletes the block, but not a mineral or stalactite there */
-void game_delete_block_partial(dnr_state_t* state, int x, int y);
-
 /* Renders a block */
 CHAR_INFO game_spritify_cell(const complete_block_t* block);
 /* Renders a layer */

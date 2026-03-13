@@ -94,7 +94,26 @@ void game_delete(dnr_state_t* state, region_t region)
 	{
 		for (int y = region.y0; y <= region.y1; y++)
 		{
-			game_delete_block(state, x, y);
+			dnr_block_t* block = &state->blocks[y + x * WORLD_HEIGHT];
+			block->health_current = 0;
+			block->visual.Attributes = 0;
+			block->visual.Char.AsciiChar = ' ';
+			block->block_exists = false;
+			block->can_mine = true;
+			block->mineral_exists = false;
+			block->rig_type = RIG_NONE;
+			block->mineral_move_direction = MOVE_DIRECTION_DOWN;
+			for (int i = 0; i < state->stalactite_count; i++)
+			{
+				if (state->stalactite_array[i].exists && (int)state->stalactite_array[i].x == x && (int)state->stalactite_array[i].y == y)
+				{
+					state->stalactite_array[i].exists = false;
+				}
+			}
+			if (block->mineral_exists && block->mineral_index >= 0 && block->mineral_index < sizeof state->minerals / sizeof * state->minerals)
+			{
+				state->minerals[block->mineral_exists].exists = false;
+			}
 		}
 	}
 }
@@ -124,60 +143,6 @@ bool game_add_stalactite(dnr_state_t* state, stalactite_t stalactite)
 		}
 	}
 	return false;
-}
-
-static dnr_mineral_t* game_get_mineral(dnr_state_t* state, int x, int y)
-{
-	RUNTIME_ASSERT(dig_inside_bounds(x, y));
-	dnr_block_t* block = &state->blocks[y + x * WORLD_HEIGHT];
-	if (block->mineral_exists && block->mineral_index >= 0 && block->mineral_index < sizeof state->minerals / sizeof * state->minerals)
-	{
-		return &state->minerals[block->mineral_index];
-	}
-	block->mineral_exists = false;
-	block->mineral_index = -1;
-	return NULL;
-}
-
-static stalactite_t* game_get_stalactite(dnr_state_t* state, int x, int y)
-{
-	RUNTIME_ASSERT(dig_inside_bounds(x, y));
-	for (int i = 0; i < state->stalactite_count; i++)
-	{
-		if (state->stalactite_array[i].exists && (int)state->stalactite_array[i].x == x && (int)state->stalactite_array[i].y == y)
-		{
-			return &state->stalactite_array[i];
-		}
-	}
-	return NULL;
-}
-
-void game_delete_block(dnr_state_t* state, int x, int y)
-{
-	dnr_mineral_t* mineral = game_get_mineral(state, x, y);
-	stalactite_t* stalactite = game_get_stalactite(state, x, y);
-	game_delete_block_partial(state, x, y);
-	if (mineral)
-	{
-		mineral->exists = false;
-	}
-	if (stalactite)
-	{
-		stalactite->exists = false;
-	}
-}
-
-void game_delete_block_partial(dnr_state_t* state, int x, int y)
-{
-	dnr_block_t* block = &state->blocks[y + x * WORLD_HEIGHT];
-	block->health_current = 0;
-	block->visual.Attributes = 0;
-	block->visual.Char.AsciiChar = ' ';
-	block->block_exists = false;
-	block->can_mine = true;
-	block->mineral_exists = false;
-	block->rig_type = RIG_NONE;
-	block->mineral_move_direction = MOVE_DIRECTION_DOWN;
 }
 
 CHAR_INFO game_spritify_cell(const complete_block_t* block)

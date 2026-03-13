@@ -6,6 +6,7 @@
 #pragma once
 
 #include "file.h"
+#include <Windows.h>
 
 typedef struct complete_block
 {
@@ -39,3 +40,8 @@ stalactite_t* game_get_stalactite(dnr_state_t* state, int x, int y);
 void game_delete_block(dnr_state_t* state, int x, int y);
 /* Deletes the block, but not a mineral or stalactite there */
 void game_delete_block_partial(dnr_state_t* state, int x, int y);
+
+/* Renders a block */
+CHAR_INFO game_spritify_cell(const complete_block_t* block);
+/* Renders a layer */
+sprite_t game_spritify_layer(const dnr_state_t* save, int layer_index);

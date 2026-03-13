@@ -321,6 +321,3 @@ sprite_t file_sprite_load(const char* directory);
 dnr_state_t* file_state_load(const char* directory);
 void file_state_unload(dnr_state_t* save);
 bool file_state_save(const char* directory, const dnr_state_t* save);
-
-CHAR_INFO file_state_spritify_cell(const dnr_state_t* save, int x, int y);
-sprite_t file_state_spritify(const dnr_state_t* save, int layer_index);

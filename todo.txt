@@ -1,6 +1,7 @@
 Save viewer
 	Determine how liquids are stored in save files
 	Speed up region selection code
+	Speed up erasing code--use hash set instead of array list
 
 Create layer creator
 Create sprite creator

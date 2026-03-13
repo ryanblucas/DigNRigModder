@@ -18,15 +18,17 @@
 
 static void save_viewer_handle_global_field_change(const void* field);
 
+typedef void (*save_viewer_brush_function_t)(int x, int y, int radius);
+
 static sprite_t flag;
 static sprite_t cache[LAYER_COUNT];
 static dnr_state_t* save;
 static int y_pos;
 
-static int erase_before_reserved;
-static int erase_before_size;
-static complete_block_t* erase_before;
-static region_t erase_region;
+static int brush_before_reserved;
+static int brush_before_size;
+static complete_block_t* brush_before_ptr;
+static region_t brush_region;
 
 static region_t selection_region;
 static int hinge_x = -1, hinge_y = -1;
@@ -45,7 +47,7 @@ static inline void save_viewer_invalidate_region(region_t region)
 	for (int y = region.y0 / TARGET_HEIGHT; y <= region.y1 / TARGET_HEIGHT; y++)
 	{
 		screen_sprite_destroy(cache[y]);
-		cache[y] = file_state_spritify(save, y);
+		cache[y] = game_spritify_layer(save, y);
 	}
 }
 
@@ -411,55 +413,55 @@ static void save_viewer_eraser_handle_mouse_button(bool m1_down, int x, int y)
 	{
 		y += y_pos;
 		int radius = info_get_current_brush_size() - 1;
-		erase_region = region_keep_inside(
+		brush_region = region_keep_inside(
 			(region_t) { x - radius, y - radius, x + radius, y + radius }, 
 			(region_t) { 0, 0, WORLD_WIDTH - 1, WORLD_HEIGHT - 1 });
 		return;
 	}
 
-	if (region_is_invalid(erase_region))
+	if (region_is_invalid(brush_region))
 	{
 		return;
 	}
 
-	complete_block_t* new = dig_malloc(region_size(erase_region) * sizeof * new * 2);
-	game_copy(save, erase_region, new);
-	erase_region = region_validate(erase_region);
-	for (int i = 0; i < erase_before_size; i++)
+	complete_block_t* new = dig_malloc(region_size(brush_region) * sizeof * new * 2);
+	game_copy(save, brush_region, new);
+	brush_region = region_validate(brush_region);
+	for (int i = 0; i < brush_before_size; i++)
 	{
-		complete_block_t* curr = erase_before + i;
-		new[(curr->block.x - erase_region.x0) + (curr->block.y - erase_region.y0) * region_width(erase_region)] = *curr;
+		complete_block_t* curr = brush_before_ptr + i;
+		new[(curr->block.x - brush_region.x0) + (curr->block.y - brush_region.y0) * region_width(brush_region)] = *curr;
 	}
-	game_copy(save, erase_region, new + region_size(erase_region));
-	action_buffer_add_block(new, new + region_size(erase_region), erase_region);
+	game_copy(save, brush_region, new + region_size(brush_region));
+	action_buffer_add_block(new, new + region_size(brush_region), brush_region);
 	free(new);
 
-	erase_region = INVALID_REGION;
-	erase_before_size = 0;
+	brush_region = INVALID_REGION;
+	brush_before_size = 0;
 }
 
-static void save_viewer_add_to_erase_list(const complete_block_t* block)
+static void save_viewer_add_to_brush_list(const complete_block_t* block)
 {
-	for (int j = 0; j < erase_before_size; j++)
+	for (int j = 0; j < brush_before_size; j++)
 	{
-		if (erase_before[j].block.x == block->block.x && erase_before[j].block.y == block->block.y)
+		if (brush_before_ptr[j].block.x == block->block.x && brush_before_ptr[j].block.y == block->block.y)
 		{
 			return;
 		}
 	}
 
-	erase_before[erase_before_size++] = *block;
-	if (erase_before_size < erase_before_reserved)
+	brush_before_ptr[brush_before_size++] = *block;
+	if (brush_before_size < brush_before_reserved)
 	{
 		return;
 	}
 
-	size_t buf_size = erase_before_reserved * sizeof * erase_before;
-	erase_before_reserved *= 2;
+	size_t buf_size = brush_before_reserved * sizeof * brush_before_ptr;
+	brush_before_reserved *= 2;
 	complete_block_t* next = dig_malloc(buf_size * 2);
-	memcpy(next, erase_before, buf_size);
-	free(erase_before);
-	erase_before = next;
+	memcpy(next, brush_before_ptr, buf_size);
+	free(brush_before_ptr);
+	brush_before_ptr = next;
 }
 
 static void save_viewer_erase(int x, int y, int radius)
@@ -474,17 +476,39 @@ static void save_viewer_erase(int x, int y, int radius)
 
 	for (int i = 0; i < region_size(region); i++)
 	{
-		save_viewer_add_to_erase_list(&temp[i]);
+		save_viewer_add_to_brush_list(&temp[i]);
 	}
 	free(temp);
 }
 
-static void save_viewer_eraser_handle_mouse_move(bool m1_down, int x, int y)
+static void save_viewer_brush(int x, int y, int radius)
+{
+	region_t region = { x - radius, y - radius, x + radius, y + radius };
+	region = region_keep_inside(region, (region_t) { 0, 0, WORLD_WIDTH - 1, WORLD_HEIGHT - 1 });
+
+	complete_block_t* temp = dig_malloc(sizeof * temp * region_size(region));
+	game_copy(save, region, temp);
+
+	complete_block_t brush;
+	info_get_current_brush_block(&brush);
+	for (int y = 0; y < region_width(region); y++)
+	{
+		for (int x = 0; x < region_height(region); x++)
+		{
+			save_viewer_add_to_brush_list(&temp[x + y * region_width(region)]);
+			game_paste(save, (region_t) { x + region.x0, y + region.y0, x + region.x0, y + region.y0 }, &brush);
+		}
+	}
+
+	free(temp);
+}
+
+static void save_viewer_brush_handle_mouse_move(save_viewer_brush_function_t function, bool m1_down, int x, int y)
 {
 	static int prev_selected_x = -1;
 	static int prev_selected_y = -1;
 
-	if (!m1_down || region_is_invalid(erase_region))
+	if (!m1_down || region_is_invalid(brush_region))
 	{
 		prev_selected_x = prev_selected_y = -1;
 		return;
@@ -498,7 +522,7 @@ static void save_viewer_eraser_handle_mouse_move(bool m1_down, int x, int y)
 	if (prev_selected_x == -1 && prev_selected_y == -1)
 	{
 		final = (region_t){ new_selected_x - radius, new_selected_y - radius, new_selected_x + radius, new_selected_y + radius };
-		save_viewer_erase(new_selected_x, new_selected_y, radius);
+		function(new_selected_x, new_selected_y, radius);
 	}
 	else
 	{
@@ -509,7 +533,7 @@ static void save_viewer_eraser_handle_mouse_move(bool m1_down, int x, int y)
 		final.x1 += radius;
 		final.y1 += radius;
 		final = region_keep_inside(final, (region_t) { 0, 0, WORLD_WIDTH - 1, WORLD_HEIGHT - 1 });
-		erase_region = region_merge(erase_region, final);
+		brush_region = region_merge(brush_region, final);
 
 		int cx = new_selected_x;
 		int cy = new_selected_y;
@@ -523,7 +547,7 @@ static void save_viewer_eraser_handle_mouse_move(bool m1_down, int x, int y)
 		/* theres probably a way of doing this more efficiently for a line with a thickness */
 		while (true)
 		{
-			save_viewer_erase(cx, cy, radius);
+			function(cx, cy, radius);
 			if (error * 2 <= dx)
 			{
 				if (cy == prev_selected_y)
@@ -563,6 +587,10 @@ static void save_viewer_handle_mouse_button(bool m1_down, int x, int y)
 	{
 		save_viewer_eraser_handle_mouse_button(m1_down, x, y);
 	}
+	else if (current == TOOL_BRUSH)
+	{
+		save_viewer_eraser_handle_mouse_button(m1_down, x, y);
+	}
 }
 
 static void save_viewer_handle_mouse_move(bool m1_down, int x, int y)
@@ -574,7 +602,11 @@ static void save_viewer_handle_mouse_move(bool m1_down, int x, int y)
 	}
 	else if (current == TOOL_ERASER)
 	{
-		save_viewer_eraser_handle_mouse_move(m1_down, x, y);
+		save_viewer_brush_handle_mouse_move(save_viewer_erase, m1_down, x, y);
+	}
+	else if (current == TOOL_BRUSH)
+	{
+		save_viewer_brush_handle_mouse_move(save_viewer_brush, m1_down, x, y);
 	}
 }
 
@@ -617,8 +649,8 @@ void save_viewer_handle_tool_change(info_tool_t tool)
 {
 	hinge_x = hinge_y = -1;
 	move_x = move_y = -1;
-	selection_region = erase_region = INVALID_REGION;
-	erase_before_size = 0;
+	selection_region = brush_region = INVALID_REGION;
+	brush_before_size = 0;
 	screen_sprite_destroy(selection_visual);
 	selection_visual = NULL;
 
@@ -682,7 +714,7 @@ int main()
 	debug_profiler_push();
 	for (int i = 0; i < LAYER_COUNT; i++)
 	{
-		cache[i] = file_state_spritify(save, i);
+		cache[i] = game_spritify_layer(save, i);
 	}
 	debug_profiler_pop("Spritify all layers");
 
@@ -691,9 +723,9 @@ int main()
 
 	debug_profiler_pop("Application initialization");
 
-	selection_region = erase_region = INVALID_REGION;
-	erase_before_reserved = MAX_SELECTION_SIZE;
-	erase_before = dig_malloc(sizeof * erase_before * erase_before_reserved);
+	selection_region = brush_region = INVALID_REGION;
+	brush_before_reserved = MAX_SELECTION_SIZE;
+	brush_before_ptr = dig_malloc(sizeof * brush_before_ptr * brush_before_reserved);
 	screen_loop();
 
 	file_editor_save(&editor);
@@ -702,7 +734,7 @@ int main()
 	file_state_unload(save);
 
 	free(clipboard_data);
-	free(erase_before);
+	free(brush_before_ptr);
 
 	action_buffer_destroy();
 	info_destroy();

@@ -31,7 +31,7 @@ typedef enum info_tool
 typedef void (*info_handle_change_mode)(info_mode_t new_mode);
 typedef void (*info_handle_change_tool)(info_tool_t new_tool);
 typedef void (*info_handle_change_brush_size)(int size);
-typedef void (*info_handle_change_brush_block)(complete_block_t* brush);
+typedef void (*info_handle_change_brush_block)(const complete_block_t* brush);
 typedef void (*info_handle_change_block)(region_t region);
 typedef void (*info_handle_change_global_field)(const void* field);
 
@@ -40,6 +40,7 @@ typedef struct info_events
 	info_handle_change_mode mode_handler;
 	info_handle_change_tool tool_handler;
 	info_handle_change_brush_size brush_size_handler;
+	info_handle_change_brush_block brush_block_handler;
 	info_handle_change_block block_handler;
 	info_handle_change_global_field global_field_handler;
 } info_events_t;

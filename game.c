@@ -4,6 +4,7 @@
 */
 
 #include "game.h"
+#include "screen.h"
 
 #define CHECK_CONDITION(condition) if (!(condition)) { debug_format(#condition " failed at (%i, %i)\n", x, y); result = false; }
 
@@ -188,4 +189,65 @@ void game_delete_block_partial(dnr_state_t* state, int x, int y)
 	block->mineral_exists = false;
 	block->rig_type = RIG_NONE;
 	block->mineral_move_direction = MOVE_DIRECTION_DOWN;
+}
+
+CHAR_INFO game_spritify_cell(const complete_block_t* block)
+{
+	const dnr_block_t* curr = &block->block;
+	CHAR_INFO final = curr->visual;
+	if (block->stalactite.exists)
+	{
+		final = block->stalactite.cell;
+	}
+
+	if (curr->rig_type == RIG_LAVA)
+	{
+		final.Attributes = DARK_RED << 4;
+	}
+	else if (curr->rig_type == RIG_WATER)
+	{
+		final.Attributes = DARK_BLUE << 4;
+	}
+
+	if (final.Char.AsciiChar != ' ')
+	{
+		return final;
+	}
+
+	if (curr->mineral_exists)
+	{
+		const dnr_mineral_t* mineral = &block->mineral;
+		if (mineral->exists)
+		{
+			final.Char.AsciiChar = (char)mineral->size;
+			final.Attributes = final.Attributes & 0xF0 | (mineral->type & 0x0F);
+		}
+	}
+	return final;
+}
+
+sprite_t game_spritify_layer(const dnr_state_t* save, int layer_index)
+{
+	RUNTIME_ASSERT(save && layer_index >= 0 && layer_index < LAYER_COUNT);
+	char* text = dig_malloc(TARGET_WIDTH * TARGET_HEIGHT * sizeof * text);
+	attribute_t* attrib = dig_malloc(TARGET_WIDTH * TARGET_HEIGHT * sizeof * attrib);
+
+	for (int x = 0; x < TARGET_WIDTH; x++)
+	{
+		for (int y = 0; y < TARGET_HEIGHT; y++)
+		{
+			complete_block_t block;
+			game_copy(save, (region_t) { x, y + layer_index * TARGET_HEIGHT, x, y + layer_index * TARGET_HEIGHT }, &block);
+			CHAR_INFO final = game_spritify_cell(&block);
+
+			text[x + y * TARGET_WIDTH] = final.Char.AsciiChar;
+			attrib[x + y * TARGET_WIDTH] = final.Attributes;
+		}
+	}
+
+	sprite_t res = screen_sprite_create(TARGET_WIDTH, TARGET_HEIGHT, save->layer_headers[layer_index].dirt_color, text, attrib);
+
+	free(text);
+	free(attrib);
+	return res;
 }

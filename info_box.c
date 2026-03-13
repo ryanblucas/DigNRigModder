@@ -7,6 +7,7 @@
 #include "action_buffer.h"
 #include "charmap_control.h"
 #include "debug.h"
+#include "game.h"
 #include "mineral_control.h"
 #include "serialize.h"
 #include "types.h"
@@ -28,6 +29,7 @@
 
 static void info_state_set_tree_view(dnr_state_t* user_state);
 static void info_state_update_current_cell_image(int x, int y);
+static void info_state_brush_set_tree_view(void);
 
 enum child_window_index
 {
@@ -165,15 +167,22 @@ static LRESULT info_window_tab_control_proc(HWND hwnd, WPARAM wparam, LPARAM lpa
 	return 0;
 }
 
-static void info_window_save_tree_control_handle_double_click(HWND hwnd, HTREEITEM res)
+static void info_window_change_current(element_t element)
 {
-	TVITEMEXW tvi;
-	tvi.hItem = res;
-	tvi.mask = TVIF_PARAM;
-	TreeView_GetItem(hwnd, &tvi);
-	element_t element = (element_t)tvi.lParam;
-
-	if (hwnd == child_windows[CWI_SAVE_CURRENT_TREEVIEW] && current_selection_index >= 0)
+	if (current_tool == TOOL_BRUSH)
+	{
+		void* previous = serialize_element_get_value(element);
+		if (!serialize_on_change_field(element))
+		{
+			return;
+		}
+		complete_block_t copy = brush;
+		CHAR_INFO cell = game_spritify_cell(&copy);
+		RAISE_EVENT(events.brush_block_handler, &copy);
+		MINERAL_CONTROL_SET_CELL(child_windows[CWI_SAVE_BRUSH_CELL], cell.Char.AsciiChar, cell.Attributes, DNR_DEFAULT_DIRT_COLOR);
+		return;
+	}
+	else if (current_selection_index >= 0)
 	{
 		int x = current_selection_index / WORLD_HEIGHT;
 		int y = current_selection_index % WORLD_HEIGHT;
@@ -198,29 +207,41 @@ static void info_window_save_tree_control_handle_double_click(HWND hwnd, HTREEIT
 		RAISE_EVENT(events.block_handler, region);
 		info_state_update_current_cell_image(x, y);
 		action_buffer_post_add_block(state);
+		return;
 	}
-	else if (hwnd == child_windows[CWI_SAVE_CURRENT_TREEVIEW])
+	void* previous = serialize_element_get_value(element);
+	if (!serialize_on_change_field(element))
 	{
-		void* previous = serialize_element_get_value(element);
-		if (!serialize_on_change_field(element))
+		return;
+	}
+	if (memcmp(previous, serialize_element_get_value(element), serialize_element_get_size(element)) == 0)
+	{
+		return;
+	}
+	action_buffer_pre_add_block(state, current_selection_region);
+	for (int y = current_selection_region.y0; y <= current_selection_region.y1; y++)
+	{
+		for (int x = current_selection_region.x0; x <= current_selection_region.x1; x++)
 		{
-			return;
+			uint8_t* current = (uint8_t*)serialize_element_get_value(element);
+			memcpy((uint8_t*)&state->blocks[x * WORLD_HEIGHT + y] + (current - (uint8_t*)&current_block), current, serialize_element_get_size(element));
 		}
-		if (memcmp(previous, serialize_element_get_value(element), serialize_element_get_size(element)) == 0)
-		{
-			return;
-		}
-		action_buffer_pre_add_block(state, current_selection_region);
-		for (int y = current_selection_region.y0; y <= current_selection_region.y1; y++)
-		{
-			for (int x = current_selection_region.x0; x <= current_selection_region.x1; x++)
-			{
-				uint8_t* current = (uint8_t*)serialize_element_get_value(element);
-				memcpy((uint8_t*)&state->blocks[x * WORLD_HEIGHT + y] + (current - (uint8_t*)&current_block), current, serialize_element_get_size(element));
-			}
-		}
-		RAISE_EVENT(events.block_handler, current_selection_region);
-		action_buffer_post_add_block(state);
+	}
+	RAISE_EVENT(events.block_handler, current_selection_region);
+	action_buffer_post_add_block(state);
+}
+
+static void info_window_save_tree_control_handle_double_click(HWND hwnd, HTREEITEM res)
+{
+	TVITEMEXW tvi;
+	tvi.hItem = res;
+	tvi.mask = TVIF_PARAM;
+	TreeView_GetItem(hwnd, &tvi);
+	element_t element = (element_t)tvi.lParam;
+
+	if (hwnd == child_windows[CWI_SAVE_CURRENT_TREEVIEW])
+	{
+		info_window_change_current(element);
 	}
 	else if (hwnd == child_windows[CWI_SAVE_TREEVIEW])
 	{
@@ -303,6 +324,9 @@ static LRESULT info_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
 		}
 		EnableWindow(child_windows[CWI_SAVE_ERASE_BUTTON + current_tool], TRUE);
 		HWND button_clicked = (HWND)lparam;
+		EnableWindow(button_clicked, FALSE);
+		MINERAL_CONTROL_SET_CELL(child_windows[CWI_SAVE_CURRENT_CELL], 0, 0, 0);
+		TreeView_DeleteAllItems(child_windows[CWI_SAVE_CURRENT_TREEVIEW]);
 		if (button_clicked == child_windows[CWI_SAVE_ERASE_BUTTON])
 		{
 			current_tool = TOOL_ERASER;
@@ -314,10 +338,8 @@ static LRESULT info_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
 		else if (button_clicked == child_windows[CWI_SAVE_BRUSH_BUTTON])
 		{
 			current_tool = TOOL_BRUSH;
+			info_state_brush_set_tree_view();
 		}
-		EnableWindow(button_clicked, FALSE);
-		MINERAL_CONTROL_SET_CELL(child_windows[CWI_SAVE_CURRENT_CELL], 0, 0, 0);
-		TreeView_DeleteAllItems(child_windows[CWI_SAVE_CURRENT_TREEVIEW]);
 		RAISE_EVENT(events.tool_handler, current_tool);
 		return 0;
 	}
@@ -553,7 +575,9 @@ static void info_cell_set_current_treeview()
 
 static void info_state_update_current_cell_image(int x, int y)
 {
-	CHAR_INFO cell = file_state_spritify_cell(state, x, y);
+	complete_block_t block;
+	game_copy(state, (region_t) { x, y, x, y }, &block);
+	CHAR_INFO cell = game_spritify_cell(&block);
 	int layer_index = y / TARGET_HEIGHT;
 	MINERAL_CONTROL_SET_CELL(child_windows[CWI_SAVE_CURRENT_CELL], cell.Char.AsciiChar, cell.Attributes, state->layer_headers[layer_index].dirt_color);
 }
@@ -769,4 +793,30 @@ element_t info_element_find(bool global, const char* query)
 	}
 	return serialize_element_get_from_node(child_windows[CWI_SAVE_CURRENT_TREEVIEW], 
 		serialize_tree_find_item(child_windows[CWI_SAVE_CURRENT_TREEVIEW], TVI_ROOT, query));
+}
+
+static void info_state_brush_set_tree_view(void)
+{
+#define ADD_SERIALIZABLE(type, name) serialize_single(#type, &item->name, #name, child_windows[CWI_SAVE_CURRENT_TREEVIEW], root);
+#define ADD_SERIALIZABLE_ARRAY(type, name, count) serialize_array(#type, &item->name, count, #name, child_windows[CWI_SAVE_CURRENT_TREEVIEW], root);
+	{
+		HTREEITEM root = info_node_create(child_windows[CWI_SAVE_CURRENT_TREEVIEW], L"block");
+		dnr_block_t* item = &brush.block;
+		SERIALIZABLE_DNR_BLOCK
+		TreeView_Expand(child_windows[CWI_SAVE_CURRENT_TREEVIEW], root, TVE_EXPAND);
+	}
+	{
+		HTREEITEM root = info_node_create(child_windows[CWI_SAVE_CURRENT_TREEVIEW], L"mineral");
+		dnr_mineral_t* item = &brush.mineral;
+		SERIALIZABLE_DNR_MINERAL
+		TreeView_Expand(child_windows[CWI_SAVE_CURRENT_TREEVIEW], root, TVE_EXPAND);
+	}
+	{
+		HTREEITEM root = info_node_create(child_windows[CWI_SAVE_CURRENT_TREEVIEW], L"stalactite");
+		stalactite_t* item = &brush.stalactite;
+		SERIALIZABLE_STALACTITE
+		TreeView_Expand(child_windows[CWI_SAVE_CURRENT_TREEVIEW], root, TVE_EXPAND);
+	}
+#undef ADD_SERIALIZABLE
+#undef ADD_SERIALIZABLE_ARRAY
 }

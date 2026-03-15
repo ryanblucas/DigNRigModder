@@ -486,6 +486,7 @@ bool file_state_save(const char* directory, const dnr_state_t* save)
 	}
 
 	uint32_t* arena = dig_malloc(sizeof save->reserved2);
+	memcpy(arena, save->reserved2, sizeof save->reserved2);
 	file_state_save_shop_item(arena, &save->dirt_digger, 0);
 	file_state_save_shop_item(arena, &save->rock_drill, 1);
 	file_state_save_shop_item(arena, &save->stone_grinder, 2);

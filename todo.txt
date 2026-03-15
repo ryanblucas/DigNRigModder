@@ -2,6 +2,11 @@ Save viewer
 	Determine how liquids are stored in save files
 	Speed up region selection code
 	Speed up erasing code--use hash set instead of array list
+	When pasting something, the result of that is immediately selected and allowed to be moved.
+		If the user chooses to move that object, it should be on a seperate layer
+		so you can duplicate objects without removing what was there originally.
+		This would also allow for objects to be pasted beyond the screen temporarily.
+	X-Ray vision where you can see mineral spawns instead of the actual block
 
 Create layer creator
 Create sprite creator

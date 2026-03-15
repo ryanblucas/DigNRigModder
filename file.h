@@ -51,6 +51,18 @@ typedef struct stalactite
 SERIALIZABLE_STALACTITE
 } stalactite_t;
 
+typedef struct shop_item
+{
+#define SERIALIZABLE_SHOP_ITEM \
+	ADD_SERIALIZABLE(boolean32_t, discovered) \
+	ADD_SERIALIZABLE(int32_t, discovery_percentage) \
+	ADD_SERIALIZABLE(int32_t, count_max) \
+	ADD_SERIALIZABLE(int32_t, count_next) \
+	ADD_SERIALIZABLE(int32_t, count_curr) \
+	ADD_SERIALIZABLE_ARRAY(int32_t, mineral_cost, MINERAL_COUNT)
+SERIALIZABLE_SHOP_ITEM
+} shop_item_t;
+
 #pragma pack(4)
 
 typedef struct dnr_save_header
@@ -102,7 +114,7 @@ typedef struct dnr_player
 	ADD_SERIALIZABLE_ARRAY(uint32_t, reserved1, 0x2) \
 	ADD_SERIALIZABLE(float, jetpack_capacity) \
 	ADD_SERIALIZABLE_ARRAY(uint32_t, reserved2, 0x2) \
-	ADD_SERIALIZABLE(int32_t, battery_count) \
+	ADD_SERIALIZABLE(int32_t, hud_battery_count) \
 	ADD_SERIALIZABLE(int32_t, health) \
 	ADD_SERIALIZABLE(int32_t, max_health) \
 	ADD_SERIALIZABLE_ARRAY(uint8_t, reserved3, 0x2C) \
@@ -116,7 +128,13 @@ typedef struct dnr_player
 	ADD_SERIALIZABLE(int32_t, fake_scooper_count) \
 	ADD_SERIALIZABLE(int32_t, scooper_count) \
 	ADD_SERIALIZABLE(int32_t, item_hud_length) \
-	ADD_SERIALIZABLE_ARRAY(uint8_t, reserved4, 0x30)
+	ADD_SERIALIZABLE(int32_t, battery_count) \
+	ADD_SERIALIZABLE(int32_t, undefined4_00) \
+	ADD_SERIALIZABLE(int32_t, dynamite_count) \
+	ADD_SERIALIZABLE(int32_t, double_dynamite_count) \
+	ADD_SERIALIZABLE(int32_t, mega_bomb_count) \
+	ADD_SERIALIZABLE(int32_t, dirtzooka_count) \
+	ADD_SERIALIZABLE_ARRAY(uint8_t, reserved4, 0x18)
 SERIALIZABLE_DNR_PLAYER
 } dnr_player_t;
 
@@ -241,7 +259,7 @@ typedef struct dnr_mineral
 SERIALIZABLE_DNR_MINERAL
 } dnr_mineral_t;
 
-#pragma pack(1)
+#pragma pack(4)
 
 typedef struct dnr_state
 {
@@ -263,33 +281,57 @@ SERIALIZABLE_DNR_STATE_0
 	uint8_t enemies[0x30CAA0];
 
 #define SERIALIZABLE_DNR_STATE_1 \
-	ADD_SERIALIZABLE_ARRAY(boolean32_t, elements_discovered, MINERAL_COUNT) \
+	ADD_SERIALIZABLE_ARRAY(boolean32_t, unused_elements_discovered, MINERAL_COUNT) \
 	ADD_SERIALIZABLE(int32_t, vac_pak_size) \
 	ADD_SERIALIZABLE(int32_t, vac_pak_capacity) \
 	ADD_SERIALIZABLE(boolean32_t, vac_pak_exists) \
-	ADD_SERIALIZABLE(int16_t, vac_pak_x)
-SERIALIZABLE_DNR_STATE_1
-
-	/* ignore */
-	int16_t padding; 
-
-#define SERIALIZABLE_DNR_STATE_2 \
+	ADD_SERIALIZABLE(int16_t, vac_pak_x) \
 	ADD_SERIALIZABLE(boolean32_t, vac_pak_not_moving) \
 	ADD_SERIALIZABLE(int32_t, vac_pak_range_squared) \
 	ADD_SERIALIZABLE(boolean32_t, can_use_vacuum) \
 	ADD_SERIALIZABLE_ARRAY(CHAR_INFO, vac_pak_contents, 1000)
-SERIALIZABLE_DNR_STATE_2
+SERIALIZABLE_DNR_STATE_1
 
 	stalactite_t* stalactite_array;
 	int stalactite_count;
 
+#define SERIALIZABLE_DNR_STATE_2 \
+	ADD_SERIALIZABLE(uint32_t, style_content_attrib) \
+	ADD_SERIALIZABLE(uint32_t, style_header_attrib) \
+	ADD_SERIALIZABLE(uint32_t, style_horizontal_char) \
+	ADD_SERIALIZABLE(uint32_t, style_vertical_char) \
+	ADD_SERIALIZABLE(uint32_t, style_joint_char) \
+	ADD_SERIALIZABLE_ARRAY(boolean32_t, elements_discovered, MINERAL_COUNT) \
+	ADD_SERIALIZABLE(int32_t, count_elements_discovered)
+SERIALIZABLE_DNR_STATE_2
+	 
+	uint32_t reserved2[0x18A];
+
 #define SERIALIZABLE_DNR_STATE_3 \
-	ADD_SERIALIZABLE_ARRAY(uint8_t, reserved2, 0x6A0) \
+	ADD_SERIALIZABLE(boolean32_t, is_hud_visible) \
+	ADD_SERIALIZABLE_ARRAY(boolean32_t, seen_layer_messages, 14) \
+	ADD_SERIALIZABLE(boolean32_t, seen_welcome_message) \
 	ADD_SERIALIZABLE(boolean32_t, save_with_flag) \
 	ADD_SERIALIZABLE(int16_t, spawn_x) \
 	ADD_SERIALIZABLE(int16_t, spawn_y) \
 	ADD_SERIALIZABLE(boolean32_t, show_flag) \
-	ADD_SERIALIZABLE(boolean32_t, has_liquid_resistance)
+	ADD_SERIALIZABLE(boolean32_t, has_liquid_resistance) \
+	ADD_SERIALIZABLE(shop_item_t, dirt_digger) \
+	ADD_SERIALIZABLE(shop_item_t, rock_drill) \
+	ADD_SERIALIZABLE(shop_item_t, stone_grinder) \
+	ADD_SERIALIZABLE(shop_item_t, jump_upgrade) \
+	ADD_SERIALIZABLE(shop_item_t, jetpack_upgrade) \
+	ADD_SERIALIZABLE(shop_item_t, elements_resistance) \
+	ADD_SERIALIZABLE(shop_item_t, scan_upgrade) \
+	ADD_SERIALIZABLE(shop_item_t, vacpak_upgrade) \
+	ADD_SERIALIZABLE(shop_item_t, wifi_upgrade) \
+	ADD_SERIALIZABLE(shop_item_t, health_upgrade) \
+	ADD_SERIALIZABLE(shop_item_t, battery_upgrade) \
+	ADD_SERIALIZABLE(shop_item_t, dynamite) \
+	ADD_SERIALIZABLE(shop_item_t, double_dynamite) \
+	ADD_SERIALIZABLE(shop_item_t, mega_bomb) \
+	ADD_SERIALIZABLE(shop_item_t, dirtzooka) \
+	ADD_SERIALIZABLE(shop_item_t, dirtzooka_upgrade)
 SERIALIZABLE_DNR_STATE_3
 } dnr_state_t;
 
@@ -299,7 +341,7 @@ SERIALIZABLE_DNR_STATE_3
 
 /* classic */
 enum {
-	DNR_STATE_T_SIZE_CHECK = 1 / (sizeof(dnr_state_t) == 23444176)
+	DNR_STATE_T_SIZE_CHECK = 1 / (sizeof(dnr_state_t) == 23445008)
 };
 
 #undef ADD_SERIALIZABLE

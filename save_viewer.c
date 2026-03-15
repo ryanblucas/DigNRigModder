@@ -138,7 +138,7 @@ static void save_viewer_copy(void)
 
 static void save_viewer_paste(void)
 {
-	if (!clipboard_data)
+	if (!clipboard_data || region_is_invalid(selection_region))
 	{
 		return;
 	}
@@ -146,6 +146,11 @@ static void save_viewer_paste(void)
 	int origin_x = min(selection_region.x0, selection_region.x1);
 	int origin_y = min(selection_region.y0, selection_region.y1);
 	region_t dest = { origin_x, origin_y, origin_x + region_width(clipboard_region) - 1, origin_y + region_height(clipboard_region) - 1 };
+
+	if (!dig_inside_bounds(dest.x0, dest.y0) || !dig_inside_bounds(dest.x1, dest.y1))
+	{
+		return;
+	}
 
 	action_buffer_pre_add_block(save, dest);
 

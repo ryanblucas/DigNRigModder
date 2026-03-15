@@ -354,6 +354,23 @@ cleanup:
 	return res;
 }
 
+static void file_state_load_shop_item(const uint32_t* arena, shop_item_t* item, int index)
+{
+	item->discovered = arena[index];
+	item->discovery_percentage = arena[index + 0x1E];
+	item->count_max = arena[index + 0x3C];
+	item->count_next = arena[index + 0x5A];
+	item->count_curr = arena[index + 0x78];
+	item->mineral_cost[0] = arena[index * 0x8 + 0x96];
+	item->mineral_cost[1] = arena[index * 0x8 + 0x97];
+	item->mineral_cost[2] = arena[index * 0x8 + 0x98];
+	item->mineral_cost[3] = arena[index * 0x8 + 0x99];
+	item->mineral_cost[4] = arena[(index + 0x15) * 0x8 - 0x0E];
+	item->mineral_cost[5] = arena[index * 0x8 + 0x9B];
+	item->mineral_cost[6] = arena[index * 0x8 + 0x9C];
+	item->mineral_cost[7] = arena[index * 0x8 + 0x9D];
+}
+
 dnr_state_t* file_state_load(const char* directory)
 {
 	FILE* file = fopen(directory, "rb");
@@ -388,6 +405,23 @@ dnr_state_t* file_state_load(const char* directory)
 	fseek(file, curr, SEEK_SET);
 	BINARY_ENSURE_CONDITION(fread((uint8_t*)res + offsetof(dnr_state_t, stalactite_count) + sizeof res->stalactite_count, size - curr, 1, file) == 1);
 
+	file_state_load_shop_item(res->reserved2, &res->dirt_digger, 0);
+	file_state_load_shop_item(res->reserved2, &res->rock_drill, 1);
+	file_state_load_shop_item(res->reserved2, &res->stone_grinder, 2);
+	file_state_load_shop_item(res->reserved2, &res->jump_upgrade, 3);
+	file_state_load_shop_item(res->reserved2, &res->jetpack_upgrade, 4);
+	file_state_load_shop_item(res->reserved2, &res->elements_resistance, 5);
+	file_state_load_shop_item(res->reserved2, &res->scan_upgrade, 6);
+	file_state_load_shop_item(res->reserved2, &res->vacpak_upgrade, 7);
+	file_state_load_shop_item(res->reserved2, &res->wifi_upgrade, 8);
+	file_state_load_shop_item(res->reserved2, &res->health_upgrade, 9);
+	file_state_load_shop_item(res->reserved2, &res->battery_upgrade, 10);
+	file_state_load_shop_item(res->reserved2, &res->dynamite, 11);
+	file_state_load_shop_item(res->reserved2, &res->double_dynamite, 12);
+	file_state_load_shop_item(res->reserved2, &res->mega_bomb, 13);
+	file_state_load_shop_item(res->reserved2, &res->dirtzooka, 14);
+	file_state_load_shop_item(res->reserved2, &res->dirtzooka_upgrade, 15);
+
 	if (!game_is_valid(res))
 	{
 		debug_format("Read invalid save file\n");
@@ -405,6 +439,23 @@ cleanup:
 void file_state_unload(dnr_state_t* save)
 {
 	free(save);
+}
+
+static void file_state_save_shop_item(uint32_t* arena, const shop_item_t* item, int index)
+{
+	arena[index] = item->discovered;
+	arena[index + 0x1E] = item->discovery_percentage;
+	arena[index + 0x3C] = item->count_max;
+	arena[index + 0x5A] = item->count_next;
+	arena[index + 0x78] = item->count_curr;
+	arena[index * 0x8 + 0x96] = item->mineral_cost[0];
+	arena[index * 0x8 + 0x97] = item->mineral_cost[1];
+	arena[index * 0x8 + 0x98] = item->mineral_cost[2];
+	arena[index * 0x8 + 0x99] = item->mineral_cost[3];
+	arena[(index + 0x15) * 0x8 - 0x0E] = item->mineral_cost[4];
+	arena[index * 0x8 + 0x9B] = item->mineral_cost[5];
+	arena[index * 0x8 + 0x9C] = item->mineral_cost[6];
+	arena[index * 0x8 + 0x9D] = item->mineral_cost[7];
 }
 
 bool file_state_save(const char* directory, const dnr_state_t* save)
@@ -434,8 +485,27 @@ bool file_state_save(const char* directory, const dnr_state_t* save)
 		BINARY_ENSURE_CONDITION(fwrite(&save->stalactite_array[i].speed, 1, 4, file) == 4);
 	}
 
+	uint32_t* arena = dig_malloc(sizeof save->reserved2);
+	file_state_save_shop_item(arena, &save->dirt_digger, 0);
+	file_state_save_shop_item(arena, &save->rock_drill, 1);
+	file_state_save_shop_item(arena, &save->stone_grinder, 2);
+	file_state_save_shop_item(arena, &save->jump_upgrade, 3);
+	file_state_save_shop_item(arena, &save->jetpack_upgrade, 4);
+	file_state_save_shop_item(arena, &save->elements_resistance, 5);
+	file_state_save_shop_item(arena, &save->scan_upgrade, 6);
+	file_state_save_shop_item(arena, &save->vacpak_upgrade, 7);
+	file_state_save_shop_item(arena, &save->wifi_upgrade, 8);
+	file_state_save_shop_item(arena, &save->health_upgrade, 9);
+	file_state_save_shop_item(arena, &save->battery_upgrade, 10);
+	file_state_save_shop_item(arena, &save->dynamite, 11);
+	file_state_save_shop_item(arena, &save->double_dynamite, 12);
+	file_state_save_shop_item(arena, &save->mega_bomb, 13);
+	file_state_save_shop_item(arena, &save->dirtzooka, 14);
+	file_state_save_shop_item(arena, &save->dirtzooka_upgrade, 15);
+	free(arena);
+
 	size_t offset = offsetof(dnr_state_t, stalactite_count) + sizeof save->stalactite_count;
-	BINARY_ENSURE_CONDITION(fwrite((uint8_t*)save + offset, sizeof * save - offset, 1, file) == 1);
+	BINARY_ENSURE_CONDITION(fwrite((uint8_t*)save + offset, offsetof(dnr_state_t, dirt_digger) - offset, 1, file) == 1);
 
 	result = true;
 cleanup:

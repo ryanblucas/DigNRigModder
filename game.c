@@ -28,6 +28,7 @@ bool game_is_valid(const dnr_state_t* state)
 
 void game_copy(const dnr_state_t* state, region_t region, complete_block_t* arr)
 {
+	RUNTIME_ASSERT(!region_is_invalid(region));
 	region = region_validate(region);
 	memset(arr, 0, region_size(region) * sizeof * arr);
 	for (int y = 0; y < region_height(region); y++)
@@ -56,6 +57,7 @@ void game_copy(const dnr_state_t* state, region_t region, complete_block_t* arr)
 
 void game_paste(dnr_state_t* state, region_t region, const complete_block_t* arr)
 {
+	RUNTIME_ASSERT(!region_is_invalid(region));
 	region = region_validate(region);
 	for (int y = 0; y < region_height(region); y++)
 	{
@@ -90,6 +92,7 @@ void game_paste(dnr_state_t* state, region_t region, const complete_block_t* arr
 
 void game_delete(dnr_state_t* state, region_t region)
 {
+	RUNTIME_ASSERT(!region_is_invalid(region));
 	for (int x = region.x0; x <= region.x1; x++)
 	{
 		for (int y = region.y0; y <= region.y1; y++)

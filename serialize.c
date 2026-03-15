@@ -507,6 +507,17 @@ static void serialize_array_internal(uint64_t type_hash, void* value, int start,
 			continue;
 		}
 
+		case TYPE_SHOP_ITEM_T:
+		{
+			shop_item_t* item = (shop_item_t*)value;
+			HTREEITEM next_tree_item = TreeView_InsertItem(tree_window, &tvins);
+			RUNTIME_ASSERT(next_tree_item);
+			element->tree_item = next_tree_item;
+			SERIALIZABLE_SHOP_ITEM
+			value = item - 1;
+			break;
+		}
+
 #undef ADD_SERIALIZABLE
 #undef ADD_SERIALIZABLE_ARRAY
 		default:
@@ -707,6 +718,16 @@ element_t serialize_single(const char* type, void* value, const char* name, HWND
 		tvins.itemex.cchTextMax = 0;
 		tree_item = TreeView_InsertItem(tree_window, &tvins);
 		SERIALIZABLE_DNR_MINERAL
+		break;
+	}
+
+	case TYPE_SHOP_ITEM_T:
+	{
+		shop_item_t* item = (shop_item_t*)value;
+		tvins.itemex.pszText = wname;
+		tvins.itemex.cchTextMax = 0;
+		tree_item = TreeView_InsertItem(tree_window, &tvins);
+		SERIALIZABLE_SHOP_ITEM
 		break;
 	}
 

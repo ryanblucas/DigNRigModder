@@ -724,7 +724,7 @@ void save_initialize()
 	}
 	debug_profiler_pop("Spritify all layers");
 
-	save_viewer_move_window(TARGET_HEIGHT / 2 - (int)save->player.y_spawn);
+	save_viewer_move_window(TARGET_HEIGHT / 2 - save->spawn_y);
 	save_info_state_set(save); /* wait till last second to call so that there's not much waiting if any on this thread */
 
 	debug_profiler_pop("Application initialization");

@@ -150,10 +150,15 @@ static INT_PTR cfm_combo_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 		{
 			return 0;
 		}
+		int index = ComboBox_GetCurSel(GetDlgItem(hwnd, IDCOMBO));
+		if (index == -1)
+		{
+			EndDialog(hwnd, 1);
+			return 0;
+		}
 		if (LOWORD(wparam) == IDOK)
 		{
 			struct modal_open_struct* mos = (struct modal_open_struct*)GetWindowLongPtrW(hwnd, DWLP_USER);
-			int index = ComboBox_GetCurSel(GetDlgItem(hwnd, IDCOMBO));
 			RUNTIME_ASSERT(ComboBox_GetLBTextLen(GetDlgItem(hwnd, IDCOMBO), index) < sizeof mos->result / sizeof * mos->result);
 			ComboBox_GetLBText(GetDlgItem(hwnd, IDCOMBO), index, mos->result);
 			EndDialog(hwnd, 0);
@@ -161,7 +166,6 @@ static INT_PTR cfm_combo_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 		else if (LOWORD(wparam) == IDCANCEL)
 		{
 			struct modal_open_struct* mos = (struct modal_open_struct*)GetWindowLongPtrW(hwnd, DWLP_USER);
-			int index = ComboBox_GetCurSel(GetDlgItem(hwnd, IDCOMBO));
 			RUNTIME_ASSERT(ComboBox_GetLBTextLen(GetDlgItem(hwnd, IDCOMBO), index) < sizeof mos->result / sizeof * mos->result);
 			ComboBox_GetLBText(GetDlgItem(hwnd, IDCOMBO), index, mos->result);
 			EndDialog(hwnd, 1);
@@ -177,7 +181,10 @@ static void cfm_enum_internal(HWND owner, const WCHAR* title, int* value, WCHAR*
 	mos.choice_array = array;
 	mos.choice_length = len;
 	mos.choice_first = type_to_index ? type_to_index(*value) : *value;
-	RUNTIME_ASSERT(mos.choice_first >= 0 && mos.choice_first < mos.choice_length);
+	if (mos.choice_first < 0 && mos.choice_first >= mos.choice_length)
+	{
+		mos.choice_first = 0;
+	}
 
 	if (DialogBoxParamW(GetModuleHandleW(NULL), MAKEINTRESOURCEW(IDD_CHANGE_FIELD_DROPDOWN), owner, cfm_combo_proc, (LPARAM)&mos) == 1)
 	{

@@ -1,2 +1,2 @@
 # Dig-N-Rig Modder
-Currently only views assets
+Level and asset creator for the DigiPen student project Dig-N-Rig.

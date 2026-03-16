@@ -107,7 +107,6 @@ static void save_info_window_change_current(element_t element)
 {
 	if (current_tool == TOOL_BRUSH)
 	{
-		const void* previous = serialize_element_get_value(element);
 		if (!serialize_on_change_field(element))
 		{
 			return;
@@ -145,12 +144,18 @@ static void save_info_window_change_current(element_t element)
 		action_buffer_post_add_block(state);
 		return;
 	}
-	const void* previous = serialize_element_get_value(element);
+
+	if (serialize_element_get_size(element) > 4)
+	{
+		return;
+	}
+
+	field_t previous = field_create(serialize_element_get_value(element), serialize_element_get_size(element));
 	if (!serialize_on_change_field(element))
 	{
 		return;
 	}
-	if (memcmp(previous, serialize_element_get_value(element), serialize_element_get_size(element)) == 0)
+	if (previous == field_create(serialize_element_get_value(element), serialize_element_get_size(element)))
 	{
 		return;
 	}

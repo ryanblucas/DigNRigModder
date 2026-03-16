@@ -70,8 +70,8 @@ typedef struct info_mode_class
 } info_mode_class_t;
 
 void info_add_class(const info_mode_class_t* class);
-void info_initialize(info_events_t events);
-
+void info_set_event_handlers(const info_events_t* events);
+void info_initialize(void);
 void info_destroy(void);
 
 info_mode_t info_get_current_mode(void);

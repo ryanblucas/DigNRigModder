@@ -66,6 +66,8 @@ static LRESULT info_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
 		info_internal_t internal = { .window = hwnd, .events = &events, .font_caption = font_caption, .font_text = font_text };
 		for (int i = 0; i < MODE_COUNT; i++)
 		{
+			/* just a check to see if the class exists */
+			RUNTIME_ASSERT(classes[i].initialize);
 			info_tab_create(classes[i].caption, i);
 			classes[i].initialize(&internal);
 		}
@@ -155,16 +157,13 @@ void info_add_class(const info_mode_class_t* class)
 	classes[class->mode] = *class;
 }
 
-void info_initialize(info_events_t _events)
+void info_set_event_handlers(const info_events_t* _events)
 {
-	for (int i = 0; i < MODE_COUNT; i++)
-	{
-		/* just a check to see if the class was actually initialized and exists */
-		RUNTIME_ASSERT(classes[i].initialize);
-	}
+	events = *_events;
+}
 
-	events = _events;
-
+void info_initialize(void)
+{
 	INITCOMMONCONTROLSEX icc = { .dwSize = sizeof icc, .dwICC = ICC_TREEVIEW_CLASSES | ICC_TAB_CLASSES };
 	RUNTIME_ASSERT(InitCommonControlsEx(&icc));
 

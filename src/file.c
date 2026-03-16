@@ -165,7 +165,7 @@ static void file_serialize_and_print_token(struct token* token)
 	}
 }
 
-bool file_editor_load(editor_state* state)
+bool file_editor_load(editor_state_t* state)
 {
 	struct file file = { 0 };
 	char directory[MAX_PATH];
@@ -207,7 +207,7 @@ cleanup:
 	return result;
 }
 
-bool file_editor_save(const editor_state* state)
+bool file_editor_save(const editor_state_t* state)
 {
 	char directory[MAX_PATH];
 	FILE* file = fopen(path_find_dnr_docs(directory, sizeof directory, "editor_config.ini"), "w");

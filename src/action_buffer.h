@@ -68,27 +68,29 @@ extern inline field_t field_create(const void* ptr, size_t size)
 	return res;
 }
 
-void action_buffer_initialize(void);
-void action_buffer_destroy(void);
+typedef struct action_buffer* action_buffer_t;
+
+action_buffer_t action_buffer_initialize(void);
+void action_buffer_destroy(action_buffer_t buffer);
 
 /* Adds block action to buffer. The action created uses the region parameter passed in
    and creates the "previous" array with what is there currently. Therefore, call this
    before changing anything, then action_buffer_post_add_block to create the next part.
    If this isn't the top of the buffer, it deletes everything in front of it */
-void action_buffer_pre_add_block(const dnr_state_t* state, region_t region);
+void action_buffer_pre_add_block(action_buffer_t buffer, const dnr_state_t* state, region_t region);
 /* Finalizes block action to buffer from pre_add_block. */
-void action_buffer_post_add_block(const dnr_state_t* state);
+void action_buffer_post_add_block(action_buffer_t buffer, const dnr_state_t* state);
 /* Adds block action to buffer. */
-void action_buffer_add_block(const complete_block_t* prev, const complete_block_t* curr, region_t region);
+void action_buffer_add_block(action_buffer_t buffer, const complete_block_t* prev, const complete_block_t* curr, region_t region);
 /* Adds field action to buffer. All of the parameters passed in are 1:1 what is created
    for the action_field_t struct. If this isn't the top of the buffer, it deletes everything in front of it */
-void action_buffer_add_field(element_t element, field_t previous);
+void action_buffer_add_field(action_buffer_t buffer, element_t element, field_t previous);
 /* Goes back in the buffer. If there's no more left, returns false and doesn't write to action.
    This would be used for undoing */
-action_t* action_buffer_back(void);
+action_t* action_buffer_back(action_buffer_t buffer);
 /* Goes forward in the buffer. If there's no more left, returns false and doesn't write to action.
    This would be used for redoing */
-action_t* action_buffer_forward(void);
+action_t* action_buffer_forward(action_buffer_t buffer);
 /* Reverses a block action */
 void action_buffer_reverse_block(dnr_state_t* state, action_t* action);
 /* Reverses a field action */

@@ -33,6 +33,7 @@ enum child_window_index
 	CWI_COUNT
 };
 
+static action_buffer_t action_buffer;
 static info_internal_t internal;
 static HWND child_windows[CWI_COUNT];
 
@@ -125,7 +126,7 @@ static void save_info_window_change_current(element_t element)
 
 		complete_block_t start;
 		game_copy(state, region, &start);
-		action_buffer_pre_add_block(state, region);
+		action_buffer_pre_add_block(action_buffer, state, region);
 
 		if (!serialize_on_change_field(element))
 		{
@@ -141,7 +142,7 @@ static void save_info_window_change_current(element_t element)
 
 		RAISE_EVENT(internal.events->block_handler, region);
 		save_info_state_update_current_cell_image(x, y);
-		action_buffer_post_add_block(state);
+		action_buffer_post_add_block(action_buffer, state);
 		return;
 	}
 
@@ -159,7 +160,7 @@ static void save_info_window_change_current(element_t element)
 	{
 		return;
 	}
-	action_buffer_pre_add_block(state, current_selection_region);
+	action_buffer_pre_add_block(action_buffer, state, current_selection_region);
 	for (int y = current_selection_region.y0; y <= current_selection_region.y1; y++)
 	{
 		for (int x = current_selection_region.x0; x <= current_selection_region.x1; x++)
@@ -169,7 +170,7 @@ static void save_info_window_change_current(element_t element)
 		}
 	}
 	RAISE_EVENT(internal.events->block_handler, current_selection_region);
-	action_buffer_post_add_block(state);
+	action_buffer_post_add_block(action_buffer, state);
 }
 
 static void save_info_window_tree_control_handle_double_click(HWND hwnd, HTREEITEM res)
@@ -198,7 +199,7 @@ static void save_info_window_tree_control_handle_double_click(HWND hwnd, HTREEIT
 			return;
 		}
 		RAISE_EVENT(internal.events->global_field_handler, serialize_element_get_value(element));
-		action_buffer_add_field(element, begin_copy);
+		action_buffer_add_field(action_buffer, element, begin_copy);
 	}
 }
 
@@ -291,6 +292,16 @@ bool save_info_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESULT* 
 		return true;
 	}
 	return false;
+}
+
+action_buffer_t save_info_action_buffer_get(void)
+{
+	return action_buffer;
+}
+
+void save_info_action_buffer_set(action_buffer_t buffer)
+{
+	action_buffer = buffer;
 }
 
 static void save_info_state_set_tree_view(dnr_state_t* user_state)

@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "../action_buffer.h"
 #include "../file.h"
 #include "../info_box.h"
 #include "../serialize.h"
@@ -16,6 +17,9 @@ void save_info_destroy(void);
 
 void save_info_show(bool is_visible);
 bool save_info_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESULT* out);
+
+action_buffer_t save_info_action_buffer_get(void);
+void save_info_action_buffer_set(action_buffer_t buffer);
 
 dnr_state_t* save_info_state_get(void);
 void save_info_state_set(dnr_state_t* state);

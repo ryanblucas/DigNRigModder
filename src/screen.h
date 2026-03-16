@@ -32,7 +32,9 @@ typedef struct screen_events
 	screen_handle_mouse_wheel_t mouse_wheel;
 } screen_events_t;
 
-void screen_initialize(screen_events_t events);
+void screen_set_event_handlers(const screen_events_t* events);
+
+void screen_initialize(void);
 void screen_destroy(void);
 void screen_loop(void);
 void screen_repaint(void);

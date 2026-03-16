@@ -353,10 +353,10 @@ enum {
 typedef struct editor_state
 {
 	int current_save;
-} editor_state;
+} editor_state_t;
 
-bool file_editor_load(editor_state* state);
-bool file_editor_save(const editor_state* state);
+bool file_editor_load(editor_state_t* state);
+bool file_editor_save(const editor_state_t* state);
 
 sprite_t file_sprite_load(const char* directory);
 

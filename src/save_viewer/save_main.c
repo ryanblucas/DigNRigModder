@@ -21,6 +21,8 @@ static void save_viewer_handle_global_field_change(const void* field);
 
 typedef void (*save_viewer_brush_function_t)(int x, int y, int radius);
 
+static action_buffer_t action_buffer;
+
 static sprite_t flag;
 static sprite_t cache[LAYER_COUNT];
 static dnr_state_t* save;
@@ -37,7 +39,7 @@ static int move_x = -1, move_y = -1;
 static sprite_t selection_visual;
 
 static char save_directory[MAX_PATH];
-static editor_state editor;
+static editor_state_t* editor;
 
 static region_t clipboard_region;
 static complete_block_t* clipboard_data;
@@ -97,7 +99,7 @@ static void save_viewer_stop_move(void)
 
 	if (memcmp(&src_region, &dest_region, sizeof src_region) != 0)
 	{
-		action_buffer_pre_add_block(save, total);
+		action_buffer_pre_add_block(action_buffer, save, total);
 
 		complete_block_t* blocks = dig_malloc(region_size(src_region) * sizeof * blocks);
 		game_copy(save, src_region, blocks);
@@ -105,7 +107,7 @@ static void save_viewer_stop_move(void)
 		game_paste(save, dest_region, blocks);
 		free(blocks);
 
-		action_buffer_post_add_block(save);
+		action_buffer_post_add_block(action_buffer, save);
 
 		save_viewer_invalidate_region(total);
 	}
@@ -153,12 +155,12 @@ static void save_viewer_paste(void)
 		return;
 	}
 
-	action_buffer_pre_add_block(save, dest);
+	action_buffer_pre_add_block(action_buffer, save, dest);
 
 	game_delete(save, selection_region);
 	game_paste(save, dest, clipboard_data);
 
-	action_buffer_post_add_block(save);
+	action_buffer_post_add_block(action_buffer, save);
 
 	selection_region = dest;
 	save_viewer_invalidate_region(dest);
@@ -168,12 +170,12 @@ static void save_viewer_paste(void)
 static void save_viewer_prompt_which_save(void)
 {
 	bool valid_save = false;
-	while (editor.current_save <= 0 || editor.current_save >= 4 || !valid_save)
+	while (editor->current_save <= 0 || editor->current_save >= 4 || !valid_save)
 	{
 		/* temporary use of change field modal function */
-		change_field_modal_integer(NULL, &editor.current_save, sizeof editor.current_save | SIZE_IS_SIGNED);
+		change_field_modal_integer(NULL, &editor->current_save, sizeof editor->current_save | SIZE_IS_SIGNED);
 		char directory[MAX_PATH];
-		path_find_dnr_save(directory, sizeof directory, editor.current_save);
+		path_find_dnr_save(directory, sizeof directory, editor->current_save);
 		FILE* file = fopen(directory, "rb");
 		if (!file)
 		{
@@ -262,11 +264,11 @@ static void save_viewer_delete_selection(void)
 {
 	debug_profiler_push();
 	region_t region = region_validate(selection_region);
-	action_buffer_pre_add_block(save, region);
+	action_buffer_pre_add_block(action_buffer, save, region);
 
 	game_delete(save, region);
 
-	action_buffer_post_add_block(save);
+	action_buffer_post_add_block(action_buffer, save);
 	save_viewer_invalidate_region(selection_region);
 	selection_region = INVALID_REGION;
 	screen_repaint();
@@ -304,7 +306,7 @@ static void save_viewer_handle_keyboard(virtual_key_t vk, keyboard_control_t ctr
 			if (ctrl & CTRL_SHIFT_PRESSED)
 			{
 				save_viewer_prompt_which_save();
-				path_find_dnr_save(save_directory, sizeof save_directory, editor.current_save);
+				path_find_dnr_save(save_directory, sizeof save_directory, editor->current_save);
 			}
 			debug_format("Reloading save...\n");
 			dnr_state_t* next = file_state_load(save_directory);
@@ -323,11 +325,11 @@ static void save_viewer_handle_keyboard(virtual_key_t vk, keyboard_control_t ctr
 		}
 		else if (vk == 'Z')
 		{
-			save_viewer_do_action(action_buffer_back());
+			save_viewer_do_action(action_buffer_back(action_buffer));
 		}
 		else if (vk == 'Y')
 		{
-			save_viewer_do_action(action_buffer_forward());
+			save_viewer_do_action(action_buffer_forward(action_buffer));
 		}
 		else if (vk == 'C')
 		{
@@ -439,7 +441,7 @@ static void save_viewer_eraser_handle_mouse_button(bool m1_down, int x, int y)
 		new[(curr->block.x - brush_region.x0) + (curr->block.y - brush_region.y0) * region_width(brush_region)] = *curr;
 	}
 	game_copy(save, brush_region, new + region_size(brush_region));
-	action_buffer_add_block(new, new + region_size(brush_region), brush_region);
+	action_buffer_add_block(action_buffer, new, new + region_size(brush_region), brush_region);
 	free(new);
 
 	brush_region = INVALID_REGION;
@@ -666,27 +668,9 @@ void save_viewer_handle_tool_change(info_tool_t tool)
 	}
 }
 
-void save_initialize()
+void save_initialize(editor_state_t* state)
 {
-	if (!file_editor_load(&editor))
-	{
-		editor.current_save = 1;
-		save_viewer_prompt_which_save();
-		file_editor_save(&editor);
-	}
-
-	debug_profiler_push();
-
-	screen_initialize((screen_events_t)
-	{
-		.repaint = save_viewer_handle_repaint,
-		.keyboard = save_viewer_handle_keyboard,
-		.mouse_button = save_viewer_handle_mouse_button,
-		.mouse_move = save_viewer_handle_mouse_move,
-		.mouse_wheel = save_viewer_handle_mouse_wheel
-	});
-
-	screen_change_title("Dig-N-Rig Display");
+	editor = state;
 
 	info_mode_class_t class =
 	{
@@ -699,23 +683,15 @@ void save_initialize()
 	};
 	info_add_class(&class);
 
-	info_initialize((info_events_t)
-	{
-		.block_handler = save_viewer_handle_block_change,
-		.global_field_handler = save_viewer_handle_global_field_change,
-		.tool_handler = save_viewer_handle_tool_change,
-	});
+	action_buffer = action_buffer_initialize();
+	save_info_action_buffer_set(action_buffer);
 
-	action_buffer_initialize();
-	
-	debug_profiler_push();
-
-	save = file_state_load(path_find_dnr_save(save_directory, sizeof save_directory, editor.current_save));
+	save = file_state_load(path_find_dnr_save(save_directory, sizeof save_directory, editor->current_save));
 	if (!save)
 	{
 		save_viewer_prompt_which_save();
 		file_editor_save(&editor);
-		save = file_state_load(path_find_dnr_save(save_directory, sizeof save_directory, editor.current_save));
+		save = file_state_load(path_find_dnr_save(save_directory, sizeof save_directory, editor->current_save));
 		if (!save)
 		{
 			debug_format("Failed to open a save file on launch\n");
@@ -726,23 +702,10 @@ void save_initialize()
 	flag = file_sprite_load(path_find_dnr_main(buf, sizeof buf, "Sprites\\Checkpoint.sprite"));
 	RUNTIME_ASSERT(flag);
 
-	debug_profiler_pop("Load assets");
-
-	debug_profiler_push();
 	for (int i = 0; i < LAYER_COUNT; i++)
 	{
 		cache[i] = game_spritify_layer(save, i);
 	}
-	debug_profiler_pop("Spritify all layers");
-
-	save_viewer_move_window(TARGET_HEIGHT / 2 - save->spawn_y);
-	save_info_state_set(save); /* wait till last second to call so that there's not much waiting if any on this thread */
-
-	debug_profiler_pop("Application initialization");
-
-	selection_region = brush_region = INVALID_REGION;
-	brush_before_reserved = MAX_SELECTION_SIZE;
-	brush_before_ptr = dig_malloc(sizeof * brush_before_ptr * brush_before_reserved);
 }
 
 void save_destroy(void)
@@ -755,7 +718,38 @@ void save_destroy(void)
 	free(clipboard_data);
 	free(brush_before_ptr);
 
-	action_buffer_destroy();
-	info_destroy();
-	screen_destroy();
+	action_buffer_destroy(action_buffer);
+}
+
+void save_start(void)
+{
+	screen_events_t screen_events =
+	{
+		.repaint = save_viewer_handle_repaint,
+		.keyboard = save_viewer_handle_keyboard,
+		.mouse_button = save_viewer_handle_mouse_button,
+		.mouse_move = save_viewer_handle_mouse_move,
+		.mouse_wheel = save_viewer_handle_mouse_wheel
+	};
+	screen_set_event_handlers(&screen_events);
+
+	info_events_t info_events =
+	{
+		.block_handler = save_viewer_handle_block_change,
+		.global_field_handler = save_viewer_handle_global_field_change,
+		.tool_handler = save_viewer_handle_tool_change,
+	};
+	info_set_event_handlers(&info_events);
+
+	save_viewer_move_window(TARGET_HEIGHT / 2 - save->spawn_y);
+	save_info_state_set(save); /* wait till last second to call so that there's not much waiting if any on this thread */
+
+	selection_region = brush_region = INVALID_REGION;
+	brush_before_reserved = MAX_SELECTION_SIZE;
+	brush_before_ptr = dig_malloc(sizeof * brush_before_ptr * brush_before_reserved);
+}
+
+void save_end(void)
+{
+	selection_region = brush_region = INVALID_REGION;
 }

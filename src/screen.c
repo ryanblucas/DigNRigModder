@@ -72,7 +72,12 @@ static void screen_initialize_cursor(void)
 	RUNTIME_ASSERT(SetConsoleCursorInfo(out, &cci));
 }
 
-void screen_initialize(screen_events_t _events)
+void screen_set_event_handlers(const screen_events_t* _events)
+{
+	events = *_events;
+}
+
+void screen_initialize(void)
 {
 	in = GetStdHandle(STD_INPUT_HANDLE);
 	RUNTIME_ASSERT(in != INVALID_HANDLE_VALUE && in);
@@ -98,7 +103,6 @@ void screen_initialize(screen_events_t _events)
 	RUNTIME_ASSERT(SetConsoleMode(out, 0));
 	
 	screen_initialize_cursor();
-	events = _events;
 
 	RUNTIME_ASSERT(GetCurrentConsoleFontEx(out, FALSE, &cfi));
 

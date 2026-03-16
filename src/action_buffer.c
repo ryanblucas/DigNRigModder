@@ -5,71 +5,77 @@
 
 #include "action_buffer.h"
 
-static action_t buffer[64];
-static int position = -1, size = 0;
-
-void action_buffer_initialize(void)
+struct action_buffer
 {
+	action_t buffer[64];
+	int position, size;
+};
 
+action_buffer_t action_buffer_initialize(void)
+{
+	action_buffer_t result = dig_malloc(sizeof * result);
+	memset(result, 0, sizeof * result);
+	result->position = -1;
+	return result;
 }
 
-void action_buffer_destroy(void)
+void action_buffer_destroy(action_buffer_t buffer)
 {
-	for (int i = 0; i < size; i++)
+	for (int i = 0; i < buffer->size; i++)
 	{
-		if (buffer[i].type == ACTION_BLOCK)
+		if (buffer->buffer[i].type == ACTION_BLOCK)
 		{
-			free(buffer[i].sub.block.previous);
-			free(buffer[i].sub.block.next);
+			free(buffer->buffer[i].sub.block.previous);
+			free(buffer->buffer[i].sub.block.next);
 		}
 	}
 }
 
-static void action_buffer_create_node(void)
+static void action_buffer_create_node(action_buffer_t buffer)
 {
-	position++;
-	for (int i = position; i < size; i++)
+	buffer->position++;
+	for (int i = buffer->position; i < buffer->size; i++)
 	{
-		if (buffer[i].type == ACTION_BLOCK)
+		if (buffer->buffer[i].type == ACTION_BLOCK)
 		{
-			free(buffer[i].sub.block.previous);
-			free(buffer[i].sub.block.next);
+			free(buffer->buffer[i].sub.block.previous);
+			free(buffer->buffer[i].sub.block.next);
 		}
 	}
-	size = position + 1;
-	if (size >= sizeof buffer / sizeof * buffer)
+	buffer->size = buffer->position + 1;
+	if (buffer->size >= sizeof buffer->buffer / sizeof * buffer->buffer)
 	{
-		memmove(buffer, buffer + 1, sizeof buffer - sizeof * buffer);
-		size = sizeof buffer / sizeof * buffer;
+		memmove(buffer->buffer, buffer->buffer + 1, sizeof buffer->buffer - sizeof * buffer->buffer);
+		buffer->size = sizeof buffer->buffer / sizeof * buffer->buffer;
 	}
 }
 
-void action_buffer_pre_add_block(const dnr_state_t* state, region_t region)
+void action_buffer_pre_add_block(action_buffer_t buffer, const dnr_state_t* state, region_t region)
 {
-	action_buffer_create_node();
+	action_buffer_create_node(buffer);
 
-	buffer[position].type = ACTION_BLOCK;
+	buffer->buffer[buffer->position].type = ACTION_BLOCK;
 
-	action_block_t* block_action = &buffer[position].sub.block;
+	action_block_t* block_action = &buffer->buffer[buffer->position].sub.block;
 	block_action->region = region;
 	block_action->previous = dig_malloc(region_size(region) * sizeof * block_action->previous);
 	game_copy(state, region, block_action->previous);
 }
 
-void action_buffer_post_add_block(const dnr_state_t* state)
+void action_buffer_post_add_block(action_buffer_t buffer, const dnr_state_t* state)
 {
-	RUNTIME_ASSERT(buffer[position].type == ACTION_BLOCK);
+	RUNTIME_ASSERT(buffer->buffer[buffer->position].type == ACTION_BLOCK);
 
-	action_block_t* block_action = &buffer[position].sub.block;
+	action_block_t* block_action = &buffer->buffer[buffer->position].sub.block;
 	block_action->next = dig_malloc(region_size(block_action->region) * sizeof * block_action->next);
 	game_copy(state, block_action->region, block_action->next);
 }
 
-void action_buffer_add_block(const complete_block_t* prev, const complete_block_t* curr, region_t region)
+void action_buffer_add_block(action_buffer_t buffer, const complete_block_t* prev, const complete_block_t* curr, region_t region)
 {
-	action_buffer_create_node();
-	buffer[position].type = ACTION_BLOCK;
-	action_block_t* block_action = &buffer[position].sub.block;
+	action_buffer_create_node(buffer);
+	buffer->buffer[buffer->position].type = ACTION_BLOCK;
+	action_block_t* block_action = &buffer->buffer[buffer->position].sub.block;
 	block_action->region = region;
 
 	size_t buf_size = region_size(region) * sizeof * prev;
@@ -79,17 +85,17 @@ void action_buffer_add_block(const complete_block_t* prev, const complete_block_
 	memcpy(block_action->next, curr, buf_size);
 }
 
-void action_buffer_add_field(element_t element, field_t previous)
+void action_buffer_add_field(action_buffer_t buffer, element_t element, field_t previous)
 {
 	field_t next = field_create(serialize_element_get_value(element), serialize_element_get_size(element));
 	if (next == previous)
 	{
 		return;
 	}
-	action_buffer_create_node();
+	action_buffer_create_node(buffer);
 
-	buffer[position].type = ACTION_FIELD;
-	buffer[position].sub.field = (action_field_t)
+	buffer->buffer[buffer->position].type = ACTION_FIELD;
+	buffer->buffer[buffer->position].sub.field = (action_field_t)
 	{
 		.next = next,
 		.previous = previous,
@@ -97,24 +103,24 @@ void action_buffer_add_field(element_t element, field_t previous)
 	};
 }
 
-action_t* action_buffer_back(void)
+action_t* action_buffer_back(action_buffer_t buffer)
 {
-	if (position < 0)
+	if (buffer->position < 0)
 	{
 		return NULL;
 	}
 
-	return &buffer[position--];
+	return &buffer->buffer[buffer->position--];
 }
 
-action_t* action_buffer_forward(void)
+action_t* action_buffer_forward(action_buffer_t buffer)
 {
-	if (position >= size - 1)
+	if (buffer->position >= buffer->size - 1)
 	{
 		return false;
 	}
 	
-	return &buffer[++position];
+	return &buffer->buffer[++buffer->position];
 }
 
 void action_buffer_reverse_block(dnr_state_t* state, action_t* action)

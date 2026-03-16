@@ -17,8 +17,8 @@
 typedef enum info_mode
 {
 	MODE_SAVE,
-	MODE_SPRITE,
-	MODE_LAYER,
+	//MODE_SPRITE,
+	//MODE_LAYER,
 
 	MODE_COUNT
 } info_mode_t;
@@ -54,6 +54,24 @@ typedef struct info_internal
 	const info_events_t* events;
 } info_internal_t;
 
+typedef bool (*info_mode_proc)(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESULT* out);
+typedef void (*info_mode_show)(bool is_visible);
+typedef void (*info_mode_initialize)(const info_internal_t* internal);
+typedef void (*info_mode_destroy)();
+
+typedef struct info_mode_class
+{
+	info_mode_t mode;
+	const char* caption;
+	info_mode_proc proc;
+	info_mode_show show;
+	info_mode_initialize initialize;
+	info_mode_destroy destroy;
+} info_mode_class_t;
+
+void info_add_class(const info_mode_class_t* class);
 void info_initialize(info_events_t events);
+
 void info_destroy(void);
+
 info_mode_t info_get_current_mode(void);

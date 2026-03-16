@@ -688,6 +688,17 @@ void save_initialize()
 
 	screen_change_title("Dig-N-Rig Display");
 
+	info_mode_class_t class =
+	{
+		.mode = MODE_SAVE,
+		.caption = "Save",
+		.initialize = save_info_initialize,
+		.destroy = save_info_destroy,
+		.show = save_info_show,
+		.proc = save_info_proc
+	};
+	info_add_class(&class);
+
 	info_initialize((info_events_t)
 	{
 		.block_handler = save_viewer_handle_block_change,

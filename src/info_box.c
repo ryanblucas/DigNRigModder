@@ -6,9 +6,6 @@
 #include "info_box.h"
 #include "debug.h"
 #include "types.h"
-
-#include "save_viewer/save_info.h"
-
 #include <Windows.h>
 #include <commctrl.h>
 #include <strsafe.h>
@@ -27,12 +24,15 @@ static HANDLE thread;
 static DWORD thread_id;
 
 static info_mode_t current_mode;
+static info_mode_class_t classes[MODE_COUNT];
 
 static info_events_t events;
 
-static inline void info_tab_create(const LPWSTR name, info_mode_t index)
+static inline void info_tab_create(const char* name, info_mode_t index)
 {
-	TCITEMW tab = { .mask = TCIF_TEXT, .pszText = name };
+	WCHAR wname[64];
+	RUNTIME_ASSERT(MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, name, -1, wname, sizeof wname / sizeof * wname));
+	TCITEMW tab = { .mask = TCIF_TEXT, .pszText = wname };
 	TabCtrl_InsertItem(tab_control, index, &tab);
 }
 
@@ -43,20 +43,13 @@ static LRESULT info_window_tab_control_proc(HWND hwnd, WPARAM wparam, LPARAM lpa
 	{
 		return 0;
 	}
-	if (current_mode == MODE_SAVE)
-	{
-		save_info_show(false);
-	}
+
+	RUNTIME_ASSERT(current_mode >= 0 && current_mode < MODE_COUNT);
+	classes[current_mode].show(false);
 	current_mode = TabCtrl_GetCurSel(tab_control);
-	switch (current_mode)
-	{
-	case MODE_SAVE:
-		save_info_show(true);
-		break;
-	default:
-		RUNTIME_ASSERT(false);
-		break;
-	}
+	RUNTIME_ASSERT(current_mode >= 0 && current_mode < MODE_COUNT);
+	classes[current_mode].show(true);
+
 	RAISE_EVENT(events.mode_handler, current_mode);
 	return 0;
 }
@@ -70,14 +63,15 @@ static LRESULT info_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
 		tab_control = CreateWindowExW(0, WC_TABCONTROLW, NULL, WS_VISIBLE | WS_CHILD | WS_CLIPSIBLINGS, 0, 0, INFO_BOX_CLIENT_WIDTH, INFO_BOX_CLIENT_HEIGHT, hwnd, NULL, NULL, NULL);
 		RUNTIME_ASSERT(tab_control);
 
-		info_tab_create(L"Save", MODE_SAVE);
-		info_tab_create(L"Sprite", MODE_SPRITE);
-		info_tab_create(L"Layer", MODE_LAYER);
-
 		info_internal_t internal = { .window = hwnd, .events = &events, .font_caption = font_caption, .font_text = font_text };
-		save_info_initialize(&internal);
-		save_info_show(true);
+		for (int i = 0; i < MODE_COUNT; i++)
+		{
+			info_tab_create(classes[i].caption, i);
+			classes[i].initialize(&internal);
+		}
+
 		current_mode = MODE_SAVE;
+		classes[current_mode].show(true);
 
 		SendMessageW(tab_control, WM_SETFONT, (WPARAM)font_caption, FALSE);
 		return 0;
@@ -98,13 +92,8 @@ static LRESULT info_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
 		PostQuitMessage(0);
 		return 0;
 	}
-	bool use_result = false;
 	LRESULT result;
-	if (current_mode == MODE_SAVE)
-	{
-		use_result = save_info_proc(hwnd, msg, wparam, lparam, &result);
-	}
-	return use_result ? result : DefWindowProcW(hwnd, msg, wparam, lparam);
+	return classes[current_mode].proc(hwnd, msg, wparam, lparam, &result) ? result : DefWindowProcW(hwnd, msg, wparam, lparam);
 }
 
 static void info_window_initialize(void)
@@ -160,8 +149,20 @@ static DWORD info_thread_proc(LPVOID param)
 	return result;
 }
 
+void info_add_class(const info_mode_class_t* class)
+{
+	RUNTIME_ASSERT(class->mode >= 0 && class->mode < MODE_COUNT);
+	classes[class->mode] = *class;
+}
+
 void info_initialize(info_events_t _events)
 {
+	for (int i = 0; i < MODE_COUNT; i++)
+	{
+		/* just a check to see if the class was actually initialized and exists */
+		RUNTIME_ASSERT(classes[i].initialize);
+	}
+
 	events = _events;
 
 	INITCOMMONCONTROLSEX icc = { .dwSize = sizeof icc, .dwICC = ICC_TREEVIEW_CLASSES | ICC_TAB_CLASSES };

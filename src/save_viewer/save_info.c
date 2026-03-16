@@ -172,7 +172,7 @@ static void save_info_window_change_current(element_t element)
 	action_buffer_post_add_block(state);
 }
 
-static void save_info_window_save_tree_control_handle_double_click(HWND hwnd, HTREEITEM res)
+static void save_info_window_tree_control_handle_double_click(HWND hwnd, HTREEITEM res)
 {
 	TVITEMEXW tvi;
 	tvi.hItem = res;
@@ -219,7 +219,7 @@ static LRESULT save_info_window_save_tree_control_proc(HWND hwnd, WPARAM wparam,
 		HTREEITEM res = TreeView_HitTest(nmtv->hdr.hwndFrom, &info);
 		if (res && info.flags & TVHT_ONITEM)
 		{
-			save_info_window_save_tree_control_handle_double_click(nmtv->hdr.hwndFrom, res);
+			save_info_window_tree_control_handle_double_click(nmtv->hdr.hwndFrom, res);
 		}
 	}
 	return 0;

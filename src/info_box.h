@@ -11,6 +11,8 @@
 
 #define INFO_BRUSH_MIN_SIZE 1
 #define INFO_BRUSH_MAX_SIZE 6
+#define INFO_BOX_CLIENT_WIDTH 450
+#define INFO_BOX_CLIENT_HEIGHT 392
 
 typedef enum info_mode
 {
@@ -45,18 +47,13 @@ typedef struct info_events
 	info_handle_change_global_field global_field_handler;
 } info_events_t;
 
+typedef struct info_internal
+{
+	HFONT font_caption, font_text;
+	HWND window;
+	const info_events_t* events;
+} info_internal_t;
+
 void info_initialize(info_events_t events);
 void info_destroy(void);
-
 info_mode_t info_get_current_mode(void);
-info_tool_t info_get_current_tool(void);
-void info_get_current_brush_block(complete_block_t* res);
-int info_get_current_brush_size(void);
-
-dnr_state_t* info_state_get(void);
-void info_state_set(dnr_state_t* state);
-
-void info_cell_set_current(int x, int y);
-void info_cell_set_current_region(region_t region);
-
-element_t info_element_find(bool global, const char* query);

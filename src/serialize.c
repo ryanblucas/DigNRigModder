@@ -3,7 +3,7 @@
 */
 
 #include "serialize.h"
-#include "change_field_modal.h"
+#include "interface/change_field_modal.h"
 #include "path.h"
 #include <strsafe.h>
 #include <stdio.h>

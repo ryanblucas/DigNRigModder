@@ -365,7 +365,7 @@ static void file_state_load_shop_item(const uint32_t* arena, shop_item_t* item, 
 	item->mineral_cost[1] = arena[index * 0x8 + 0x97];
 	item->mineral_cost[2] = arena[index * 0x8 + 0x98];
 	item->mineral_cost[3] = arena[index * 0x8 + 0x99];
-	item->mineral_cost[4] = arena[(index + 0x15) * 0x8 - 0x0E];
+	item->mineral_cost[4] = arena[index * 0x8 + 0x9A];
 	item->mineral_cost[5] = arena[index * 0x8 + 0x9B];
 	item->mineral_cost[6] = arena[index * 0x8 + 0x9C];
 	item->mineral_cost[7] = arena[index * 0x8 + 0x9D];
@@ -452,7 +452,7 @@ static void file_state_save_shop_item(uint32_t* arena, const shop_item_t* item, 
 	arena[index * 0x8 + 0x97] = item->mineral_cost[1];
 	arena[index * 0x8 + 0x98] = item->mineral_cost[2];
 	arena[index * 0x8 + 0x99] = item->mineral_cost[3];
-	arena[(index + 0x15) * 0x8 - 0x0E] = item->mineral_cost[4];
+	arena[index * 0x8 + 0x9A] = item->mineral_cost[4];
 	arena[index * 0x8 + 0x9B] = item->mineral_cost[5];
 	arena[index * 0x8 + 0x9C] = item->mineral_cost[6];
 	arena[index * 0x8 + 0x9D] = item->mineral_cost[7];

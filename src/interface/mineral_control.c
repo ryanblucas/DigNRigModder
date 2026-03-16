@@ -3,10 +3,10 @@
 */
 
 #include "mineral_control.h"
-#include "debug.h"
-#include "screen.h"
+#include "../debug.h"
+#include "../screen.h"
 #include <stdio.h>
-#include "types.h"
+#include "../types.h"
 #include <Windows.h>
 
 struct mineral_control_internal

@@ -4,7 +4,7 @@
 
 #include "change_field_modal.h"
 #include "charmap_control.h"
-#include "file.h"
+#include "../file.h"
 #include "mineral_control.h"
 #include "resource.h"
 #include <strsafe.h>

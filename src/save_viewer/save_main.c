@@ -1,15 +1,16 @@
 /*
-	save_viewer.c ~ RL
+	save_main.c ~ RL
 	Views save files
 */
 
-#include "action_buffer.h"
-#include "change_field_modal.h"
-#include "file.h"
-#include "game.h"
-#include "info_box.h"
-#include "path.h"
-#include "screen.h"
+#include "save_info.h"
+#include "../action_buffer.h"
+#include "../interface/change_field_modal.h"
+#include "../file.h"
+#include "../game.h"
+#include "../info_box.h"
+#include "../path.h"
+#include "../screen.h"
 #include <stdio.h>
 
 #define MAX_SELECTION_WIDTH 120
@@ -114,7 +115,7 @@ static void save_viewer_stop_move(void)
 	selection_region = INVALID_REGION;
 	screen_sprite_destroy(selection_visual);
 	selection_visual = NULL;
-	info_cell_set_current(-1, -1);
+	save_info_cell_set_current(-1, -1);
 
 	screen_repaint();
 }
@@ -317,7 +318,7 @@ static void save_viewer_handle_keyboard(virtual_key_t vk, keyboard_control_t ctr
 
 			save_viewer_invalidate_region((region_t) { 0, 0, WORLD_WIDTH - 1, WORLD_HEIGHT - 1 });
 
-			info_state_set(save);
+			save_info_state_set(save);
 			screen_repaint();
 		}
 		else if (vk == 'Z')
@@ -361,7 +362,7 @@ static void save_viewer_select_handle_mouse_button(bool m1_down, int x, int y)
 		}
 		if (!region_is_invalid(selection_region) && region_size(selection_region) > 1)
 		{
-			info_cell_set_current_region(selection_region);
+			save_info_cell_set_current_region(selection_region);
 			screen_repaint();
 		}
 		return;
@@ -378,7 +379,7 @@ static void save_viewer_select_handle_mouse_button(bool m1_down, int x, int y)
 
 	selection_region.x0 = selection_region.x1 = new_selected_x;
 	selection_region.y0 = selection_region.y1 = new_selected_y;
-	info_cell_set_current(new_selected_x, new_selected_y);
+	save_info_cell_set_current(new_selected_x, new_selected_y);
 
 	screen_repaint();
 }
@@ -407,7 +408,7 @@ static void save_viewer_select_handle_mouse_move(bool m1_down, int x, int y)
 	selection_region.y1 = max(selection_region.y1, selection_region.y0 - MAX_SELECTION_HEIGHT + 1);
 	if (region_size(selection_region) != 1)
 	{
-		info_cell_set_current(-1, -1);
+		save_info_cell_set_current(-1, -1);
 	}
 	screen_repaint();
 }
@@ -417,7 +418,7 @@ static void save_viewer_eraser_handle_mouse_button(bool m1_down, int x, int y)
 	if (m1_down)
 	{
 		y += y_pos;
-		int radius = info_get_current_brush_size() - 1;
+		int radius = save_info_get_current_brush_size() - 1;
 		brush_region = region_keep_inside(
 			(region_t) { x - radius, y - radius, x + radius, y + radius }, 
 			(region_t) { 0, 0, WORLD_WIDTH - 1, WORLD_HEIGHT - 1 });
@@ -495,7 +496,7 @@ static void save_viewer_brush(int x, int y, int radius)
 	game_copy(save, region, temp);
 
 	complete_block_t brush;
-	info_get_current_brush_block(&brush);
+	save_info_get_current_brush_block(&brush);
 	for (int y = 0; y < region_width(region); y++)
 	{
 		for (int x = 0; x < region_height(region); x++)
@@ -521,7 +522,7 @@ static void save_viewer_brush_handle_mouse_move(save_viewer_brush_function_t fun
 
 	int new_selected_x = x;
 	int new_selected_y = y + y_pos;
-	int radius = info_get_current_brush_size() - 1;
+	int radius = save_info_get_current_brush_size() - 1;
 
 	region_t final;
 	if (prev_selected_x == -1 && prev_selected_y == -1)
@@ -583,7 +584,7 @@ static void save_viewer_brush_handle_mouse_move(save_viewer_brush_function_t fun
 
 static void save_viewer_handle_mouse_button(bool m1_down, int x, int y)
 {
-	info_tool_t current = info_get_current_tool();
+	info_tool_t current = save_info_get_current_tool();
 	if (current == TOOL_SELECT)
 	{
 		save_viewer_select_handle_mouse_button(m1_down, x, y);
@@ -600,7 +601,7 @@ static void save_viewer_handle_mouse_button(bool m1_down, int x, int y)
 
 static void save_viewer_handle_mouse_move(bool m1_down, int x, int y)
 {
-	info_tool_t current = info_get_current_tool();
+	info_tool_t current = save_info_get_current_tool();
 	if (current == TOOL_SELECT)
 	{
 		save_viewer_select_handle_mouse_move(m1_down, x, y);
@@ -665,7 +666,7 @@ void save_viewer_handle_tool_change(info_tool_t tool)
 	}
 }
 
-int main()
+void save_initialize()
 {
 	if (!file_editor_load(&editor))
 	{
@@ -707,7 +708,7 @@ int main()
 		if (!save)
 		{
 			debug_format("Failed to open a save file on launch\n");
-			return 1;
+			return;
 		}
 	}
 	char buf[MAX_PATH];
@@ -724,15 +725,17 @@ int main()
 	debug_profiler_pop("Spritify all layers");
 
 	save_viewer_move_window(TARGET_HEIGHT / 2 - (int)save->player.y_spawn);
-	info_state_set(save); /* wait till last second to call so that there's not much waiting if any on this thread */
+	save_info_state_set(save); /* wait till last second to call so that there's not much waiting if any on this thread */
 
 	debug_profiler_pop("Application initialization");
 
 	selection_region = brush_region = INVALID_REGION;
 	brush_before_reserved = MAX_SELECTION_SIZE;
 	brush_before_ptr = dig_malloc(sizeof * brush_before_ptr * brush_before_reserved);
-	screen_loop();
+}
 
+void save_destroy(void)
+{
 	file_editor_save(&editor);
 
 	screen_sprite_destroy(flag);
@@ -744,6 +747,4 @@ int main()
 	action_buffer_destroy();
 	info_destroy();
 	screen_destroy();
-
-	return 0;
 }

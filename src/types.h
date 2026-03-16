@@ -9,6 +9,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#define RAISE_EVENT(ev, ...) if (ev) ev(__VA_ARGS__);
+
 #define TARGET_WIDTH	150
 #define TARGET_HEIGHT	100
 #define TARGET_CELL_SIZE 8

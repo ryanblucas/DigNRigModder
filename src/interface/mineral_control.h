@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "screen.h"
+#include "../screen.h"
 #include <Windows.h>
 
 #define MINERAL_CONTROL_CLASS_NAME L"dnr_mineral_control"

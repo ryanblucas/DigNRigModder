@@ -4,8 +4,8 @@
 */
 
 #include "charmap_control.h"
-#include "debug.h"
-#include "types.h"
+#include "../debug.h"
+#include "../types.h"
 #include <Windows.h>
 
 #define CELL_MULTIPLIER 3

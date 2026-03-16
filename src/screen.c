@@ -14,8 +14,6 @@
 #include <stdlib.h>
 #include <Windows.h>
 
-#define RAISE_EVENT(ev, ...) if (ev) ev(__VA_ARGS__);
-
 struct sprite
 {
 	int width, height;

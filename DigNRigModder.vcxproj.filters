@@ -116,4 +116,9 @@
   <ItemGroup>
     <Text Include="todo.txt" />
   </ItemGroup>
+  <ItemGroup>
+    <Image Include="preview\ss1.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+  </ItemGroup>
 </Project>

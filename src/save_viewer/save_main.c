@@ -690,7 +690,7 @@ void save_initialize(editor_state_t* state)
 	if (!save)
 	{
 		save_viewer_prompt_which_save();
-		file_editor_save(&editor);
+		file_editor_save(editor);
 		save = file_state_load(path_find_dnr_save(save_directory, sizeof save_directory, editor->current_save));
 		if (!save)
 		{
@@ -710,7 +710,7 @@ void save_initialize(editor_state_t* state)
 
 void save_destroy(void)
 {
-	file_editor_save(&editor);
+	file_editor_save(editor);
 
 	screen_sprite_destroy(flag);
 	file_state_unload(save);

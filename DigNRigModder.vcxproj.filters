@@ -57,6 +57,12 @@
     <ClCompile Include="src\save_viewer\save_info.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\layer_creator\layer_info.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\layer_creator\layer_main.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\types.h">
@@ -102,6 +108,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\save_viewer\save_info.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\layer_creator\layer_info.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\layer_creator\layer_main.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

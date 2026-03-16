@@ -9,10 +9,6 @@
 /* remove this */
 #include <Windows.h>
 
-#define SAVE_BLOCK_STRUCT_SIZE 0x54
-#define SAVE_MINERAL_STRUCT_SIZE 0x34
-#define SAVE_MINERAL_MAX_COUNT 0xC350
-
 /* This can be found at runtime by counting all the TileTypes that are == 0x7 */
 #define DEFAULT_STALACTITE_COUNT 242
 
@@ -304,7 +300,8 @@ SERIALIZABLE_DNR_STATE_1
 	ADD_SERIALIZABLE_ARRAY(boolean32_t, elements_discovered, MINERAL_COUNT) \
 	ADD_SERIALIZABLE(int32_t, count_elements_discovered)
 SERIALIZABLE_DNR_STATE_2
-	 
+	
+	/* the data here is used for the shop_item_t's */
 	uint32_t reserved2[0x18A];
 
 #define SERIALIZABLE_DNR_STATE_3 \

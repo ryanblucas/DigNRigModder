@@ -284,11 +284,6 @@ bool save_info_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESULT* 
 		return true;
 	}
 	case INFO_BOX_MSG_STATE_READY:
-		if (!child_windows[CWI_SAVE_TREEVIEW])
-		{
-			SetWindowLongPtr(hwnd, GWLP_USERDATA, 1);
-			return true;
-		}
 		if (current_selection_index != -1)
 		{
 			save_info_cell_set_current(current_selection_index / WORLD_HEIGHT, current_selection_index % WORLD_HEIGHT);
@@ -343,7 +338,7 @@ void save_info_state_set(dnr_state_t* _state)
 			Sleep(10);
 		}
 		RUNTIME_ASSERT(internal.window);
-		SendMessageW(internal.window, INFO_BOX_MSG_STATE_READY, (WPARAM)state, 0);
+		PostMessageW(internal.window, INFO_BOX_MSG_STATE_READY, (WPARAM)state, 0);
 	}
 }
 

@@ -186,6 +186,10 @@ void info_set_current_mode(info_mode_t mode)
 	{
 		Sleep(10);
 	}
+	if (mode == current_mode)
+	{
+		return;
+	}
 	RUNTIME_ASSERT((int)mode >= 0 && (int)mode < MODE_COUNT);
 	TabCtrl_SetCurSel(tab_control, mode);
 	classes[current_mode].show(false);

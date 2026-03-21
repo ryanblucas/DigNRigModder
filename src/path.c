@@ -46,3 +46,41 @@ char* path_find_dnr_save(char* buf, size_t buf_size, int save)
 	snprintf(subdirectory, sizeof subdirectory, "profile%i.sav", save);
 	return path_find_dnr_docs(buf, buf_size, subdirectory);
 }
+
+char* path_enumerate_directory_create(const char* directory, int* max)
+{
+	WIN32_FIND_DATAA wfd = { 0 };
+	HANDLE next = FindFirstFileA(directory, &wfd);
+	if (!next)
+	{
+		return NULL;
+	}
+	/* sure hope there's not INT_MAX layers someone made! */
+	int start = *max > 0 ? *max : 0;
+	size_t reserved = 8 * MAX_PATH;
+	char* result = dig_malloc(reserved);
+	char* curr = result - 1;
+	do
+	{
+		curr++;
+		size_t len = strnlen(wfd.cFileName, sizeof wfd.cFileName);
+		size_t curr_len = curr - result;
+		if (curr_len + len >= reserved)
+		{
+			char* next = dig_malloc(reserved * 2);
+			strncpy(next, result, curr_len);
+			free(result);
+			result = next;
+			curr = result + curr_len;
+		}
+		strncpy(curr, wfd.cFileName, sizeof wfd.cFileName);
+		curr += len;
+		*curr = 0;
+	} while (--*max != 0 && FindNextFileA(next, &wfd));
+	DWORD error = GetLastError();
+	/* ERROR_NO_TOKEN refers to if permissions used to run this application don't allow it to get all the metadata--not that important */
+	RUNTIME_ASSERT(error == 0 || error == ERROR_NO_MORE_FILES || error == ERROR_NO_TOKEN);
+	FindClose(next);
+	*max = abs(start - *max);
+	return result;
+}

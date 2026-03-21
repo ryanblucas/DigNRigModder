@@ -88,10 +88,16 @@ void save_info_initialize(const info_internal_t* _internal)
 	{
 		SendMessageW(internal.window, INFO_BOX_MSG_STATE_READY, (WPARAM)state, 0);
 	}
+
+	save_info_show(false);
 }
 
 void save_info_destroy(void)
 {
+	for (int i = 0; i < CWI_COUNT; i++)
+	{
+		DestroyWindow(child_windows[i]);
+	}
 	mineral_control_destroy();
 	charmap_control_destroy();
 }

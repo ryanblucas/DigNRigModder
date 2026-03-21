@@ -752,4 +752,5 @@ void save_start(void)
 void save_end(void)
 {
 	selection_region = brush_region = INVALID_REGION;
+	save_viewer_move_window(y_pos);
 }

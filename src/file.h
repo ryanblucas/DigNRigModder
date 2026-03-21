@@ -6,7 +6,6 @@
 #pragma once
 
 #include "types.h"
-/* remove this */
 #include <Windows.h>
 
 /* This can be found at runtime by counting all the TileTypes that are == 0x7 */

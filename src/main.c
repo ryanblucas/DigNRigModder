@@ -3,8 +3,43 @@
 */
 
 #include "save_viewer/save_main.h"
+#include "layer_creator/layer_main.h"
 #include "screen.h"
 #include "info_box.h"
+
+static void call_respective_start(info_mode_t mode)
+{
+	switch (mode)
+	{
+	case MODE_SAVE:
+		save_start();
+		break;
+	case MODE_LAYER:
+		layer_start();
+		break;
+	}
+}
+
+static void call_respective_end(info_mode_t mode)
+{
+	switch (mode)
+	{
+	case MODE_SAVE:
+		save_end();
+		break;
+	case MODE_LAYER:
+		layer_end();
+		break;
+	}
+}
+
+static void change_mode_handler(info_mode_t mode)
+{
+	call_respective_end(info_get_current_mode());
+	screen_clear();
+	screen_invalidate();
+	call_respective_start(mode);
+}
 
 int main()
 {
@@ -15,17 +50,19 @@ int main()
 	}
 
 	save_initialize(&editor);
+	layer_initialize(&editor);
 
 	screen_initialize();
 	screen_change_title("Dig-N-Rig Display");
 	/* initialize info after screen so that the window is placed adjacent to the console as opposed to under it */
-	info_initialize();
+	info_initialize(change_mode_handler);
 
-	save_start();
+	call_respective_start(info_get_current_mode());
 	screen_loop();
-	save_end();
+	call_respective_end(info_get_current_mode());
 
 	save_destroy();
+	layer_destroy();
 
 	info_destroy();
 	screen_destroy();

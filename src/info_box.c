@@ -27,6 +27,7 @@ static info_mode_t current_mode;
 static info_mode_class_t classes[MODE_COUNT];
 
 static info_events_t events;
+static info_handle_change_mode change_mode;
 
 static inline void info_tab_create(const char* name, info_mode_t index)
 {
@@ -46,11 +47,12 @@ static LRESULT info_window_tab_control_proc(HWND hwnd, WPARAM wparam, LPARAM lpa
 
 	RUNTIME_ASSERT(current_mode >= 0 && current_mode < MODE_COUNT);
 	classes[current_mode].show(false);
-	current_mode = TabCtrl_GetCurSel(tab_control);
-	RUNTIME_ASSERT(current_mode >= 0 && current_mode < MODE_COUNT);
-	classes[current_mode].show(true);
+	info_mode_t next_mode = TabCtrl_GetCurSel(tab_control);
+	RUNTIME_ASSERT(next_mode >= 0 && next_mode < MODE_COUNT);
+	RAISE_EVENT(change_mode, next_mode);
+	classes[next_mode].show(true);
+	current_mode = next_mode;
 
-	RAISE_EVENT(events.mode_handler, current_mode);
 	return 0;
 }
 
@@ -162,8 +164,9 @@ void info_set_event_handlers(const info_events_t* _events)
 	events = *_events;
 }
 
-void info_initialize(void)
+void info_initialize(info_handle_change_mode _change_mode)
 {
+	change_mode = _change_mode;
 	INITCOMMONCONTROLSEX icc = { .dwSize = sizeof icc, .dwICC = ICC_TREEVIEW_CLASSES | ICC_TAB_CLASSES };
 	RUNTIME_ASSERT(InitCommonControlsEx(&icc));
 

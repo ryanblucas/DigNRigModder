@@ -37,25 +37,6 @@ static inline void info_tab_create(const char* name, info_mode_t index)
 	TabCtrl_InsertItem(tab_control, index, &tab);
 }
 
-static LRESULT info_window_tab_control_proc(HWND hwnd, WPARAM wparam, LPARAM lparam)
-{
-	NMHDR* nmhdr = (NMHDR*)lparam;
-	if (nmhdr->code != TCN_SELCHANGE)
-	{
-		return 0;
-	}
-
-	RUNTIME_ASSERT(current_mode >= 0 && current_mode < MODE_COUNT);
-	classes[current_mode].show(false);
-	info_mode_t next_mode = TabCtrl_GetCurSel(tab_control);
-	RUNTIME_ASSERT(next_mode >= 0 && next_mode < MODE_COUNT);
-	RAISE_EVENT(change_mode, next_mode);
-	classes[next_mode].show(true);
-	current_mode = next_mode;
-
-	return 0;
-}
-
 static LRESULT info_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
 	switch (msg)
@@ -74,7 +55,6 @@ static LRESULT info_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
 			classes[i].initialize(&internal);
 		}
 
-		current_mode = MODE_SAVE;
 		classes[current_mode].show(true);
 
 		SendMessageW(tab_control, WM_SETFONT, (WPARAM)font_caption, FALSE);
@@ -83,9 +63,9 @@ static LRESULT info_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
 	case WM_NOTIFY:
 	{
 		NMHDR* nmhdr = (NMHDR*)lparam;
-		if (nmhdr->hwndFrom == tab_control)
+		if (nmhdr->hwndFrom == tab_control && nmhdr->code == TCN_SELCHANGE)
 		{
-			return info_window_tab_control_proc(hwnd, wparam, lparam);
+			info_set_current_mode(TabCtrl_GetCurSel(tab_control));
 		}
 		break;
 	}
@@ -198,4 +178,18 @@ void info_destroy(void)
 info_mode_t info_get_current_mode(void)
 {
 	return current_mode;
+}
+
+void info_set_current_mode(info_mode_t mode)
+{
+	for (int i = 0; i < 100 && TabCtrl_GetItemCount(tab_control) != MODE_COUNT; i++)
+	{
+		Sleep(10);
+	}
+	RUNTIME_ASSERT((int)mode >= 0 && (int)mode < MODE_COUNT);
+	TabCtrl_SetCurSel(tab_control, mode);
+	classes[current_mode].show(false);
+	RAISE_EVENT(change_mode, mode);
+	classes[mode].show(true);
+	current_mode = mode;
 }

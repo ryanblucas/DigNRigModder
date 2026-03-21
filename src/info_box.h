@@ -14,15 +14,6 @@
 #define INFO_BOX_CLIENT_WIDTH 450
 #define INFO_BOX_CLIENT_HEIGHT 392
 
-typedef enum info_mode
-{
-	MODE_SAVE,
-	//MODE_SPRITE,
-	MODE_LAYER,
-
-	MODE_COUNT
-} info_mode_t;
-
 typedef enum info_tool
 {
 	TOOL_ERASER,
@@ -79,3 +70,4 @@ void info_initialize(info_handle_change_mode change_mode);
 void info_destroy(void);
 
 info_mode_t info_get_current_mode(void);
+void info_set_current_mode(info_mode_t mode);

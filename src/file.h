@@ -349,6 +349,7 @@ enum {
 typedef struct editor_state
 {
 	int current_save;
+	info_mode_t current_mode;
 } editor_state_t;
 
 bool file_editor_load(editor_state_t* state);

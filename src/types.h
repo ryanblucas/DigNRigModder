@@ -29,6 +29,14 @@
 #define ATTRIBUTE_FOREGROUND(attrib) ((attrib) & 0x0F)
 #define ATTRIBUTE_BACKGROUND(attrib) (((attrib) >> 4) & 0x0F)
 
+typedef enum info_mode
+{
+	MODE_SAVE,
+	MODE_LAYER,
+	// MODE_SPRITE,
+	MODE_COUNT
+} info_mode_t;
+
 /* 4-bit color, 0bIRGB */
 typedef enum color
 {

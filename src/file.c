@@ -175,6 +175,8 @@ bool file_editor_load(editor_state_t* state)
 		return false;
 	}
 
+	memset(state, 0, sizeof * state);
+
 	bool result = false;
 	struct token curr;
 	file_next(&file, &curr);
@@ -188,6 +190,21 @@ bool file_editor_load(editor_state_t* state)
 			MATCH_AND_ADVANCE_TOKEN(&file, curr, TOKEN_NEWLINE);
 			MATCH_TOKEN(&file, curr, TOKEN_INTEGER);
 			state->current_save = curr.data.integer;
+			file_next(&file, &curr);
+		}
+		else if (strncmp(curr.data.str, "CurrentMode", DATA_STRING_MAX_SIZE) == 0)
+		{
+			file_next(&file, &curr);
+			MATCH_AND_ADVANCE_TOKEN(&file, curr, TOKEN_NEWLINE);
+			MATCH_TOKEN(&file, curr, TOKEN_STRING);
+			if (strncmp(curr.data.str, "Save", DATA_STRING_MAX_SIZE) == 0)
+			{
+				state->current_mode = MODE_SAVE;
+			}
+			else if (strncmp(curr.data.str, "Layer", DATA_STRING_MAX_SIZE) == 0)
+			{
+				state->current_mode = MODE_LAYER;
+			}
 			file_next(&file, &curr);
 		}
 		else
@@ -218,6 +235,18 @@ bool file_editor_save(const editor_state_t* state)
 	}
 
 	fprintf(file, "#CurrentSave\n%i\n", state->current_save);
+
+	const char* mode_descriptor = NULL;
+	switch (state->current_mode)
+	{
+	case MODE_SAVE:
+		mode_descriptor = "Save";
+		break;
+	case MODE_LAYER:
+		mode_descriptor = "Layer";
+		break;
+	}
+	fprintf(file, "#CurrentMode\n%s\n", mode_descriptor);
 	
 	fclose(file);
 	return true;

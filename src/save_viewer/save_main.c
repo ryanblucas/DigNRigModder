@@ -710,8 +710,6 @@ void save_initialize(editor_state_t* state)
 
 void save_destroy(void)
 {
-	file_editor_save(editor);
-
 	screen_sprite_destroy(flag);
 	file_state_unload(save);
 

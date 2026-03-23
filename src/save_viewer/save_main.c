@@ -224,12 +224,11 @@ static void save_viewer_handle_repaint()
 		return;
 	}
 
+	region_t screen_region = region_validate(selection_region);
+	screen_region.y0 -= y_pos;
+	screen_region.y1 -= y_pos;
 	if (hinge_x >= 0 && hinge_y >= 0)
 	{
-		region_t screen_region = region_validate(selection_region);
-		screen_region.y0 -= y_pos;
-		screen_region.y1 -= y_pos;
-
 		attribute_t* selected = dig_malloc(region_size(screen_region) * sizeof * selected);
 		memset(selected, 0, region_size(screen_region) * sizeof * selected);
 
@@ -238,7 +237,7 @@ static void save_viewer_handle_repaint()
 		free(selected);
 		return;
 	}
-	screen_invert_region(region_validate(selection_region));
+	screen_invert_region(region_validate(screen_region));
 }
 
 static void save_viewer_delete_selection(void)
@@ -667,28 +666,11 @@ void save_initialize(editor_state_t* state)
 	action_buffer = action_buffer_initialize();
 	save_info_action_buffer_set(action_buffer);
 
-	save = file_state_load(path_find_dnr_save(save_directory, sizeof save_directory, editor->current_save));
-	if (!save)
-	{
-		save_viewer_prompt_which_save();
-		file_editor_save(editor);
-		save = file_state_load(path_find_dnr_save(save_directory, sizeof save_directory, editor->current_save));
-		if (!save)
-		{
-			debug_format("Failed to open a save file on launch\n");
-			return;
-		}
-	}
 	char buf[MAX_PATH];
 	asset_t asset = file_asset_load(path_find_dnr_main(buf, sizeof buf, "Sprites\\Checkpoint.sprite"));
 	flag = game_spritify_asset(asset);
 	file_asset_unload(&asset);
 	RUNTIME_ASSERT(flag);
-
-	for (int i = 0; i < LAYER_COUNT; i++)
-	{
-		cache[i] = game_spritify_layer(save, i);
-	}
 }
 
 void save_destroy(void)
@@ -700,6 +682,24 @@ void save_destroy(void)
 	free(brush_before_ptr);
 
 	action_buffer_destroy(action_buffer);
+}
+
+static bool save_try_load_save(void)
+{
+	debug_format("Trying to load save\n");
+	save = file_state_load(path_find_dnr_save(save_directory, sizeof save_directory, editor->current_save));
+	if (!save)
+	{
+		save_viewer_prompt_which_save();
+		file_editor_save(editor);
+		save = file_state_load(path_find_dnr_save(save_directory, sizeof save_directory, editor->current_save));
+		if (!save)
+		{
+			debug_format("Failed to open a save file on launch\n");
+			return false;
+		}
+	}
+	return true;
 }
 
 void save_start(void)
@@ -721,6 +721,17 @@ void save_start(void)
 		.tool_handler = save_viewer_handle_tool_change,
 	};
 	info_set_event_handlers(&info_events);
+
+	if (!save && !save_try_load_save())
+	{
+		/* eventually, this shouldn't crash the application */
+		RUNTIME_ASSERT(false);
+		return;
+	}
+	for (int i = 0; i < LAYER_COUNT; i++)
+	{
+		cache[i] = game_spritify_layer(save, i);
+	}
 
 	save_viewer_move_window(TARGET_HEIGHT / 2 - save->spawn_y);
 	save_info_state_set(save); /* wait till last second to call so that there's not much waiting if any on this thread */

@@ -329,17 +329,13 @@ dnr_state_t* save_info_state_get(void)
 void save_info_state_set(dnr_state_t* _state)
 {
 	state = _state;
-
-	if (info_get_current_mode() == MODE_SAVE)
+	/* i do not like this */
+	for (int i = 0; i < 100 && !internal.window; i++)
 	{
-		/* i do not like this */
-		for (int i = 0; i < 100 && !internal.window; i++)
-		{
-			Sleep(10);
-		}
-		RUNTIME_ASSERT(internal.window);
-		PostMessageW(internal.window, INFO_BOX_MSG_STATE_READY, (WPARAM)state, 0);
+		Sleep(10);
 	}
+	RUNTIME_ASSERT(internal.window);
+	PostMessageW(internal.window, INFO_BOX_MSG_STATE_READY, (WPARAM)state, 0);
 }
 
 info_tool_t save_info_get_current_tool(void)

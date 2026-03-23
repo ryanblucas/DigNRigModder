@@ -192,6 +192,7 @@ static void layer_handle_mouse_move(bool m1_down, int x, int y)
 
 void layer_start(void)
 {
+	selection_region = INVALID_REGION;
 	info_events_t info_events =
 	{
 		.file_handler = layer_handle_file_change

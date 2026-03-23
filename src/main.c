@@ -37,11 +37,15 @@ static void call_respective_end(info_mode_t mode)
 
 static void change_mode_handler(info_mode_t mode)
 {
+	debug_profiler_push();
+
 	call_respective_end(info_get_current_mode());
 	screen_clear();
 	screen_invalidate();
 	editor.current_mode = mode;
 	call_respective_start(mode);
+
+	debug_profiler_pop("Mode change");
 }
 
 int main()

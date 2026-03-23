@@ -340,6 +340,35 @@ enum {
 	DNR_STATE_T_SIZE_CHECK = 1 / (sizeof(dnr_state_t) == 23445008)
 };
 
+typedef enum asset_tile_type
+{
+#define SERIALIZABLE_ASSET_TILE_TYPE \
+	ADD_SERIALIZABLE_ENUM(TILE_TYPE_STALACTITE, 0x7)
+SERIALIZABLE_ASSET_TILE_TYPE
+} asset_tile_type_t;
+
+typedef struct asset_block
+{
+#define SERIALIZABLE_ASSET_BLOCK \
+	ADD_SERIALIZABLE(CHAR_INFO, visual) \
+	ADD_SERIALIZABLE(asset_tile_type_t, tile_type)
+SERIALIZABLE_ASSET_BLOCK
+} asset_block_t;
+
+typedef struct asset
+{
+#define SERIALIZABLE_ASSET \
+	ADD_SERIALIZABLE(int32_t, width) \
+	ADD_SERIALIZABLE(int32_t, height) \
+	ADD_SERIALIZABLE(rgb_color_t, dirt_color) \
+	ADD_SERIALIZABLE(int32_t, weather1) \
+	ADD_SERIALIZABLE(int32_t, weather2) \
+	ADD_SERIALIZABLE(float, weather3)
+SERIALIZABLE_ASSET
+
+	asset_block_t* blocks;
+} asset_t;
+
 #undef ADD_SERIALIZABLE
 #undef ADD_SERIALIZABLE_ARRAY
 #undef ADD_SERIALIZABLE_ENUM
@@ -355,7 +384,8 @@ typedef struct editor_state
 bool file_editor_load(editor_state_t* state);
 bool file_editor_save(const editor_state_t* state);
 
-sprite_t file_sprite_load(const char* directory);
+asset_t file_asset_load(const char* directory);
+void file_asset_unload(asset_t* asset);
 
 dnr_state_t* file_state_load(const char* directory);
 void file_state_unload(dnr_state_t* save);

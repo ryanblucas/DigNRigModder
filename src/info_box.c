@@ -27,7 +27,7 @@ static info_mode_t current_mode;
 static info_mode_class_t classes[MODE_COUNT];
 
 static info_events_t events;
-static info_handle_change_mode change_mode;
+static info_handle_change_mode_t change_mode;
 
 static inline void info_tab_create(const char* name, info_mode_t index)
 {
@@ -144,7 +144,7 @@ void info_set_event_handlers(const info_events_t* _events)
 	events = *_events;
 }
 
-void info_initialize(info_handle_change_mode _change_mode)
+void info_initialize(info_handle_change_mode_t _change_mode)
 {
 	change_mode = _change_mode;
 	INITCOMMONCONTROLSEX icc = { .dwSize = sizeof icc, .dwICC = ICC_TREEVIEW_CLASSES | ICC_TAB_CLASSES };

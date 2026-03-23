@@ -56,6 +56,8 @@ int screen_get_char_region(char* out, region_t region);
 	If there are cells outside of the region provided, the result will still be in wx*wy dimensions. */
 int screen_get_attrib_region(attribute_t* out, region_t region);
 
+void screen_invert_region(region_t region);
+
 sprite_t screen_sprite_create(int width, int height, rgb_color_t dirt_color, char* text, attribute_t* attrib);
 void screen_sprite_destroy(sprite_t sprite);
 void screen_sprite_render(int x, int y, const sprite_t sprite);

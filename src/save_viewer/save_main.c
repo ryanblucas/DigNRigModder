@@ -207,25 +207,6 @@ static void save_viewer_move_window(int addend)
 	screen_repaint();
 }
 
-static void save_viewer_invert_region(region_t region)
-{
-	if (region_is_invalid(region))
-	{
-		return;
-	}
-	region = region_keep_inside(region, (region_t) { 0, 0, WORLD_WIDTH - 1, WORLD_HEIGHT - 1 });
-	region.y0 -= y_pos;
-	region.y1 -= y_pos;
-	attribute_t* selected = dig_malloc(region_size(region) * sizeof * selected);
-	screen_get_attrib_region(selected, region);
-	for (int i = 0; i < region_size(region); i++)
-	{
-		selected[i] = ~selected[i] & 0xFF;
-	}
-	screen_set_attrib_region(selected, region);
-	free(selected);
-}
-
 static void save_viewer_handle_repaint()
 {
 	int top = y_pos / TARGET_HEIGHT;
@@ -257,7 +238,7 @@ static void save_viewer_handle_repaint()
 		free(selected);
 		return;
 	}
-	save_viewer_invert_region(region_validate(selection_region));
+	screen_invert_region(region_validate(selection_region));
 }
 
 static void save_viewer_delete_selection(void)
@@ -415,7 +396,7 @@ static void save_viewer_select_handle_mouse_move(bool m1_down, int x, int y)
 	screen_repaint();
 }
 
-static void save_viewer_eraser_handle_mouse_button(bool m1_down, int x, int y)
+static void save_viewer_brush_handle_mouse_button(bool m1_down, int x, int y)
 {
 	if (m1_down)
 	{
@@ -593,11 +574,11 @@ static void save_viewer_handle_mouse_button(bool m1_down, int x, int y)
 	}
 	else if (current == TOOL_ERASER)
 	{
-		save_viewer_eraser_handle_mouse_button(m1_down, x, y);
+		save_viewer_brush_handle_mouse_button(m1_down, x, y);
 	}
 	else if (current == TOOL_BRUSH)
 	{
-		save_viewer_eraser_handle_mouse_button(m1_down, x, y);
+		save_viewer_brush_handle_mouse_button(m1_down, x, y);
 	}
 }
 
@@ -699,7 +680,9 @@ void save_initialize(editor_state_t* state)
 		}
 	}
 	char buf[MAX_PATH];
-	flag = file_sprite_load(path_find_dnr_main(buf, sizeof buf, "Sprites\\Checkpoint.sprite"));
+	asset_t asset = file_asset_load(path_find_dnr_main(buf, sizeof buf, "Sprites\\Checkpoint.sprite"));
+	flag = game_spritify_asset(asset);
+	file_asset_unload(&asset);
 	RUNTIME_ASSERT(flag);
 
 	for (int i = 0; i < LAYER_COUNT; i++)

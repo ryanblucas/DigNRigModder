@@ -7,7 +7,6 @@
 #include "game.h"
 #include <math.h>
 #include "path.h"
-#include "screen.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -252,8 +251,9 @@ bool file_editor_save(const editor_state_t* state)
 	return true;
 }
 
-sprite_t file_sprite_load(const char* directory)
+asset_t file_asset_load(const char* directory)
 {
+	asset_t res = { .blocks = NULL };
 	struct file file;
 	struct file* pfile = &file;
 	file.line = file.col = 0;
@@ -261,7 +261,7 @@ sprite_t file_sprite_load(const char* directory)
 	if (!file.handle)
 	{
 		debug_format("File \"%s\" does not exist\n", directory);
-		return NULL;
+		return res;
 	}
 
 	/*
@@ -276,12 +276,6 @@ sprite_t file_sprite_load(const char* directory)
 		"Z" - Just means the file is in "editor format"
 	*/
 
-	int width = 0, height = 0;
-	char* text = NULL;
-	uint32_t palette_id = DNR_DEFAULT_DIRT_COLOR;
-	attribute_t* color = NULL;
-	sprite_t res = NULL;
-
 	struct token curr;
 	file_next(pfile, &curr);
 	while (curr.type != TOKEN_EOF)
@@ -294,7 +288,7 @@ sprite_t file_sprite_load(const char* directory)
 			MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_NEWLINE);
 
 			MATCH_TOKEN(pfile, curr, TOKEN_INTEGER);
-			width = curr.data.integer;
+			res.width = curr.data.integer;
 			MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_INTEGER);
 		}
 		else if (strncmp(curr.data.str, "Height", DATA_STRING_MAX_SIZE) == 0)
@@ -303,7 +297,8 @@ sprite_t file_sprite_load(const char* directory)
 			MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_NEWLINE);
 
 			MATCH_TOKEN(pfile, curr, TOKEN_INTEGER);
-			height = curr.data.integer;
+			res.height = curr.data.integer;
+			res.blocks = dig_malloc(res.width * res.height * sizeof * res.blocks);
 			MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_INTEGER);
 		}
 		else if (strncmp(curr.data.str, "Image", DATA_STRING_MAX_SIZE) == 0)
@@ -311,18 +306,14 @@ sprite_t file_sprite_load(const char* directory)
 			file_next(pfile, &curr);
 			MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_NEWLINE);
 
-			ENSURE_CONDITION(pfile, width != 0 && height != 0);
-
-			text = dig_malloc(width * height * sizeof * text);
-			char* curr_text = text;
-
-			for (int y = 0; y < height; y++)
+			ENSURE_CONDITION(pfile, res.width != 0 && res.height != 0 && res.blocks);
+			for (int y = 0; y < res.height; y++)
 			{
 				MATCH_TOKEN(pfile, curr, TOKEN_INTEGER);
-				for (int x = 0; x < width; x++)
+				for (int x = 0; x < res.width; x++)
 				{
 					ENSURE_CONDITION(pfile, (curr.data.integer & 0xFFFFFF00) == 0);
-					*curr_text++ = curr.data.integer;
+					res.blocks[y * res.width + x].visual.Char.AsciiChar = curr.data.integer;
 					MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_INTEGER);
 				}
 				MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_NEWLINE);
@@ -333,18 +324,14 @@ sprite_t file_sprite_load(const char* directory)
 			file_next(pfile, &curr);
 			MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_NEWLINE);
 
-			ENSURE_CONDITION(pfile, width != 0 && height != 0);
-
-			color = dig_malloc(width * height * sizeof * color);
-			attribute_t* curr_color = color;
-
-			for (int y = 0; y < height; y++)
+			ENSURE_CONDITION(pfile, res.width != 0 && res.height != 0 && res.blocks);
+			for (int y = 0; y < res.height; y++)
 			{
 				MATCH_TOKEN(pfile, curr, TOKEN_INTEGER);
-				for (int x = 0; x < width; x++)
+				for (int x = 0; x < res.width; x++)
 				{
 					ENSURE_CONDITION(pfile, (curr.data.integer & 0xFFFF0000) == 0);
-					*curr_color++ = curr.data.integer;
+					res.blocks[y * res.width + x].visual.Attributes = curr.data.integer;
 					MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_INTEGER);
 				}
 				MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_NEWLINE);
@@ -354,7 +341,7 @@ sprite_t file_sprite_load(const char* directory)
 		{
 			file_next(pfile, &curr);
 			MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_NEWLINE);
-			palette_id = curr.data.integer;
+			res.dirt_color = curr.data.integer;
 			MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_INTEGER);
 		}
 		else if (strncmp(curr.data.str, "TileType", DATA_STRING_MAX_SIZE) == 0
@@ -367,20 +354,20 @@ sprite_t file_sprite_load(const char* directory)
 		}
 		else
 		{
-			debug_format("Invalid sprite header \"%s\"\n", curr.data.str);
+			debug_format("Invalid asset header \"%s\"\n", curr.data.str);
 			goto cleanup;
 		}
 	}
 
-	ENSURE_CONDITION(pfile, text);
-	ENSURE_CONDITION(pfile, color);
-
-	res = screen_sprite_create(width, height, palette_id, text, color);
 cleanup:
-	free(text);
-	free(color);
 	fclose(file.handle);
 	return res;
+}
+
+void file_asset_unload(asset_t* asset)
+{
+	free(asset->blocks);
+	*asset = (asset_t){ 0 };
 }
 
 static void file_state_load_shop_item(const uint32_t* arena, shop_item_t* item, int index)

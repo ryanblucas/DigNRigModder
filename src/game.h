@@ -34,3 +34,5 @@ bool game_add_stalactite(dnr_state_t* state, stalactite_t stalactite);
 CHAR_INFO game_spritify_cell(const complete_block_t* block);
 /* Renders a layer */
 sprite_t game_spritify_layer(const dnr_state_t* save, int layer_index);
+/* Renders an asset */
+sprite_t game_spritify_asset(const asset_t asset);

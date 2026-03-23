@@ -287,6 +287,15 @@ static void serialize_redo_basic(element_t element)
 			break;
 		}
 		break;
+	case TYPE_ASSET_TILE_TYPE_T:
+		switch (*(asset_tile_type_t*)element->value)
+		{
+			SERIALIZABLE_ASSET_TILE_TYPE
+		default:
+			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#006x", element->name, *(asset_tile_type_t*)element->value);
+			break;
+		}
+		break;
 
 #undef ADD_SERIALIZABLE_ENUM
 	}
@@ -418,6 +427,16 @@ static void serialize_array_internal(uint64_t type_hash, void* value, int start,
 				break;
 			}
 			value = (dnr_mineral_type_t*)value - 1;
+			break;
+		case TYPE_ASSET_TILE_TYPE_T:
+			switch (*(asset_tile_type_t*)value)
+			{
+				SERIALIZABLE_ASSET_TILE_TYPE
+			default:
+				StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%i - %#006x", i, *(asset_tile_type_t*)value);
+				break;
+			}
+			value = (asset_tile_type_t*)value - 1;
 			break;
 
 #undef ADD_SERIALIZABLE_ENUM
@@ -651,6 +670,16 @@ element_t serialize_single(const char* type, void* value, const char* name, HWND
 			SERIALIZABLE_DNR_MINERAL_TYPE
 		default:
 			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#006x", wname, *(dnr_mineral_type_t*)value);
+			break;
+		}
+		tree_item = TreeView_InsertItem(tree_window, &tvins);
+		break;
+	case TYPE_ASSET_TILE_TYPE_T:
+		switch (*(asset_tile_type_t*)value)
+		{
+			SERIALIZABLE_ASSET_TILE_TYPE
+		default:
+			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%s - %#006x", wname, *(asset_tile_type_t*)value);
 			break;
 		}
 		tree_item = TreeView_InsertItem(tree_window, &tvins);

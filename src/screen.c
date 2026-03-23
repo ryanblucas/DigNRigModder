@@ -347,6 +347,23 @@ int screen_get_attrib_region(attribute_t* out, region_t region)
 	return screen_buffer_get_attrib_region(target, TARGET_WIDTH, TARGET_HEIGHT, out, region);
 }
 
+void screen_invert_region(region_t region)
+{
+	if (region_is_invalid(region))
+	{
+		return;
+	}
+	region = region_keep_inside(region, (region_t) { 0, 0, WORLD_WIDTH - 1, WORLD_HEIGHT - 1 });
+	attribute_t* selected = dig_malloc(region_size(region) * sizeof * selected);
+	screen_get_attrib_region(selected, region);
+	for (int i = 0; i < region_size(region); i++)
+	{
+		selected[i] = ~selected[i] & 0xFF;
+	}
+	screen_set_attrib_region(selected, region);
+	free(selected);
+}
+
 sprite_t screen_sprite_create(int width, int height, rgb_color_t dirt_color, char* text, attribute_t* attrib)
 {
 	RUNTIME_ASSERT(text && attrib);

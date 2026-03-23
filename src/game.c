@@ -208,3 +208,25 @@ sprite_t game_spritify_layer(const dnr_state_t* save, int layer_index)
 	free(attrib);
 	return res;
 }
+
+sprite_t game_spritify_asset(const asset_t asset)
+{
+	char* text = dig_malloc(asset.width * asset.height);
+	attribute_t* attrib = dig_malloc(asset.width * asset.height * sizeof * attrib);
+	
+	for (int y = 0; y < asset.height; y++)
+	{
+		for (int x = 0; x < asset.width; x++)
+		{
+			text[y * asset.width + x] = asset.blocks[y * asset.width + x].visual.Char.AsciiChar;
+			attrib[y * asset.width + x] = asset.blocks[y * asset.width + x].visual.Attributes;
+		}
+	}
+
+	sprite_t result = screen_sprite_create(asset.width, asset.height, asset.dirt_color, text, attrib);
+
+	free(text);
+	free(attrib);
+
+	return result;
+}

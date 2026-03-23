@@ -35,6 +35,7 @@ typedef struct element* element_t;
 #define TYPE_DNR_MINERAL_TYPE_T 12303576239558253438ULL
 #define TYPE_DNR_MINERAL_T 15207893016492402041ULL
 #define TYPE_SHOP_ITEM_T 13792554352684676960ULL
+#define TYPE_ASSET_TILE_TYPE_T 17062221474420819378ULL
 
 size_t serialize_element_get_size(const element_t element);
 void serialize_element_get_name(const element_t element, char* buf, size_t buf_size);

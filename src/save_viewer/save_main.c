@@ -728,6 +728,7 @@ void save_start(void)
 		RUNTIME_ASSERT(false);
 		return;
 	}
+	RUNTIME_ASSERT(save);
 	for (int i = 0; i < LAYER_COUNT; i++)
 	{
 		cache[i] = game_spritify_layer(save, i);

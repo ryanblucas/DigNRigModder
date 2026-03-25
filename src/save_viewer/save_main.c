@@ -251,7 +251,8 @@ static void save_viewer_handle_keyboard(virtual_key_t vk, keyboard_control_t ctr
 
 static void save_viewer_select_handle_mouse_button(bool m1_down, int x, int y)
 {
-	switch (tool_select_handle_mouse_click(select_tool, m1_down, x, y, y_pos))
+	tool_select_event_t result = tool_select_handle_mouse_click(select_tool, m1_down, x, y, y_pos);
+	switch (result)
 	{
 	case EVENT_SELECTION_MOVE_STOP:
 	{
@@ -287,7 +288,8 @@ static void save_viewer_select_handle_mouse_button(bool m1_down, int x, int y)
 
 static void save_viewer_select_handle_mouse_move(bool m1_down, int x, int y)
 {
-	if (tool_select_handle_mouse_move(select_tool, m1_down, x, y, y_pos) == EVENT_SELECTION_RESIZE)
+	tool_select_event_t result = tool_select_handle_mouse_move(select_tool, m1_down, x, y, y_pos);
+	if (result == EVENT_SELECTION_RESIZE)
 	{
 		if (region_size(tool_select_region(select_tool)) != 1)
 		{

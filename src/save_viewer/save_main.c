@@ -11,6 +11,7 @@
 #include "../info_box.h"
 #include "../path.h"
 #include "../screen.h"
+#include "../tool.h"
 #include <stdio.h>
 
 #define MAX_SELECTION_WIDTH 120
@@ -33,10 +34,7 @@ static int brush_before_size;
 static complete_block_t* brush_before_ptr;
 static region_t brush_region;
 
-static region_t selection_region;
-static int hinge_x = -1, hinge_y = -1;
-static int move_x = -1, move_y = -1;
-static sprite_t selection_visual;
+static tool_select_t select_tool;
 
 static char save_directory[MAX_PATH];
 static editor_state_t* editor;
@@ -54,77 +52,9 @@ static inline void save_viewer_invalidate_region(region_t region)
 	}
 }
 
-static void save_viewer_start_move(int new_selected_x, int new_selected_y)
-{
-	region_t correct = region_validate(selection_region);
-	hinge_x = new_selected_x - correct.x0;
-	hinge_y = new_selected_y - correct.y0;
-	move_x = new_selected_x;
-	move_y = new_selected_y;
-
-	char* text = dig_malloc(region_size(selection_region));
-	attribute_t* attributes = dig_malloc(region_size(selection_region) * sizeof * attributes);
-
-	correct.y0 -= y_pos;
-	correct.y1 -= y_pos;
-	screen_get_char_region(text, correct);
-	screen_get_attrib_region(attributes, correct);
-
-	/* b/c it's selected rn */
-	for (int i = 0; i < region_size(selection_region); i++)
-	{
-		attributes[i] = ~attributes[i] & 0xFF;
-	}
-
-	selection_visual = screen_sprite_create(region_width(selection_region), region_height(selection_region), 0, text, attributes);
-
-	free(text);
-	free(attributes);
-
-	screen_repaint();
-}
-
-static void save_viewer_stop_move(void)
-{
-	region_t src_region = region_validate(selection_region);
-	region_t dest_region = 
-	{ 
-		move_x - hinge_x,
-		move_y - hinge_y,
-		move_x - hinge_x + region_width(src_region) - 1, 
-		move_y - hinge_y + region_height(src_region) - 1
-	};
-
-	region_t total = region_merge(src_region, dest_region);
-
-	if (memcmp(&src_region, &dest_region, sizeof src_region) != 0)
-	{
-		action_buffer_pre_add_block(action_buffer, save, total);
-
-		complete_block_t* blocks = dig_malloc(region_size(src_region) * sizeof * blocks);
-		game_copy(save, src_region, blocks);
-		game_delete(save, src_region);
-		game_paste(save, dest_region, blocks);
-		free(blocks);
-
-		action_buffer_post_add_block(action_buffer, save);
-
-		save_viewer_invalidate_region(total);
-	}
-
-	hinge_x = hinge_y = -1;
-	move_x = move_y = -1;
-	selection_region = INVALID_REGION;
-	screen_sprite_destroy(selection_visual);
-	selection_visual = NULL;
-	save_info_cell_set_current(-1, -1);
-
-	screen_repaint();
-}
-
 static void save_viewer_copy(void)
 {
-	if (region_is_invalid(selection_region))
+	if (region_is_invalid(tool_select_region(select_tool)))
 	{
 		return;
 	}
@@ -134,21 +64,20 @@ static void save_viewer_copy(void)
 		free(clipboard_data);
 	}
 
-	clipboard_region = region_validate(selection_region);
+	clipboard_region = tool_select_region(select_tool);
 	clipboard_data = dig_malloc(region_size(clipboard_region) * sizeof * clipboard_data);
 	game_copy(save, clipboard_region, clipboard_data);
 }
 
 static void save_viewer_paste(void)
 {
-	if (!clipboard_data || region_is_invalid(selection_region))
+	region_t region = tool_select_region(select_tool);
+	if (!clipboard_data || region_is_invalid(region))
 	{
 		return;
 	}
 
-	int origin_x = min(selection_region.x0, selection_region.x1);
-	int origin_y = min(selection_region.y0, selection_region.y1);
-	region_t dest = { origin_x, origin_y, origin_x + region_width(clipboard_region) - 1, origin_y + region_height(clipboard_region) - 1 };
+	region_t dest = { region.x0, region.y0, region.x0 + region_width(clipboard_region) - 1, region.y0 + region_height(clipboard_region) - 1 };
 
 	if (!dig_inside_bounds(dest.x0, dest.y0) || !dig_inside_bounds(dest.x1, dest.y1))
 	{
@@ -157,12 +86,12 @@ static void save_viewer_paste(void)
 
 	action_buffer_pre_add_block(action_buffer, save, dest);
 
-	game_delete(save, selection_region);
+	game_delete(save, region);
 	game_paste(save, dest, clipboard_data);
 
 	action_buffer_post_add_block(action_buffer, save);
 
-	selection_region = dest;
+	tool_select_set_region(select_tool, dest);
 	save_viewer_invalidate_region(dest);
 	screen_repaint();
 }
@@ -219,38 +148,24 @@ static void save_viewer_handle_repaint()
 		screen_sprite_render((int)save->player.x_spawn, (int)save->player.y_spawn - y_pos, flag);
 	}
 
-	if (region_is_invalid(selection_region))
-	{
-		return;
-	}
-
-	region_t screen_region = region_validate(selection_region);
-	screen_region.y0 -= y_pos;
-	screen_region.y1 -= y_pos;
-	if (hinge_x >= 0 && hinge_y >= 0)
-	{
-		attribute_t* selected = dig_malloc(region_size(screen_region) * sizeof * selected);
-		memset(selected, 0, region_size(screen_region) * sizeof * selected);
-
-		screen_set_attrib_region(selected, screen_region);
-		screen_sprite_render(move_x - hinge_x, move_y - y_pos - hinge_y, selection_visual);
-		free(selected);
-		return;
-	}
-	screen_invert_region(region_validate(screen_region));
+	tool_select_render(select_tool, y_pos);
 }
 
 static void save_viewer_delete_selection(void)
 {
+	region_t region = tool_select_region(select_tool);
+	if (region_is_invalid(region))
+	{
+		return;
+	}
 	debug_profiler_push();
-	region_t region = region_validate(selection_region);
 	action_buffer_pre_add_block(action_buffer, save, region);
 
 	game_delete(save, region);
 
 	action_buffer_post_add_block(action_buffer, save);
-	save_viewer_invalidate_region(selection_region);
-	selection_region = INVALID_REGION;
+	save_viewer_invalidate_region(region);
+	tool_select_reset(select_tool);
 	screen_repaint();
 	debug_profiler_pop("Deleting region");
 }
@@ -336,61 +251,48 @@ static void save_viewer_handle_keyboard(virtual_key_t vk, keyboard_control_t ctr
 
 static void save_viewer_select_handle_mouse_button(bool m1_down, int x, int y)
 {
-	if (!m1_down)
+	switch (tool_select_handle_mouse_click(select_tool, m1_down, x, y, y_pos))
 	{
-		if (hinge_x >= 0 && hinge_y >= 0)
-		{
-			save_viewer_stop_move();
-		}
-		if (!region_is_invalid(selection_region) && region_size(selection_region) > 1)
-		{
-			save_info_cell_set_current_region(selection_region);
-			screen_repaint();
-		}
-		return;
-	}
-
-	int new_selected_x = x;
-	int new_selected_y = y + y_pos;
-
-	if (!region_is_invalid(selection_region) && region_is_inside(selection_region, new_selected_x, new_selected_y))
+	case EVENT_SELECTION_MOVE_STOP:
 	{
-		save_viewer_start_move(new_selected_x, new_selected_y);
-		return;
+		region_t src_region = tool_select_region(select_tool);
+		region_t dest_region = tool_select_move_region(select_tool);
+		region_t total = region_merge(src_region, dest_region);
+		action_buffer_pre_add_block(action_buffer, save, total);
+
+		complete_block_t* blocks = dig_malloc(region_size(src_region) * sizeof * blocks);
+		game_copy(save, src_region, blocks);
+		game_delete(save, src_region);
+		game_paste(save, dest_region, blocks);
+		free(blocks);
+
+		action_buffer_post_add_block(action_buffer, save);
+
+		save_viewer_invalidate_region(total);
+		break;
 	}
-
-	selection_region.x0 = selection_region.x1 = new_selected_x;
-	selection_region.y0 = selection_region.y1 = new_selected_y;
-	save_info_cell_set_current(new_selected_x, new_selected_y);
-
+	case EVENT_SELECTION_RESIZE:
+	{
+		save_info_cell_set_current(x, y + y_pos);
+		break;
+	}
+	case EVENT_SELECTION_RESIZE_STOP:
+	{
+		save_info_cell_set_current_region(tool_select_region(select_tool));
+		break;
+	}
+	}
 	screen_repaint();
 }
 
 static void save_viewer_select_handle_mouse_move(bool m1_down, int x, int y)
 {
-	if (!m1_down || region_is_invalid(selection_region))
+	if (tool_select_handle_mouse_move(select_tool, m1_down, x, y, y_pos) == EVENT_SELECTION_RESIZE)
 	{
-		return;
-	}
-
-	int new_selected_x = x;
-	int new_selected_y = y + y_pos;
-
-	if (hinge_x >= 0 && hinge_y >= 0)
-	{
-		move_x = new_selected_x;
-		move_y = new_selected_y;
-		screen_repaint();
-		return;
-	}
-
-	selection_region.x1 = min(new_selected_x, selection_region.x0 + MAX_SELECTION_WIDTH - 1);
-	selection_region.y1 = min(new_selected_y, selection_region.y0 + MAX_SELECTION_HEIGHT - 1);
-	selection_region.x1 = max(selection_region.x1, selection_region.x0 - MAX_SELECTION_WIDTH + 1);
-	selection_region.y1 = max(selection_region.y1, selection_region.y0 - MAX_SELECTION_HEIGHT + 1);
-	if (region_size(selection_region) != 1)
-	{
-		save_info_cell_set_current(-1, -1);
+		if (region_size(tool_select_region(select_tool)) != 1)
+		{
+			save_info_cell_set_current(-1, -1);
+		}
 	}
 	screen_repaint();
 }
@@ -633,15 +535,9 @@ static void save_viewer_handle_global_field_change(const void* field)
 	screen_repaint();
 }
 
-void save_viewer_handle_tool_change(info_tool_t tool)
+void save_viewer_handle_tool_change(info_tool_t next_tool)
 {
-	hinge_x = hinge_y = -1;
-	move_x = move_y = -1;
-	selection_region = brush_region = INVALID_REGION;
-	brush_before_size = 0;
-	screen_sprite_destroy(selection_visual);
-	selection_visual = NULL;
-
+	tool_select_reset(select_tool);
 	if (cache[0])
 	{
 		screen_repaint();
@@ -671,6 +567,8 @@ void save_initialize(editor_state_t* state)
 	flag = game_spritify_asset(asset);
 	file_asset_unload(&asset);
 	RUNTIME_ASSERT(flag);
+
+	select_tool = tool_select_create();
 }
 
 void save_destroy(void)
@@ -682,6 +580,7 @@ void save_destroy(void)
 	free(brush_before_ptr);
 
 	action_buffer_destroy(action_buffer);
+	tool_select_destroy(select_tool);
 }
 
 static bool save_try_load_save(void)
@@ -737,13 +636,12 @@ void save_start(void)
 	save_viewer_move_window(TARGET_HEIGHT / 2 - save->spawn_y);
 	save_info_state_set(save); /* wait till last second to call so that there's not much waiting if any on this thread */
 
-	selection_region = brush_region = INVALID_REGION;
 	brush_before_reserved = MAX_SELECTION_SIZE;
 	brush_before_ptr = dig_malloc(sizeof * brush_before_ptr * brush_before_reserved);
 }
 
 void save_end(void)
 {
-	selection_region = brush_region = INVALID_REGION;
+	tool_select_reset(select_tool);
 	save_viewer_move_window(y_pos);
 }

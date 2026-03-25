@@ -52,7 +52,7 @@ static void layer_handle_repaint(void)
 
 	screen_change_dirt_color(screen_sprite_dirt_color(cache));
 	screen_sprite_render(0, 0, cache);
-	tool_select_render(tool_select);
+	tool_select_render(tool_select, 0);
 }
 
 static void layer_handle_mouse_button(bool m1_down, int x, int y)

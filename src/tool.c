@@ -45,21 +45,48 @@ region_t tool_select_region(tool_select_t tool)
 	return region_validate(tool->selection);
 }
 
-region_t tool_select_render(tool_select_t tool)
+void tool_select_set_region(tool_select_t tool, region_t region)
 {
+	RUNTIME_ASSERT(!region_is_invalid(region));
+	tool->selection = region_validate(region);
+}
+
+region_t tool_select_move_region(tool_select_t tool)
+{
+	if (tool->hinge_x != -1 && tool->hinge_y != -1)
+	{
+		region_t src_region = region_validate(tool->selection);
+		region_t dest_region =
+		{
+			tool->move_x - tool->hinge_x,
+			tool->move_y - tool->hinge_y,
+			tool->move_x - tool->hinge_x + region_width(src_region) - 1,
+			tool->move_y - tool->hinge_y + region_height(src_region) - 1
+		};
+		return dest_region;
+	}
+}
+
+void tool_select_render(tool_select_t tool, int scroll_y)
+{
+	if (region_is_invalid(tool->selection))
+	{
+		return;
+	}
+	region_t screen_region = region_validate(tool->selection);
+	screen_region.y0 -= scroll_y;
+	screen_region.y1 -= scroll_y;
 	if (tool->hinge_x >= 0 && tool->hinge_y >= 0)
 	{
-		region_t screen_region = region_validate(tool->selection);
-
 		attribute_t* selected = dig_malloc(region_size(screen_region) * sizeof * selected);
 		memset(selected, 0, region_size(screen_region) * sizeof * selected);
 
 		screen_set_attrib_region(selected, screen_region);
-		screen_sprite_render(tool->move_x - tool->hinge_x, tool->move_y - tool->hinge_y, tool->selection_visual);
+		screen_sprite_render(tool->move_x - tool->hinge_x, tool->move_y - tool->hinge_y - scroll_y, tool->selection_visual);
 		free(selected);
 		return;
 	}
-	screen_invert_region(region_validate(tool->selection));
+	screen_invert_region(screen_region);
 }
 
 static void tool_select_start_move(tool_select_t tool, int x, int y, int scroll_y)
@@ -93,16 +120,10 @@ static void tool_select_start_move(tool_select_t tool, int x, int y, int scroll_
 static tool_select_event_t tool_select_stop_move(tool_select_t tool)
 {
 	region_t src_region = region_validate(tool->selection);
-	region_t dest_region =
-	{
-		tool->move_x - tool->hinge_x,
-		tool->move_y - tool->hinge_y,
-		tool->move_x - tool->hinge_x + region_width(src_region) - 1,
-		tool->move_y - tool->hinge_y + region_height(src_region) - 1
-	};
-
+	region_t dest_region = tool_select_move_region(tool);
 	if (memcmp(&src_region, &dest_region, sizeof src_region) != 0)
 	{
+		/* maintain state of tool until next time state is affected so that it can be referenced in response to this function */
 		return EVENT_SELECTION_MOVE_STOP;
 	}
 	tool_select_reset(tool);
@@ -159,7 +180,7 @@ tool_select_event_t tool_select_handle_mouse_click(tool_select_t tool, bool m1_d
 		return tool->last_event;
 	}
 
-	if (!region_is_invalid(tool->selection) && region_is_inside(tool->selection, x, y))
+	if (!region_is_invalid(tool->selection) && region_is_inside(tool->selection, x, y + scroll_y))
 	{
 		tool_select_start_move(tool, x, y, scroll_y);
 		return tool->last_event = EVENT_SELECTION_MOVE_START;

@@ -24,7 +24,7 @@ void layer_initialize(editor_state_t* state)
 		.proc = layer_info_proc
 	};
 	info_add_class(&class);
-	tool_select = tool_select_create();
+	tool_select = tool_select_create(TARGET_WIDTH, TARGET_HEIGHT);
 }
 
 void layer_destroy(void)

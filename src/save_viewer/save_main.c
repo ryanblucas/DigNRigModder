@@ -29,11 +29,8 @@ static sprite_t cache[LAYER_COUNT];
 static dnr_state_t* save;
 static int y_pos;
 
-static int brush_before_reserved;
-static int brush_before_size;
-static complete_block_t* brush_before_ptr;
-static region_t brush_region;
-
+static tool_brush_t eraser_tool;
+static tool_brush_t brush_tool;
 static tool_select_t select_tool;
 
 static char save_directory[MAX_PATH];
@@ -44,6 +41,7 @@ static complete_block_t* clipboard_data;
 
 static inline void save_viewer_invalidate_region(region_t region)
 {
+	RUNTIME_ASSERT(!region_is_invalid(region));
 	region = region_validate(region);
 	for (int y = region.y0 / TARGET_HEIGHT; y <= region.y1 / TARGET_HEIGHT; y++)
 	{
@@ -251,19 +249,21 @@ static void save_viewer_handle_keyboard(virtual_key_t vk, keyboard_control_t ctr
 
 static void save_viewer_select_handle_mouse_button(bool m1_down, int x, int y)
 {
-	tool_select_event_t result = tool_select_handle_mouse_click(select_tool, m1_down, x, y, y_pos);
+	tool_event_t result = tool_select_handle_mouse_click(select_tool, m1_down, x, y, y_pos);
 	switch (result)
 	{
 	case EVENT_SELECTION_MOVE_STOP:
 	{
-		region_t src_region = tool_select_region(select_tool);
 		region_t dest_region = tool_select_move_region(select_tool);
+		region_t src_region = tool_select_region(select_tool);
 		region_t total = region_merge(src_region, dest_region);
 		action_buffer_pre_add_block(action_buffer, save, total);
 
+		src_region.x1 = src_region.x0 + region_width(dest_region) - 1;
+		src_region.y1 = src_region.y0 + region_height(dest_region) - 1;
 		complete_block_t* blocks = dig_malloc(region_size(src_region) * sizeof * blocks);
 		game_copy(save, src_region, blocks);
-		game_delete(save, src_region);
+		game_delete(save, tool_select_region(select_tool));
 		game_paste(save, dest_region, blocks);
 		free(blocks);
 
@@ -288,7 +288,7 @@ static void save_viewer_select_handle_mouse_button(bool m1_down, int x, int y)
 
 static void save_viewer_select_handle_mouse_move(bool m1_down, int x, int y)
 {
-	tool_select_event_t result = tool_select_handle_mouse_move(select_tool, m1_down, x, y, y_pos);
+	tool_event_t result = tool_select_handle_mouse_move(select_tool, m1_down, x, y, y_pos);
 	if (result == EVENT_SELECTION_RESIZE)
 	{
 		if (region_size(tool_select_region(select_tool)) != 1)
@@ -299,67 +299,9 @@ static void save_viewer_select_handle_mouse_move(bool m1_down, int x, int y)
 	screen_repaint();
 }
 
-static void save_viewer_brush_handle_mouse_button(bool m1_down, int x, int y)
+static void save_viewer_erase(tool_brush_t brush, region_t region)
 {
-	if (m1_down)
-	{
-		y += y_pos;
-		int radius = save_info_get_current_brush_size() - 1;
-		brush_region = region_keep_inside(
-			(region_t) { x - radius, y - radius, x + radius, y + radius }, 
-			(region_t) { 0, 0, WORLD_WIDTH - 1, WORLD_HEIGHT - 1 });
-		return;
-	}
-
-	if (region_is_invalid(brush_region))
-	{
-		return;
-	}
-
-	complete_block_t* new = dig_malloc(region_size(brush_region) * sizeof * new * 2);
-	game_copy(save, brush_region, new);
-	brush_region = region_validate(brush_region);
-	for (int i = 0; i < brush_before_size; i++)
-	{
-		complete_block_t* curr = brush_before_ptr + i;
-		new[(curr->block.x - brush_region.x0) + (curr->block.y - brush_region.y0) * region_width(brush_region)] = *curr;
-	}
-	game_copy(save, brush_region, new + region_size(brush_region));
-	action_buffer_add_block(action_buffer, new, new + region_size(brush_region), brush_region);
-	free(new);
-
-	brush_region = INVALID_REGION;
-	brush_before_size = 0;
-}
-
-static void save_viewer_add_to_brush_list(const complete_block_t* block)
-{
-	for (int j = 0; j < brush_before_size; j++)
-	{
-		if (brush_before_ptr[j].block.x == block->block.x && brush_before_ptr[j].block.y == block->block.y)
-		{
-			return;
-		}
-	}
-
-	brush_before_ptr[brush_before_size++] = *block;
-	if (brush_before_size < brush_before_reserved)
-	{
-		return;
-	}
-
-	size_t buf_size = brush_before_reserved * sizeof * brush_before_ptr;
-	brush_before_reserved *= 2;
-	complete_block_t* next = dig_malloc(buf_size * 2);
-	memcpy(next, brush_before_ptr, buf_size);
-	free(brush_before_ptr);
-	brush_before_ptr = next;
-}
-
-static void save_viewer_erase(int x, int y, int radius)
-{
-	region_t region = { x - radius, y - radius, x + radius, y + radius };
-	region = region_keep_inside(region, (region_t) { 0, 0, WORLD_WIDTH - 1, WORLD_HEIGHT - 1 });
+	RUNTIME_ASSERT(brush == eraser_tool);
 
 	complete_block_t* temp = dig_malloc(sizeof * temp * region_size(region));
 	game_copy(save, region, temp);
@@ -368,104 +310,57 @@ static void save_viewer_erase(int x, int y, int radius)
 
 	for (int i = 0; i < region_size(region); i++)
 	{
-		save_viewer_add_to_brush_list(&temp[i]);
+		tool_brush_add_to_before_list_cb(brush, &temp[i]);
 	}
 	free(temp);
 }
 
-static void save_viewer_brush(int x, int y, int radius)
+static void save_viewer_brush(tool_brush_t brush, region_t region)
 {
-	region_t region = { x - radius, y - radius, x + radius, y + radius };
-	region = region_keep_inside(region, (region_t) { 0, 0, WORLD_WIDTH - 1, WORLD_HEIGHT - 1 });
+	RUNTIME_ASSERT(brush == brush_tool);
 
 	complete_block_t* temp = dig_malloc(sizeof * temp * region_size(region));
 	game_copy(save, region, temp);
 
-	complete_block_t brush;
-	save_info_get_current_brush_block(&brush);
+	complete_block_t block;
+	save_info_get_current_brush_block(&block);
 	for (int y = 0; y < region_width(region); y++)
 	{
 		for (int x = 0; x < region_height(region); x++)
 		{
-			save_viewer_add_to_brush_list(&temp[x + y * region_width(region)]);
-			game_paste(save, (region_t) { x + region.x0, y + region.y0, x + region.x0, y + region.y0 }, &brush);
+			tool_brush_add_to_before_list_cb(brush, &temp[x + y * region_width(region)]);
+			game_paste(save, (region_t) { x + region.x0, y + region.y0, x + region.x0, y + region.y0 }, &block);
 		}
 	}
 
 	free(temp);
 }
 
-static void save_viewer_brush_handle_mouse_move(save_viewer_brush_function_t function, bool m1_down, int x, int y)
+static void save_viewer_brush_handle_mouse_button(tool_brush_t brush, bool m1_down, int x, int y)
 {
-	static int prev_selected_x = -1;
-	static int prev_selected_y = -1;
-
-	if (!m1_down || region_is_invalid(brush_region))
+	tool_event_t result = tool_brush_handle_mouse_click(brush, m1_down, x, y, y_pos);
+	if (result == EVENT_BRUSH_END)
 	{
-		prev_selected_x = prev_selected_y = -1;
-		return;
+		region_t region = tool_brush_region(brush);
+		complete_block_t* temp = dig_malloc(region_size(region) * sizeof * temp * 2);
+
+		tool_brush_copy_before_cb(brush, save, temp);
+		game_copy(save, region, temp + region_size(region));
+
+		action_buffer_add_block(action_buffer, temp, temp + region_size(region), region);
+
+		free(temp);
 	}
+}
 
-	int new_selected_x = x;
-	int new_selected_y = y + y_pos;
-	int radius = save_info_get_current_brush_size() - 1;
-
-	region_t final;
-	if (prev_selected_x == -1 && prev_selected_y == -1)
+static void save_viewer_brush_handle_mouse_move(tool_brush_t brush, bool m1_down, int x, int y)
+{
+	tool_event_t result = tool_brush_handle_mouse_move(brush, m1_down, x, y, y_pos);
+	if (!region_is_invalid(tool_brush_region(brush)))
 	{
-		final = (region_t){ new_selected_x - radius, new_selected_y - radius, new_selected_x + radius, new_selected_y + radius };
-		function(new_selected_x, new_selected_y, radius);
+		save_viewer_invalidate_region(tool_brush_region(brush));
+		screen_repaint();
 	}
-	else
-	{
-		final = region_validate((region_t) { new_selected_x, new_selected_y, prev_selected_x, prev_selected_y });
-		RUNTIME_ASSERT(dig_inside_bounds(final.x0, final.y0) && dig_inside_bounds(final.x1, final.y1));
-		final.x0 -= radius;
-		final.y0 -= radius;
-		final.x1 += radius;
-		final.y1 += radius;
-		final = region_keep_inside(final, (region_t) { 0, 0, WORLD_WIDTH - 1, WORLD_HEIGHT - 1 });
-		brush_region = region_merge(brush_region, final);
-
-		int cx = new_selected_x;
-		int cy = new_selected_y;
-		int dx = abs(cx - prev_selected_x);
-		int dy = -abs(cy - prev_selected_y);
-		int ix = cx < prev_selected_x ? 1 : -1;
-		int iy = cy < prev_selected_y ? 1 : -1;
-		
-		int error = dx + dy;
-
-		/* theres probably a way of doing this more efficiently for a line with a thickness */
-		while (true)
-		{
-			function(cx, cy, radius);
-			if (error * 2 <= dx)
-			{
-				if (cy == prev_selected_y)
-				{
-					break;
-				}
-				cy += iy;
-				error += dx;
-			}
-			if (error * 2 >= dy)
-			{
-				if (cx == prev_selected_x)
-				{
-					break;
-				}
-				cx += ix;
-				error += dy;
-			}
-		}
-	}
-
-	save_viewer_invalidate_region(final);
-	screen_repaint();
-
-	prev_selected_x = new_selected_x;
-	prev_selected_y = new_selected_y;
 }
 
 static void save_viewer_handle_mouse_button(bool m1_down, int x, int y)
@@ -477,11 +372,11 @@ static void save_viewer_handle_mouse_button(bool m1_down, int x, int y)
 	}
 	else if (current == TOOL_ERASER)
 	{
-		save_viewer_brush_handle_mouse_button(m1_down, x, y);
+		save_viewer_brush_handle_mouse_button(eraser_tool, m1_down, x, y);
 	}
 	else if (current == TOOL_BRUSH)
 	{
-		save_viewer_brush_handle_mouse_button(m1_down, x, y);
+		save_viewer_brush_handle_mouse_button(brush_tool, m1_down, x, y);
 	}
 }
 
@@ -494,11 +389,11 @@ static void save_viewer_handle_mouse_move(bool m1_down, int x, int y)
 	}
 	else if (current == TOOL_ERASER)
 	{
-		save_viewer_brush_handle_mouse_move(save_viewer_erase, m1_down, x, y);
+		save_viewer_brush_handle_mouse_move(eraser_tool, m1_down, x, y);
 	}
 	else if (current == TOOL_BRUSH)
 	{
-		save_viewer_brush_handle_mouse_move(save_viewer_brush, m1_down, x, y);
+		save_viewer_brush_handle_mouse_move(brush_tool, m1_down, x, y);
 	}
 }
 
@@ -537,13 +432,19 @@ static void save_viewer_handle_global_field_change(const void* field)
 	screen_repaint();
 }
 
-void save_viewer_handle_tool_change(info_tool_t next_tool)
+static void save_viewer_handle_tool_change(info_tool_t next_tool)
 {
 	tool_select_reset(select_tool);
 	if (cache[0])
 	{
 		screen_repaint();
 	}
+}
+
+static void save_viewer_handle_brush_size_change(int size)
+{
+	tool_brush_set_size(brush_tool, size);
+	tool_brush_set_size(eraser_tool, size);
 }
 
 void save_initialize(editor_state_t* state)
@@ -570,7 +471,9 @@ void save_initialize(editor_state_t* state)
 	file_asset_unload(&asset);
 	RUNTIME_ASSERT(flag);
 
-	select_tool = tool_select_create();
+	select_tool = tool_select_create(WORLD_WIDTH, WORLD_HEIGHT);
+	eraser_tool = tool_brush_create(save_viewer_erase, BRUSH_TYPE_COMPLETE_BLOCK, WORLD_WIDTH, WORLD_HEIGHT);
+	brush_tool = tool_brush_create(save_viewer_brush, BRUSH_TYPE_COMPLETE_BLOCK, WORLD_WIDTH, WORLD_HEIGHT);
 }
 
 void save_destroy(void)
@@ -579,9 +482,10 @@ void save_destroy(void)
 	file_state_unload(save);
 
 	free(clipboard_data);
-	free(brush_before_ptr);
 
 	action_buffer_destroy(action_buffer);
+	tool_brush_destroy(eraser_tool);
+	tool_brush_destroy(brush_tool);
 	tool_select_destroy(select_tool);
 }
 
@@ -620,6 +524,7 @@ void save_start(void)
 		.block_handler = save_viewer_handle_block_change,
 		.global_field_handler = save_viewer_handle_global_field_change,
 		.tool_handler = save_viewer_handle_tool_change,
+		.brush_size_handler = save_viewer_handle_brush_size_change
 	};
 	info_set_event_handlers(&info_events);
 
@@ -637,13 +542,12 @@ void save_start(void)
 
 	save_viewer_move_window(TARGET_HEIGHT / 2 - save->spawn_y);
 	save_info_state_set(save); /* wait till last second to call so that there's not much waiting if any on this thread */
-
-	brush_before_reserved = MAX_SELECTION_SIZE;
-	brush_before_ptr = dig_malloc(sizeof * brush_before_ptr * brush_before_reserved);
 }
 
 void save_end(void)
 {
+	tool_brush_reset(brush_tool);
+	tool_brush_reset(eraser_tool);
 	tool_select_reset(select_tool);
 	save_viewer_move_window(y_pos);
 }

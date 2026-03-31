@@ -21,7 +21,7 @@ typedef enum info_tool
 	TOOL_BRUSH,
 } info_tool_t;
 
-typedef void (*info_handle_change_mode_t)(info_mode_t new_mode);
+typedef void (*info_handle_change_mode_t)(info_mode_t old_mode);
 
 typedef void (*info_handle_change_tool_t)(info_tool_t new_tool);
 typedef void (*info_handle_change_brush_size_t)(int size);

@@ -343,11 +343,11 @@ static void serialize_array_internal(uint64_t type_hash, void* value, int start,
 			break;
 		}
 		case TYPE_INT16_T:
-			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%i - %i", i, *(int16_t*)element->value);
+			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%i - %i", i, *(int16_t*)value);
 			value = (int16_t*)value - 1;
 			break;
 		case TYPE_INT8_T:
-			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%i - %i", i, *(int8_t*)element->value);
+			StringCchPrintfW(buf, sizeof buf / sizeof * buf, L"%i - %i", i, *(int8_t*)value);
 			value = (int8_t*)value - 1;
 			break;
 		case TYPE_BOOLEAN32_T:

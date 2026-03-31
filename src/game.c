@@ -230,3 +230,39 @@ sprite_t game_spritify_asset(const asset_t asset)
 
 	return result;
 }
+
+void game_asset_copy(const asset_t* state, region_t region, asset_block_t* arr)
+{
+	region = region_validate(region);
+	for (int y = 0; y < region_height(region); y++)
+	{
+		for (int x = 0; x < region_width(region); x++)
+		{
+			arr[y * region_width(region) + x] = state->blocks[(y + region.y0) * state->width + x + region.x0];
+		}
+	}
+}
+
+void game_asset_paste(asset_t* state, region_t region, const asset_block_t* arr)
+{
+	region = region_validate(region);
+	for (int y = 0; y < region_height(region); y++)
+	{
+		for (int x = 0; x < region_width(region); x++)
+		{
+			state->blocks[(y + region.y0) * state->width + x + region.x0] = arr[y * region_width(region) + x];
+		}
+	}
+}
+
+void game_asset_delete(asset_t* state, region_t region)
+{
+	region = region_validate(region);
+	for (int y = 0; y < region_height(region); y++)
+	{
+		for (int x = 0; x < region_width(region); x++)
+		{
+			state->blocks[(y + region.y0) * state->width + x + region.x0] = (asset_block_t){ 0 };
+		}
+	}
+}

@@ -35,15 +35,15 @@ static void call_respective_end(info_mode_t mode)
 	}
 }
 
-static void change_mode_handler(info_mode_t mode)
+static void change_mode_handler(info_mode_t old_mode)
 {
 	debug_profiler_push();
 
-	call_respective_end(info_get_current_mode());
+	call_respective_end(old_mode);
 	screen_clear();
 	screen_invalidate();
-	editor.current_mode = mode;
-	call_respective_start(mode);
+	editor.current_mode = info_get_current_mode();
+	call_respective_start(editor.current_mode);
 
 	debug_profiler_pop("Mode change");
 }

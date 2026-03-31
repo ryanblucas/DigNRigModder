@@ -36,3 +36,10 @@ CHAR_INFO game_spritify_cell(const complete_block_t* block);
 sprite_t game_spritify_layer(const dnr_state_t* save, int layer_index);
 /* Renders an asset */
 sprite_t game_spritify_asset(const asset_t asset);
+
+/* copies a region from asset into arr in region */
+void game_asset_copy(const asset_t* state, region_t region, asset_block_t* arr);
+/* pastes a region from asset into arr in region */
+void game_asset_paste(asset_t* state, region_t region, const asset_block_t* arr);
+/* deletes a region from asset */
+void game_asset_delete(asset_t* state, region_t region);

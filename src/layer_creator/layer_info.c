@@ -5,15 +5,20 @@
 #include "layer_info.h"
 #include "../path.h"
 
+#define INFO_BOX_MSG_STATE_READY (WM_USER + 0x20)
+
 enum child_window_index
 {
 	CWI_LAYER_FILE_COMBOBOX,
 	CWI_LAYER_FILE_COMBOBOX_LABEL,
+	CWI_LAYER_TREEVIEW,
+	CWI_LAYER_CURRENT_TREEVIEW,
 	CWI_COUNT
 };
 
 static HWND child_windows[CWI_COUNT];
 static info_internal_t internal;
+static asset_t* asset;
 
 void layer_info_initialize(const info_internal_t* _internal)
 {
@@ -24,6 +29,12 @@ void layer_info_initialize(const info_internal_t* _internal)
 
 	child_windows[CWI_LAYER_FILE_COMBOBOX_LABEL] = CreateWindowExW(0, L"STATIC", L"File:", WS_VISIBLE | WS_CHILD, 2, 25, 36, 18, internal.window, NULL, NULL, NULL);
 	SendMessageW(child_windows[CWI_LAYER_FILE_COMBOBOX_LABEL], WM_SETFONT, (WPARAM)internal.font_caption, 0);
+
+	child_windows[CWI_LAYER_TREEVIEW] = CreateWindowExW(0, WC_TREEVIEWW, NULL, WS_VISIBLE | WS_CHILD | WS_BORDER | TVS_HASLINES | TVS_LINESATROOT | TVS_HASBUTTONS, 2, 190, INFO_BOX_CLIENT_WIDTH / 2 - 2, 200, internal.window, NULL, NULL, NULL);
+	SendMessageW(child_windows[CWI_LAYER_TREEVIEW], WM_SETFONT, (WPARAM)internal.font_text, (LPARAM)FALSE);
+
+	child_windows[CWI_LAYER_CURRENT_TREEVIEW] = CreateWindowExW(0, WC_TREEVIEWW, NULL, WS_VISIBLE | WS_CHILD | WS_BORDER | TVS_HASLINES | TVS_LINESATROOT | TVS_HASBUTTONS, INFO_BOX_CLIENT_WIDTH / 2, 190, INFO_BOX_CLIENT_WIDTH / 2 - 2, 200, internal.window, NULL, NULL, NULL);
+	SendMessageW(child_windows[CWI_LAYER_CURRENT_TREEVIEW], WM_SETFONT, (WPARAM)internal.font_text, (LPARAM)FALSE);
 
 	layer_info_show(false);
 }
@@ -77,6 +88,22 @@ void layer_info_show(bool is_visible)
 	}
 }
 
+static void layer_info_state_set_tree_view(asset_t* asset)
+{
+	debug_profiler_push();
+	asset_t* item = asset;
+
+#define ADD_SERIALIZABLE(type, name) serialize_single(#type, &item->name, #name, child_windows[CWI_LAYER_TREEVIEW], NULL);
+#define ADD_SERIALIZABLE_ARRAY(type, name, count) serialize_array(#type, &item->name, count, #name, child_windows[CWI_LAYER_TREEVIEW], NULL);
+
+	SERIALIZABLE_ASSET
+
+#undef ADD_SERIALIZABLE
+#undef ADD_SERIALIZABLE_ARRAY
+
+	debug_profiler_pop("Surface level serializing");
+}
+
 bool layer_info_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESULT* out)
 {
 	*out = 0;
@@ -98,6 +125,23 @@ bool layer_info_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESULT*
 		}
 		break;
 	}
+	case INFO_BOX_MSG_STATE_READY:
+	{
+		layer_info_state_set_tree_view((asset_t*)wparam);
+		break;
+	}
 	}
 	return false;
+}
+
+void layer_info_asset_set(asset_t* _asset)
+{
+	asset = _asset;
+	/* i do not like this */
+	for (int i = 0; i < 100 && !internal.window; i++)
+	{
+		Sleep(10);
+	}
+	RUNTIME_ASSERT(internal.window);
+	PostMessageW(internal.window, INFO_BOX_MSG_STATE_READY, (WPARAM)asset, 0);
 }

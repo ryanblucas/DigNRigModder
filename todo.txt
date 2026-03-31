@@ -1,14 +1,20 @@
 Save viewer
 	Determine how liquids are stored in save files
-	Speed up region selection code
-	Speed up erasing code--use hash set instead of array list
+Tools
 	When pasting something, the result of that is immediately selected and allowed to be moved.
 		If the user chooses to move that object, it should be on a seperate layer
 		so you can duplicate objects without removing what was there originally.
 		This would also allow for objects to be pasted beyond the screen temporarily.
-	X-Ray vision where you can see mineral spawns instead of the actual block
+	I think it would actually be faster for chunks to be saved in memory rather than the exact set of blocks that were brushed over.
+		Right now, it's a huge performance hit especially if the brush is large to check each block and while I thought of using a hashset/
+		sorted set to store the blocks, I don't think it'll really fix the underlying problem. The next best solution is to implement
+		something akin to the selection tool, where no changes are actually committed until the mouse is let go. What the user sees
+		between mouse down and mouse up is just a sprite being rendered over the screen. That's another promising solution to this.
+Layer creator
+	Create structure for a cell
+	Add treeviews to view details
+	Implement all tools to the creator
 
-Create layer creator
 Create sprite creator
 Create campaign creator
 

@@ -58,6 +58,18 @@ static void layer_handle_repaint(void)
 
 	screen_change_dirt_color(screen_sprite_dirt_color(cache));
 	screen_sprite_render(0, 0, cache);
+	for (int y = 0; y < TARGET_HEIGHT; y++)
+	{
+		for (int x = 0; x < TARGET_WIDTH; x++)
+		{
+			if (layer.blocks[y * TARGET_WIDTH + x].tile_type == TILE_TYPE_ENEMY_SPAWN)
+			{
+				attribute_t enemy_spawn_attrib = CREATE_ATTRIBUTE(LIGHT_RED, DARK_BLACK);
+				screen_set_attrib_region(&enemy_spawn_attrib, (region_t) { x, y, x, y });
+				screen_set_char_region("X", (region_t) { x, y, x, y });
+			}
+		}
+	}
 	tool_select_render(tool_select, 0);
 }
 

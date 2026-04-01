@@ -277,7 +277,6 @@ static bool file_asset_parse_attribute_array(const char* directory, struct file*
 		MATCH_TOKEN(file, curr, TOKEN_INTEGER);
 		for (int x = 0; x < res->width; x++)
 		{
-			ENSURE_CONDITION(file, (curr.data.integer & 0xFFFFFF00) == 0);
 			*(int*)((uint8_t*)(res->blocks + y * res->width + x) + offset) = curr.data.integer;
 			MATCH_AND_ADVANCE_TOKEN(file, curr, TOKEN_INTEGER);
 		}
@@ -291,7 +290,7 @@ cleanup:
 
 asset_t file_asset_load(const char* directory)
 {
-	asset_t res = { .blocks = NULL };
+	asset_t res = { .blocks = NULL, .dirt_color = DNR_DEFAULT_DIRT_COLOR };
 	struct file file;
 	struct file* pfile = &file;
 	file.line = file.col = 0;

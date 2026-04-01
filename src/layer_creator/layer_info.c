@@ -127,6 +127,8 @@ bool layer_info_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESULT*
 	}
 	case INFO_BOX_MSG_STATE_READY:
 	{
+		TreeView_DeleteAllItems(child_windows[CWI_LAYER_TREEVIEW]);
+		TreeView_DeleteAllItems(child_windows[CWI_LAYER_CURRENT_TREEVIEW]);
 		layer_info_state_set_tree_view((asset_t*)wparam);
 		break;
 	}
@@ -144,4 +146,61 @@ void layer_info_asset_set(asset_t* _asset)
 	}
 	RUNTIME_ASSERT(internal.window);
 	PostMessageW(internal.window, INFO_BOX_MSG_STATE_READY, (WPARAM)asset, 0);
+}
+
+enum layer_info_current_field
+{
+	LICF_TILE_TYPE = 1 << 0,
+	LICF_VISUAL = 1 << 1,
+	LICF_TRANSPARENCY = 1 << 2
+};
+
+void layer_info_asset_set_current(region_t region)
+{
+	RUNTIME_ASSERT(!region_is_invalid(region));
+	region = region_validate(region);
+	TreeView_DeleteAllItems(child_windows[CWI_LAYER_CURRENT_TREEVIEW]);
+	asset_block_t common = asset->blocks[region.x0 + region.y0 * TARGET_WIDTH];
+	enum layer_info_current_field mask = 0;
+	for (int y = 0; y < region_height(region); y++)
+	{
+		for (int x = 0; x < region_width(region); x++)
+		{
+			asset_block_t* curr = &asset->blocks[(region.x0 + x) + (region.y0 + y) * TARGET_WIDTH];
+			if (~mask & LICF_TILE_TYPE && common.tile_type != curr->tile_type)
+			{
+				common.tile_type = 0;
+				mask |= LICF_TILE_TYPE;
+			}
+			else if (~mask & LICF_VISUAL && common.visual.Attributes != curr->visual.Attributes || common.visual.Char.AsciiChar != curr->visual.Char.AsciiChar)
+			{
+				common.visual = (CHAR_INFO){ 0 };
+				mask |= LICF_VISUAL;
+			}
+			else if (~mask & LICF_TILE_TYPE && common.transparency != curr->transparency)
+			{
+				common.transparency = false;
+				mask |= LICF_TRANSPARENCY;
+			}
+		}
+	}
+
+#define ADD_SERIALIZABLE(type, name) element_t name = serialize_single(#type, &common.name, #name, child_windows[CWI_LAYER_CURRENT_TREEVIEW], NULL);
+#define ADD_SERIALIZABLE_ARRAY(type, name, count) element_t name = serialize_array(#type, &common.name, count, #name, child_windows[CWI_LAYER_CURRENT_TREEVIEW], NULL);
+	SERIALIZABLE_ASSET_BLOCK
+#undef ADD_SERIALIZABLE
+#undef ADD_SERIALIZABLE_ARRAY
+
+	if (mask & LICF_TILE_TYPE)
+	{
+		serialize_element_enable(tile_type, false);
+	}
+	if (mask & LICF_VISUAL)
+	{
+		serialize_element_enable(visual, false);
+	}
+	if (mask & LICF_TRANSPARENCY)
+	{
+		serialize_element_enable(transparency, false);
+	}
 }

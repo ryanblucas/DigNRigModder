@@ -351,7 +351,8 @@ typedef struct asset_block
 {
 #define SERIALIZABLE_ASSET_BLOCK \
 	ADD_SERIALIZABLE(CHAR_INFO, visual) \
-	ADD_SERIALIZABLE(asset_tile_type_t, tile_type)
+	ADD_SERIALIZABLE(asset_tile_type_t, tile_type) \
+	ADD_SERIALIZABLE(boolean32_t, transparency)
 SERIALIZABLE_ASSET_BLOCK
 } asset_block_t;
 

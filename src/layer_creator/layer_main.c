@@ -64,7 +64,9 @@ static void layer_handle_repaint(void)
 static void layer_handle_mouse_button(bool m1_down, int x, int y)
 {
 	tool_event_t event = tool_select_handle_mouse_click(tool_select, m1_down, x, y, 0);
-	if (event == EVENT_SELECTION_MOVE_STOP)
+	switch (event)
+	{
+	case EVENT_SELECTION_MOVE_STOP:
 	{
 		region_t src = tool_select_region(tool_select);
 		region_t dest = tool_select_move_region(tool_select);
@@ -76,6 +78,13 @@ static void layer_handle_mouse_button(bool m1_down, int x, int y)
 		free(arr);
 
 		cache = game_spritify_asset(layer);
+		break;
+	}
+	case EVENT_SELECTION_RESIZE_STOP:
+	{
+		layer_info_asset_set_current(tool_select_region(tool_select));
+		break;
+	}
 	}
 	screen_repaint();
 }

@@ -12,3 +12,4 @@ bool layer_info_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESULT*
 
 /* The pointer to the asset must remain valid until another call to this function that passes NULL. */
 void layer_info_asset_set(asset_t* asset);
+void layer_info_asset_set_current(region_t region);

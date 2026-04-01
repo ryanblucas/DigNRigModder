@@ -251,6 +251,44 @@ bool file_editor_save(const editor_state_t* state)
 	return true;
 }
 
+static bool file_asset_parse_attribute_single(const char* directory, struct file* file, struct token* pcurr, int* out)
+{
+	struct token curr = *pcurr;
+	bool result = false;
+	file_next(file, &curr);
+	MATCH_AND_ADVANCE_TOKEN(file, curr, TOKEN_NEWLINE);
+	*out = curr.data.integer;
+	MATCH_AND_ADVANCE_TOKEN(file, curr, TOKEN_INTEGER);
+	result = true;
+cleanup:
+	*pcurr = curr;
+	return result;
+}
+
+static bool file_asset_parse_attribute_array(const char* directory, struct file* file, struct token* pcurr, asset_t* res, size_t offset)
+{
+	struct token curr = *pcurr;
+	bool result = false;
+	file_next(file, &curr);
+	MATCH_AND_ADVANCE_TOKEN(file, curr, TOKEN_NEWLINE);
+	ENSURE_CONDITION(file, res->width != 0 && res->height != 0 && res->blocks);
+	for (int y = 0; y < res->height; y++)
+	{
+		MATCH_TOKEN(file, curr, TOKEN_INTEGER);
+		for (int x = 0; x < res->width; x++)
+		{
+			ENSURE_CONDITION(file, (curr.data.integer & 0xFFFFFF00) == 0);
+			*(int*)((uint8_t*)(res->blocks + y * res->width + x) + offset) = curr.data.integer;
+			MATCH_AND_ADVANCE_TOKEN(file, curr, TOKEN_INTEGER);
+		}
+		MATCH_AND_ADVANCE_TOKEN(file, curr, TOKEN_NEWLINE);
+	}
+	result = true;
+cleanup:
+	*pcurr = curr;
+	return result;
+}
+
 asset_t file_asset_load(const char* directory)
 {
 	asset_t res = { .blocks = NULL };
@@ -284,70 +322,47 @@ asset_t file_asset_load(const char* directory)
 		MATCH_TOKEN(pfile, curr, TOKEN_STRING);
 		if (strncmp(curr.data.str, "Width", DATA_STRING_MAX_SIZE) == 0)
 		{
-			file_next(pfile, &curr);
-			MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_NEWLINE);
-
-			MATCH_TOKEN(pfile, curr, TOKEN_INTEGER);
-			res.width = curr.data.integer;
-			MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_INTEGER);
+			ENSURE_CONDITION(pfile, file_asset_parse_attribute_single(directory, pfile, &curr, (int*)&res.width));
 		}
 		else if (strncmp(curr.data.str, "Height", DATA_STRING_MAX_SIZE) == 0)
 		{
-			file_next(pfile, &curr);
-			MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_NEWLINE);
-
-			MATCH_TOKEN(pfile, curr, TOKEN_INTEGER);
-			res.height = curr.data.integer;
+			ENSURE_CONDITION(pfile, file_asset_parse_attribute_single(directory, pfile, &curr, (int*)&res.height));
 			res.blocks = dig_malloc(res.width * res.height * sizeof * res.blocks);
-			MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_INTEGER);
+			memset(res.blocks, 0, res.width * res.height * sizeof * res.blocks);
 		}
 		else if (strncmp(curr.data.str, "Image", DATA_STRING_MAX_SIZE) == 0)
 		{
-			file_next(pfile, &curr);
-			MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_NEWLINE);
-
-			ENSURE_CONDITION(pfile, res.width != 0 && res.height != 0 && res.blocks);
-			for (int y = 0; y < res.height; y++)
-			{
-				MATCH_TOKEN(pfile, curr, TOKEN_INTEGER);
-				for (int x = 0; x < res.width; x++)
-				{
-					ENSURE_CONDITION(pfile, (curr.data.integer & 0xFFFFFF00) == 0);
-					res.blocks[y * res.width + x].visual.Char.AsciiChar = curr.data.integer;
-					MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_INTEGER);
-				}
-				MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_NEWLINE);
-			}
+			ENSURE_CONDITION(pfile, file_asset_parse_attribute_array(directory, pfile, &curr, &res, offsetof(asset_block_t, visual.Char.AsciiChar)));
 		}
 		else if (strncmp(curr.data.str, "Color", DATA_STRING_MAX_SIZE) == 0)
 		{
-			file_next(pfile, &curr);
-			MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_NEWLINE);
-
-			ENSURE_CONDITION(pfile, res.width != 0 && res.height != 0 && res.blocks);
-			for (int y = 0; y < res.height; y++)
-			{
-				MATCH_TOKEN(pfile, curr, TOKEN_INTEGER);
-				for (int x = 0; x < res.width; x++)
-				{
-					ENSURE_CONDITION(pfile, (curr.data.integer & 0xFFFF0000) == 0);
-					res.blocks[y * res.width + x].visual.Attributes = curr.data.integer;
-					MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_INTEGER);
-				}
-				MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_NEWLINE);
-			}
+			ENSURE_CONDITION(pfile, file_asset_parse_attribute_array(directory, pfile, &curr, &res, offsetof(asset_block_t, visual.Attributes)));
+		}
+		else if (strncmp(curr.data.str, "TileType", DATA_STRING_MAX_SIZE) == 0)
+		{
+			ENSURE_CONDITION(pfile, file_asset_parse_attribute_array(directory, pfile, &curr, &res, offsetof(asset_block_t, tile_type)));
+		}
+		else if (strncmp(curr.data.str, "Transparency", DATA_STRING_MAX_SIZE) == 0)
+		{
+			ENSURE_CONDITION(pfile, file_asset_parse_attribute_array(directory, pfile, &curr, &res, offsetof(asset_block_t, transparency)));
 		}
 		else if (strncmp(curr.data.str, "PaletteColor", DATA_STRING_MAX_SIZE) == 0)
 		{
-			file_next(pfile, &curr);
-			MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_NEWLINE);
-			res.dirt_color = curr.data.integer;
-			MATCH_AND_ADVANCE_TOKEN(pfile, curr, TOKEN_INTEGER);
+			ENSURE_CONDITION(pfile, file_asset_parse_attribute_single(directory, pfile, &curr, (int*)&res.dirt_color));
 		}
-		else if (strncmp(curr.data.str, "TileType", DATA_STRING_MAX_SIZE) == 0
-			|| strncmp(curr.data.str, "X weather", DATA_STRING_MAX_SIZE) == 0
-			|| strncmp(curr.data.str, "Transparency", DATA_STRING_MAX_SIZE) == 0
-			|| strncmp(curr.data.str, "Z", DATA_STRING_MAX_SIZE) == 0)
+		else if (strncmp(curr.data.str, "X weather", DATA_STRING_MAX_SIZE) == 0)
+		{
+			ENSURE_CONDITION(pfile, file_asset_parse_attribute_single(directory, pfile, &curr, (int*)&res.weather1));
+			MATCH_TOKEN(pfile, curr, TOKEN_INTEGER);
+			res.weather2 = curr.data.integer;
+			file_next(pfile, &curr);
+			MATCH_TOKEN(pfile, curr, TOKEN_DECIMAL);
+			res.weather3 = curr.data.decimal;
+			/* skip the token just processed, then skip the newline */
+			file_next(pfile, &curr);
+			file_next(pfile, &curr);
+		}
+		else if (strncmp(curr.data.str, "Z", DATA_STRING_MAX_SIZE) == 0)
 		{
 			/* skip to next header */
 			while (file_next(pfile, &curr) && curr.type != TOKEN_HASHTAG);

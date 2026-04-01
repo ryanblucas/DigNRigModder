@@ -272,14 +272,16 @@ static void save_viewer_select_handle_mouse_button(bool m1_down, int x, int y)
 		save_viewer_invalidate_region(total);
 		break;
 	}
-	case EVENT_SELECTION_RESIZE:
-	{
-		save_info_cell_set_current(x, y + y_pos);
-		break;
-	}
 	case EVENT_SELECTION_RESIZE_STOP:
 	{
-		save_info_cell_set_current_region(tool_select_region(select_tool));
+		if (region_size(tool_select_region(select_tool)) > 1)
+		{
+			save_info_cell_set_current_region(tool_select_region(select_tool));
+		}
+		else
+		{
+			save_info_cell_set_current(x, y + y_pos);
+		}
 		break;
 	}
 	}

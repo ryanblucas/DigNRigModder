@@ -190,7 +190,7 @@ tool_event_t tool_select_handle_mouse_click(tool_select_t tool, bool m1_down, in
 		{
 			tool->last_event = tool_select_stop_move(tool);
 		}
-		else if (!region_is_invalid(tool->selection) && region_size(tool->selection) > 1)
+		else if (!region_is_invalid(tool->selection))
 		{
 			tool->last_event = EVENT_SELECTION_RESIZE_STOP;
 		}

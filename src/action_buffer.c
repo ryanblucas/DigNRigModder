@@ -162,39 +162,8 @@ void action_buffer_reverse_block(dnr_state_t* state, action_t* action)
 {
 	RUNTIME_ASSERT(action->type == ACTION_BLOCK);
 	action_block_t* ba = &action->sub.block;
-	for (int i = 0; i < region_size(ba->region); i++)
-	{
-		int x = i % region_width(ba->region) + ba->region.x0;
-		int y = i / region_width(ba->region) + ba->region.y0;
-		int j = x * WORLD_HEIGHT + y;
-		state->blocks[j] = ba->previous[i].block;
-		if (state->blocks[j].mineral_exists)
-		{
-			RUNTIME_ASSERT(state->blocks[j].mineral_index >= 0 && state->blocks[j].mineral_index < sizeof state->minerals / sizeof * state->minerals);
-			state->minerals[state->blocks[j].mineral_index] = ba->previous[i].mineral;
-		}
-		if (ba->next[i].stalactite.exists)
-		{
-			for (int k = 0; k < state->stalactite_count; k++)
-			{
-				if (state->stalactite_array[k].x == ba->next[i].stalactite.x && state->stalactite_array[k].y == ba->next[i].stalactite.y)
-				{
-					state->stalactite_array[k].exists = false;
-				}
-			}
-		}
-		if (ba->previous[i].stalactite.exists)
-		{
-			for (int k = 0; k < state->stalactite_count; k++)
-			{
-				if (!state->stalactite_array[k].exists)
-				{
-					state->stalactite_array[k] = ba->previous[i].stalactite;
-					break;
-				}
-			}
-		}
-	}
+	game_delete(state, ba->region);
+	game_paste(state, ba->region, ba->previous);
 	complete_block_t* temp = ba->previous;
 	ba->previous = ba->next;
 	ba->next = temp;

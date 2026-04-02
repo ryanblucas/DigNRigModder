@@ -103,6 +103,41 @@ void action_buffer_add_field(action_buffer_t buffer, element_t element, field_t 
 	};
 }
 
+void action_buffer_pre_add_asset_block(action_buffer_t buffer, const asset_t* asset, region_t region)
+{
+	action_buffer_create_node(buffer);
+
+	buffer->buffer[buffer->position].type = ACTION_ASSET_BLOCK;
+
+	action_asset_block_t* block_action = &buffer->buffer[buffer->position].sub.asset;
+	block_action->region = region;
+	block_action->previous = dig_malloc(region_size(region) * sizeof * block_action->previous);
+	game_asset_copy(asset, region, block_action->previous);
+}
+
+void action_buffer_post_add_asset_block(action_buffer_t buffer, const asset_t* asset)
+{
+	RUNTIME_ASSERT(buffer->buffer[buffer->position].type == ACTION_ASSET_BLOCK);
+
+	action_asset_block_t* block_action = &buffer->buffer[buffer->position].sub.asset;
+	block_action->next = dig_malloc(region_size(block_action->region) * sizeof * block_action->next);
+	game_asset_copy(asset, block_action->region, block_action->next);
+}
+
+void action_buffer_add_asset_block(action_buffer_t buffer, const asset_block_t* prev, const asset_block_t* curr, region_t region)
+{
+	action_buffer_create_node(buffer);
+	buffer->buffer[buffer->position].type = ACTION_ASSET_BLOCK;
+	action_asset_block_t* block_action = &buffer->buffer[buffer->position].sub.asset;
+	block_action->region = region;
+
+	size_t buf_size = region_size(region) * sizeof * prev;
+	block_action->previous = dig_malloc(buf_size);
+	block_action->next = dig_malloc(buf_size);
+	memcpy(block_action->previous, prev, buf_size);
+	memcpy(block_action->next, curr, buf_size);
+}
+
 action_t* action_buffer_back(action_buffer_t buffer)
 {
 	if (buffer->position < 0)
@@ -173,4 +208,15 @@ void action_buffer_reverse_field(action_t* action)
 	field_t temp = field->previous;
 	field->previous = field->next;
 	field->next = temp;
+}
+
+void action_buffer_reverse_asset_block(asset_t* asset, action_t* action)
+{
+	RUNTIME_ASSERT(action->type == ACTION_ASSET_BLOCK);
+	action_asset_block_t* ba = &action->sub.asset;
+	game_asset_delete(asset, ba->region);
+	game_asset_paste(asset, ba->region, ba->previous);
+	asset_block_t* temp = ba->previous;
+	ba->previous = ba->next;
+	ba->next = temp;
 }

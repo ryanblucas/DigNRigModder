@@ -18,7 +18,8 @@ typedef struct complete_field
 typedef enum action_type
 {
 	ACTION_BLOCK,
-	ACTION_FIELD
+	ACTION_FIELD,
+	ACTION_ASSET_BLOCK,
 } action_type_t;
 
 /* Dig-N-Rig is a 32-bit application, meaning all elementary fields (like CHAR_INFO 
@@ -39,6 +40,13 @@ typedef struct action_field
 	field_t next;
 } action_field_t;
 
+typedef struct action_asset_block
+{
+	region_t region;
+	asset_block_t* previous;
+	asset_block_t* next;
+} action_asset_block_t;
+
 typedef struct action
 {
 	action_type_t type;
@@ -46,6 +54,7 @@ typedef struct action
 	{
 		action_block_t block;
 		action_field_t field;
+		action_asset_block_t asset;
 	} sub;
 } action_t;
 
@@ -82,9 +91,21 @@ void action_buffer_pre_add_block(action_buffer_t buffer, const dnr_state_t* stat
 void action_buffer_post_add_block(action_buffer_t buffer, const dnr_state_t* state);
 /* Adds block action to buffer. */
 void action_buffer_add_block(action_buffer_t buffer, const complete_block_t* prev, const complete_block_t* curr, region_t region);
+
 /* Adds field action to buffer. All of the parameters passed in are 1:1 what is created
    for the action_field_t struct. If this isn't the top of the buffer, it deletes everything in front of it */
 void action_buffer_add_field(action_buffer_t buffer, element_t element, field_t previous);
+
+/* Adds asset block action to buffer. The action created uses the region parameter passed in
+   and creates the "previous" array with what is there currently. Therefore, call this
+   before changing anything, then action_buffer_post_add_asset_block to create the next part.
+   If this isn't the top of the buffer, it deletes everything in front of it */
+void action_buffer_pre_add_asset_block(action_buffer_t buffer, const asset_t* asset, region_t region);
+/* Finalizes asset block action to buffer from pre_add_block. */
+void action_buffer_post_add_asset_block(action_buffer_t buffer, const asset_t* asset);
+/* Adds asset block action to buffer. */
+void action_buffer_add_asset_block(action_buffer_t buffer, const asset_block_t* prev, const asset_block_t* curr, region_t region);
+
 /* Goes back in the buffer. If there's no more left, returns false and doesn't write to action.
    This would be used for undoing */
 action_t* action_buffer_back(action_buffer_t buffer);
@@ -95,3 +116,5 @@ action_t* action_buffer_forward(action_buffer_t buffer);
 void action_buffer_reverse_block(dnr_state_t* state, action_t* action);
 /* Reverses a field action */
 void action_buffer_reverse_field(action_t* action);
+/* Reverses a asset block action */
+void action_buffer_reverse_asset_block(asset_t* asset, action_t* action);

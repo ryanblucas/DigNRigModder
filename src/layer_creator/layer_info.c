@@ -19,15 +19,16 @@ enum child_window_index
 static HWND child_windows[CWI_COUNT];
 static info_internal_t internal;
 static asset_t* asset;
+static asset_block_t current_block;
 
 void layer_info_initialize(const info_internal_t* _internal)
 {
 	internal = *_internal;
 
-	child_windows[CWI_LAYER_FILE_COMBOBOX] = CreateWindowExW(0, WC_COMBOBOXW, NULL, WS_VSCROLL | CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_CHILD | WS_OVERLAPPED | WS_VISIBLE, 40, 25, 200, 200, internal.window, NULL, NULL, NULL);
+	child_windows[CWI_LAYER_FILE_COMBOBOX] = CreateWindowExW(0, WC_COMBOBOXW, NULL, WS_VSCROLL | CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_CHILD | WS_OVERLAPPED | WS_VISIBLE, 40, 25, INFO_BOX_CLIENT_WIDTH / 2 - 40, 200, internal.window, NULL, NULL, NULL);
 	SendMessageW(child_windows[CWI_LAYER_FILE_COMBOBOX], WM_SETFONT, (WPARAM)internal.font_caption, 0);
 
-	child_windows[CWI_LAYER_FILE_COMBOBOX_LABEL] = CreateWindowExW(0, L"STATIC", L"File:", WS_VISIBLE | WS_CHILD, 2, 25, 36, 18, internal.window, NULL, NULL, NULL);
+	child_windows[CWI_LAYER_FILE_COMBOBOX_LABEL] = CreateWindowExW(0, L"STATIC", L"File:", WS_VISIBLE | WS_CHILD, 8, 29, 24, 18, internal.window, NULL, NULL, NULL);
 	SendMessageW(child_windows[CWI_LAYER_FILE_COMBOBOX_LABEL], WM_SETFONT, (WPARAM)internal.font_caption, 0);
 
 	child_windows[CWI_LAYER_TREEVIEW] = CreateWindowExW(0, WC_TREEVIEWW, NULL, WS_VISIBLE | WS_CHILD | WS_BORDER | TVS_HASLINES | TVS_LINESATROOT | TVS_HASBUTTONS, 2, 190, INFO_BOX_CLIENT_WIDTH / 2 - 2, 200, internal.window, NULL, NULL, NULL);
@@ -95,9 +96,7 @@ static void layer_info_state_set_tree_view(asset_t* asset)
 
 #define ADD_SERIALIZABLE(type, name) serialize_single(#type, &item->name, #name, child_windows[CWI_LAYER_TREEVIEW], NULL);
 #define ADD_SERIALIZABLE_ARRAY(type, name, count) serialize_array(#type, &item->name, count, #name, child_windows[CWI_LAYER_TREEVIEW], NULL);
-
 	SERIALIZABLE_ASSET
-
 #undef ADD_SERIALIZABLE
 #undef ADD_SERIALIZABLE_ARRAY
 
@@ -160,33 +159,33 @@ void layer_info_asset_set_current(region_t region)
 	RUNTIME_ASSERT(!region_is_invalid(region));
 	region = region_validate(region);
 	TreeView_DeleteAllItems(child_windows[CWI_LAYER_CURRENT_TREEVIEW]);
-	asset_block_t common = asset->blocks[region.x0 + region.y0 * TARGET_WIDTH];
+	current_block = asset->blocks[region.x0 + region.y0 * TARGET_WIDTH];
 	enum layer_info_current_field mask = 0;
 	for (int y = 0; y < region_height(region); y++)
 	{
 		for (int x = 0; x < region_width(region); x++)
 		{
 			asset_block_t* curr = &asset->blocks[(region.x0 + x) + (region.y0 + y) * TARGET_WIDTH];
-			if (~mask & LICF_TILE_TYPE && common.tile_type != curr->tile_type)
+			if (~mask & LICF_TILE_TYPE && current_block.tile_type != curr->tile_type)
 			{
-				common.tile_type = 0;
+				current_block.tile_type = 0;
 				mask |= LICF_TILE_TYPE;
 			}
-			else if (~mask & LICF_VISUAL && common.visual.Attributes != curr->visual.Attributes || common.visual.Char.AsciiChar != curr->visual.Char.AsciiChar)
+			else if (~mask & LICF_VISUAL && current_block.visual.Attributes != curr->visual.Attributes || current_block.visual.Char.AsciiChar != curr->visual.Char.AsciiChar)
 			{
-				common.visual = (CHAR_INFO){ 0 };
+				current_block.visual = (CHAR_INFO){ 0 };
 				mask |= LICF_VISUAL;
 			}
-			else if (~mask & LICF_TILE_TYPE && common.transparency != curr->transparency)
+			else if (~mask & LICF_TILE_TYPE && current_block.transparency != curr->transparency)
 			{
-				common.transparency = false;
+				current_block.transparency = false;
 				mask |= LICF_TRANSPARENCY;
 			}
 		}
 	}
 
-#define ADD_SERIALIZABLE(type, name) element_t name = serialize_single(#type, &common.name, #name, child_windows[CWI_LAYER_CURRENT_TREEVIEW], NULL);
-#define ADD_SERIALIZABLE_ARRAY(type, name, count) element_t name = serialize_array(#type, &common.name, count, #name, child_windows[CWI_LAYER_CURRENT_TREEVIEW], NULL);
+#define ADD_SERIALIZABLE(type, name) element_t name = serialize_single(#type, &current_block.name, #name, child_windows[CWI_LAYER_CURRENT_TREEVIEW], NULL);
+#define ADD_SERIALIZABLE_ARRAY(type, name, count) element_t name = serialize_array(#type, &current_block.name, count, #name, child_windows[CWI_LAYER_CURRENT_TREEVIEW], NULL);
 	SERIALIZABLE_ASSET_BLOCK
 #undef ADD_SERIALIZABLE
 #undef ADD_SERIALIZABLE_ARRAY

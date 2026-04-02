@@ -20,8 +20,6 @@
 
 static void save_viewer_handle_global_field_change(const void* field);
 
-typedef void (*save_viewer_brush_function_t)(int x, int y, int radius);
-
 static action_buffer_t action_buffer;
 
 static sprite_t flag;
@@ -460,7 +458,8 @@ void save_initialize(editor_state_t* state)
 		.initialize = save_info_initialize,
 		.destroy = save_info_destroy,
 		.show = save_info_show,
-		.proc = save_info_proc
+		.proc = save_info_proc,
+		.interact_tree_item = save_info_handle_interact_tree_item
 	};
 	info_add_class(&class);
 

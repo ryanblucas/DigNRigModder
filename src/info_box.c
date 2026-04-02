@@ -25,6 +25,8 @@ static DWORD thread_id;
 
 static info_mode_t current_mode;
 static info_mode_class_t classes[MODE_COUNT];
+static HWND global_treeviews[MODE_COUNT];
+static HWND current_treeviews[MODE_COUNT];
 
 static info_events_t events;
 static info_handle_change_mode_t change_mode;
@@ -37,6 +39,34 @@ static inline void info_tab_create(const char* name, info_mode_t index)
 	TabCtrl_InsertItem(tab_control, index, &tab);
 }
 
+static void info_window_tree_control_proc(HWND hwnd, WPARAM wparam, LPARAM lparam)
+{
+	NMTREEVIEWW* nmtv = (NMTREEVIEWW*)lparam;
+	if (nmtv->hdr.code == TVN_ITEMEXPANDING && nmtv->action == TVE_EXPAND && nmtv->itemNew.mask & TVIF_PARAM)
+	{
+		serialize_on_expand((element_t)nmtv->itemNew.lParam);
+	}
+	else if (nmtv->hdr.code == NM_DBLCLK)
+	{
+		/* the LPARAM here is NOT a NMTREEVIEWW */
+		TVHITTESTINFO info;
+		GetCursorPos(&info.pt);
+		ScreenToClient(nmtv->hdr.hwndFrom, &info.pt);
+
+		HTREEITEM res = TreeView_HitTest(nmtv->hdr.hwndFrom, &info);
+		if (res && info.flags & TVHT_ONITEM)
+		{
+			TVITEMEXW tvi;
+			tvi.hItem = res;
+			tvi.mask = TVIF_PARAM;
+			TreeView_GetItem(nmtv->hdr.hwndFrom, &tvi);
+			element_t element = (element_t)tvi.lParam;
+
+			RAISE_EVENT(classes[current_mode].interact_tree_item, nmtv->hdr.hwndFrom == global_treeviews[current_mode], element);
+		}
+	}
+}
+
 static LRESULT info_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
 	switch (msg)
@@ -46,13 +76,16 @@ static LRESULT info_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
 		tab_control = CreateWindowExW(0, WC_TABCONTROLW, NULL, WS_VISIBLE | WS_CHILD | WS_CLIPSIBLINGS, 0, 0, INFO_BOX_CLIENT_WIDTH, INFO_BOX_CLIENT_HEIGHT, hwnd, NULL, NULL, NULL);
 		RUNTIME_ASSERT(tab_control);
 
-		info_internal_t internal = { .window = hwnd, .events = &events, .font_caption = font_caption, .font_text = font_text };
 		for (int i = 0; i < MODE_COUNT; i++)
 		{
 			/* just a check to see if the class exists */
 			RUNTIME_ASSERT(classes[i].initialize);
+
 			info_tab_create(classes[i].caption, i);
+			info_internal_t internal = { .window = hwnd, .events = &events, .font_caption = font_caption, .font_text = font_text };
 			classes[i].initialize(&internal);
+			global_treeviews[i] = internal.global_treeview;
+			current_treeviews[i] = internal.current_treeview;
 		}
 
 		classes[current_mode].show(true);
@@ -66,6 +99,10 @@ static LRESULT info_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
 		if (nmhdr->hwndFrom == tab_control && nmhdr->code == TCN_SELCHANGE)
 		{
 			info_set_current_mode(TabCtrl_GetCurSel(tab_control));
+		}
+		else if (nmhdr->hwndFrom == global_treeviews[current_mode] || nmhdr->hwndFrom == current_treeviews[current_mode])
+		{
+			info_window_tree_control_proc(hwnd, wparam, lparam);
 		}
 		break;
 	}

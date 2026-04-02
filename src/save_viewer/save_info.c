@@ -48,7 +48,7 @@ static dnr_mineral_t current_mineral;
 static complete_block_t brush;
 static int brush_size = 1;
 
-void save_info_initialize(const info_internal_t* _internal)
+void save_info_initialize(info_internal_t* _internal)
 {
 	current_selection_region = INVALID_REGION;
 	internal = *_internal;
@@ -88,6 +88,9 @@ void save_info_initialize(const info_internal_t* _internal)
 	{
 		SendMessageW(internal.window, INFO_BOX_MSG_STATE_READY, (WPARAM)state, 0);
 	}
+
+	_internal->global_treeview = child_windows[CWI_SAVE_TREEVIEW];
+	_internal->current_treeview = child_windows[CWI_SAVE_CURRENT_TREEVIEW];
 
 	save_info_show(false);
 }
@@ -179,57 +182,26 @@ static void save_info_window_change_current(element_t element)
 	action_buffer_post_add_block(action_buffer, state);
 }
 
-static void save_info_window_tree_control_handle_double_click(HWND hwnd, HTREEITEM res)
+void save_info_handle_interact_tree_item(bool is_global, element_t element)
 {
-	TVITEMEXW tvi;
-	tvi.hItem = res;
-	tvi.mask = TVIF_PARAM;
-	TreeView_GetItem(hwnd, &tvi);
-	element_t element = (element_t)tvi.lParam;
-
-	if (hwnd == child_windows[CWI_SAVE_CURRENT_TREEVIEW])
+	if (!is_global)
 	{
 		save_info_window_change_current(element);
+		return;
 	}
-	else if (hwnd == child_windows[CWI_SAVE_TREEVIEW])
+	/* only should change elementary fields */
+	if (serialize_element_get_size(element) > 4 || serialize_element_get_count(element) > 1)
 	{
-		/* only should change elementary fields */
-		if (serialize_element_get_size(element) > 4 || serialize_element_get_count(element) > 1)
-		{
-			return;
-		}
-
-		field_t begin_copy = field_create(serialize_element_get_value(element), serialize_element_get_size(element));
-		if (!serialize_on_change_field(element))
-		{
-			return;
-		}
-		RAISE_EVENT(internal.events->global_field_handler, serialize_element_get_value(element));
-		action_buffer_add_field(action_buffer, element, begin_copy);
+		return;
 	}
-}
 
-static LRESULT save_info_window_save_tree_control_proc(HWND hwnd, WPARAM wparam, LPARAM lparam)
-{
-	NMTREEVIEWW* nmtv = (NMTREEVIEWW*)lparam;
-	if (nmtv->hdr.code == TVN_ITEMEXPANDING && nmtv->action == TVE_EXPAND && nmtv->itemNew.mask & TVIF_PARAM)
+	field_t begin_copy = field_create(serialize_element_get_value(element), serialize_element_get_size(element));
+	if (!serialize_on_change_field(element))
 	{
-		serialize_on_expand((element_t)nmtv->itemNew.lParam);
+		return;
 	}
-	else if (nmtv->hdr.code == NM_DBLCLK)
-	{
-		/* the LPARAM here is NOT a NMTREEVIEWW */
-		TVHITTESTINFO info;
-		GetCursorPos(&info.pt);
-		ScreenToClient(nmtv->hdr.hwndFrom, &info.pt);
-
-		HTREEITEM res = TreeView_HitTest(nmtv->hdr.hwndFrom, &info);
-		if (res && info.flags & TVHT_ONITEM)
-		{
-			save_info_window_tree_control_handle_double_click(nmtv->hdr.hwndFrom, res);
-		}
-	}
-	return 0;
+	RAISE_EVENT(internal.events->global_field_handler, serialize_element_get_value(element));
+	action_buffer_add_field(action_buffer, element, begin_copy);
 }
 
 bool save_info_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESULT* out)
@@ -237,15 +209,6 @@ bool save_info_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESULT* 
 	*out = 0;
 	switch (msg)
 	{
-	case WM_NOTIFY:
-	{
-		NMHDR* nmhdr = (NMHDR*)lparam;
-		if (nmhdr->hwndFrom == child_windows[CWI_SAVE_TREEVIEW] || nmhdr->hwndFrom == child_windows[CWI_SAVE_CURRENT_TREEVIEW])
-		{
-			*out = save_info_window_save_tree_control_proc(hwnd, wparam, lparam);
-		}
-		return true;
-	}
 	case WM_COMMAND:
 	{
 		if (HIWORD(wparam) != BN_CLICKED)

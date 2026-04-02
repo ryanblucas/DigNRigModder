@@ -11,7 +11,7 @@ Tools
 		something akin to the selection tool, where no changes are actually committed until the mouse is let go. What the user sees
 		between mouse down and mouse up is just a sprite being rendered over the screen. That's another promising solution to this.
 Layer creator
-	Add treeviews to view details
+	UI needs to be improved
 	Implement all tools to the creator
 
 Create sprite creator

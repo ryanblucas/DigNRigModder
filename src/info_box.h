@@ -47,11 +47,14 @@ typedef struct info_internal
 	HFONT font_caption, font_text;
 	HWND window;
 	const info_events_t* events;
+	HWND global_treeview;
+	HWND current_treeview;
 } info_internal_t;
 
+typedef void (*info_mode_handle_interact_tree_item_t)(bool is_global, element_t element);
 typedef bool (*info_mode_proc_t)(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESULT* out);
 typedef void (*info_mode_show_t)(bool is_visible);
-typedef void (*info_mode_initialize_t)(const info_internal_t* internal);
+typedef void (*info_mode_initialize_t)(info_internal_t* internal);
 typedef void (*info_mode_destroy_t)();
 
 typedef struct info_mode_class
@@ -62,6 +65,7 @@ typedef struct info_mode_class
 	info_mode_show_t show;
 	info_mode_initialize_t initialize;
 	info_mode_destroy_t destroy;
+	info_mode_handle_interact_tree_item_t interact_tree_item;
 } info_mode_class_t;
 
 void info_add_class(const info_mode_class_t* class);

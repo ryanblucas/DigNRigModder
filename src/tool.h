@@ -17,6 +17,12 @@ typedef struct tool_brush* tool_brush_t;
 typedef union tool_brush_element
 {
 	complete_block_t block;
+	struct
+	{
+		asset_block_t block;
+		int x;
+		int y;
+	} asset; 
 } tool_brush_element_t;
 
 typedef void (*tool_brush_function_t)(tool_brush_t tool, region_t region);
@@ -38,6 +44,7 @@ typedef enum tool_event
 typedef enum tool_brush_type
 {
 	BRUSH_TYPE_COMPLETE_BLOCK,
+	BRUSH_TYPE_ASSET_BLOCK
 } tool_brush_type_t;
 
 /* creates a selection tool. Width and height are the dimensions of what the tool is working with */
@@ -82,6 +89,10 @@ tool_brush_type_t tool_brush_type(const tool_brush_t tool);
 void tool_brush_add_to_before_list_cb(tool_brush_t tool, complete_block_t* element);
 /* Sets array to a 2d array of complete blocks with dimensions of tool_brush_region. */
 void tool_brush_copy_before_cb(const tool_brush_t tool, const dnr_state_t* save, complete_block_t* array);
+/* Adds element to brush list */
+void tool_brush_add_to_before_list_ab(tool_brush_t tool, asset_block_t* element, int x, int y);
+/* Sets array to a 2d array of asset blocks with dimensions of tool_brush_region. */
+void tool_brush_copy_before_ab(const tool_brush_t tool, const asset_t* asset, asset_block_t* array);
 
 /* sets radius of brush */
 void tool_brush_set_size(tool_brush_t tool, int size);

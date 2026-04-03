@@ -19,3 +19,7 @@ void layer_info_asset_set_current(region_t region);
 
 action_buffer_t layer_info_action_buffer_get(void);
 void layer_info_action_buffer_set(action_buffer_t action_buffer);
+
+info_tool_t layer_info_get_current_tool(void);
+void layer_info_get_current_brush_block(asset_block_t* res);
+int layer_info_get_current_brush_size(void);

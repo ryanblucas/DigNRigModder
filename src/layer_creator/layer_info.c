@@ -13,6 +13,10 @@ enum child_window_index
 	CWI_LAYER_FILE_COMBOBOX_LABEL,
 	CWI_LAYER_TREEVIEW,
 	CWI_LAYER_CURRENT_TREEVIEW,
+	CWI_LAYER_ERASER_BUTTON,
+	CWI_LAYER_SELECT_BUTTON,
+	CWI_LAYER_BRUSH_BUTTON,
+	CWI_LAYER_BRUSH_SIZE_THUMB,
 	CWI_COUNT
 };
 
@@ -20,10 +24,14 @@ static HWND child_windows[CWI_COUNT];
 static info_internal_t internal;
 static asset_t* asset;
 
+static info_tool_t current_tool;
+
 static asset_block_t current_block;
 static region_t region;
 
 static action_buffer_t action_buffer;
+
+static int brush_size = 1;
 
 void layer_info_initialize(info_internal_t* _internal)
 {
@@ -41,9 +49,22 @@ void layer_info_initialize(info_internal_t* _internal)
 	child_windows[CWI_LAYER_CURRENT_TREEVIEW] = CreateWindowExW(0, WC_TREEVIEWW, NULL, WS_VISIBLE | WS_CHILD | WS_BORDER | TVS_HASLINES | TVS_LINESATROOT | TVS_HASBUTTONS, INFO_BOX_CLIENT_WIDTH / 2, 190, INFO_BOX_CLIENT_WIDTH / 2 - 2, 200, internal.window, NULL, NULL, NULL);
 	SendMessageW(child_windows[CWI_LAYER_CURRENT_TREEVIEW], WM_SETFONT, (WPARAM)internal.font_text, (LPARAM)FALSE);
 
+	child_windows[CWI_LAYER_ERASER_BUTTON] = CreateWindowExW(0, L"BUTTON", L"Erase", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 3, 98, 72, 22, internal.window, NULL, NULL, NULL);
+	child_windows[CWI_LAYER_SELECT_BUTTON] = CreateWindowExW(0, L"BUTTON", L"Select", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 3, 121, 72, 22, internal.window, NULL, NULL, NULL);
+	child_windows[CWI_LAYER_BRUSH_BUTTON] = CreateWindowExW(0, L"BUTTON", L"Brush", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 3, 144, 72, 22, internal.window, NULL, NULL, NULL);
+	child_windows[CWI_LAYER_BRUSH_SIZE_THUMB] = CreateWindowExW(0, TRACKBAR_CLASSW, L"Brush size", WS_VISIBLE | WS_CHILD | TBS_AUTOTICKS | TBS_ENABLESELRANGE, 3, 167, 72, 22, internal.window, NULL, NULL, NULL);
+	SendMessageW(child_windows[CWI_LAYER_BRUSH_SIZE_THUMB], TBM_SETRANGE, TRUE, MAKELONG(INFO_BRUSH_MIN_SIZE, INFO_BRUSH_MAX_SIZE));
+
+	for (int i = 0; i < 3; i++)
+	{
+		SendMessageW(child_windows[CWI_LAYER_ERASER_BUTTON + i], WM_SETFONT, (WPARAM)internal.font_text, (LPARAM)FALSE);
+	}
+
 	_internal->global_treeview = child_windows[CWI_LAYER_TREEVIEW];
 	_internal->current_treeview = child_windows[CWI_LAYER_CURRENT_TREEVIEW];
 
+	current_tool = TOOL_SELECT;
+	EnableWindow(child_windows[CWI_LAYER_SELECT_BUTTON], FALSE);
 	layer_info_show(false);
 }
 
@@ -117,7 +138,8 @@ bool layer_info_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESULT*
 	{
 	case WM_COMMAND:
 	{
-		if ((HWND)lparam == child_windows[CWI_LAYER_FILE_COMBOBOX])
+		HWND window = (HWND)lparam;
+		if (window == child_windows[CWI_LAYER_FILE_COMBOBOX])
 		{
 			if (HIWORD(wparam) == CBN_DROPDOWN)
 			{
@@ -129,7 +151,38 @@ bool layer_info_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESULT*
 				layer_info_sync_combobox_with_console();
 			}
 		}
+		else if (window == child_windows[CWI_LAYER_ERASER_BUTTON])
+		{
+			EnableWindow(child_windows[CWI_LAYER_ERASER_BUTTON + current_tool], TRUE);
+			current_tool = TOOL_ERASER;
+			RAISE_EVENT(internal.events->tool_handler, current_tool);
+			EnableWindow(child_windows[CWI_LAYER_ERASER_BUTTON + current_tool], FALSE);
+		}
+		else if (window == child_windows[CWI_LAYER_SELECT_BUTTON])
+		{
+			EnableWindow(child_windows[CWI_LAYER_ERASER_BUTTON + current_tool], TRUE);
+			current_tool = TOOL_SELECT;
+			RAISE_EVENT(internal.events->tool_handler, current_tool);
+			EnableWindow(child_windows[CWI_LAYER_ERASER_BUTTON + current_tool], FALSE);
+		}
+		else if (window == child_windows[CWI_LAYER_BRUSH_BUTTON])
+		{
+			EnableWindow(child_windows[CWI_LAYER_ERASER_BUTTON + current_tool], TRUE);
+			current_tool = TOOL_BRUSH;
+			RAISE_EVENT(internal.events->tool_handler, current_tool);
+			EnableWindow(child_windows[CWI_LAYER_ERASER_BUTTON + current_tool], FALSE);
+		}
 		break;
+	}
+	case WM_HSCROLL:
+	{
+		if ((HWND)lparam != child_windows[CWI_LAYER_BRUSH_SIZE_THUMB] || LOWORD(wparam) != SB_ENDSCROLL)
+		{
+			return true;
+		}
+		brush_size = (int)SendMessageW(child_windows[CWI_LAYER_BRUSH_SIZE_THUMB], TBM_GETPOS, 0, 0);
+		RAISE_EVENT(internal.events->brush_size_handler, brush_size);
+		return true;
 	}
 	case INFO_BOX_MSG_STATE_READY:
 	{
@@ -257,4 +310,19 @@ action_buffer_t layer_info_action_buffer_get(void)
 void layer_info_action_buffer_set(action_buffer_t _action_buffer)
 {
 	action_buffer = _action_buffer;
+}
+
+info_tool_t layer_info_get_current_tool(void)
+{
+	return current_tool;
+}
+
+void layer_info_get_current_brush_block(asset_block_t* res)
+{
+	*res = (asset_block_t){ 0 };
+}
+
+int layer_info_get_current_brush_size(void)
+{
+	return brush_size;
 }

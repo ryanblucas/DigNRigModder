@@ -250,25 +250,9 @@ tool_brush_type_t tool_brush_type(const tool_brush_t tool)
 	return tool->type;
 }
 
-void tool_brush_copy_before_cb(const tool_brush_t tool, const dnr_state_t* save, complete_block_t* array)
-{
-	RUNTIME_ASSERT(tool->type == BRUSH_TYPE_COMPLETE_BLOCK);
-	region_t region = region_validate(tool->region);
-	game_copy(save, region, array);
-	for (int i = 0; i < tool->before_count; i++)
-	{
-		tool_brush_element_t* curr = tool->before_buffer + i;
-		array[(curr->block.block.x - tool->region.x0) + (curr->block.block.y - tool->region.y0) * region_width(tool->region)] = curr->block;
-	}
-}
-
-void tool_brush_set_size(tool_brush_t tool, int size)
-{
-	tool->size = size;
-}
-
 void tool_brush_add_to_before_list_cb(tool_brush_t tool, complete_block_t* element)
 {
+	RUNTIME_ASSERT(tool->type == BRUSH_TYPE_COMPLETE_BLOCK);
 	for (int i = 0; i < tool->before_count; i++)
 	{
 		if (element->block.x == tool->before_buffer[i].block.block.x && element->block.y == tool->before_buffer[i].block.block.y)
@@ -289,6 +273,60 @@ void tool_brush_add_to_before_list_cb(tool_brush_t tool, complete_block_t* eleme
 	memcpy(next, tool->before_buffer, buf_size);
 	free(tool->before_buffer);
 	tool->before_buffer = next;
+}
+
+void tool_brush_copy_before_cb(const tool_brush_t tool, const dnr_state_t* save, complete_block_t* array)
+{
+	RUNTIME_ASSERT(tool->type == BRUSH_TYPE_COMPLETE_BLOCK);
+	region_t region = region_validate(tool->region);
+	game_copy(save, region, array);
+	for (int i = 0; i < tool->before_count; i++)
+	{
+		tool_brush_element_t* curr = tool->before_buffer + i;
+		array[(curr->block.block.x - tool->region.x0) + (curr->block.block.y - tool->region.y0) * region_width(tool->region)] = curr->block;
+	}
+}
+
+void tool_brush_add_to_before_list_ab(tool_brush_t tool, asset_block_t* element, int x, int y)
+{
+	RUNTIME_ASSERT(tool->type == BRUSH_TYPE_ASSET_BLOCK);
+	for (int i = 0; i < tool->before_count; i++)
+	{
+		if (x == tool->before_buffer[i].asset.x && y == tool->before_buffer[i].asset.y)
+		{
+			return;
+		}
+	}
+
+	tool->before_buffer[tool->before_count++] = (tool_brush_element_t){ .asset.block = *element, .asset.x = x, .asset.y = y };
+	if (tool->before_count < tool->before_reserved)
+	{
+		return;
+	}
+
+	size_t buf_size = tool->before_reserved * sizeof * tool->before_buffer;
+	tool->before_reserved *= 2;
+	tool_brush_element_t* next = dig_malloc(buf_size * 2);
+	memcpy(next, tool->before_buffer, buf_size);
+	free(tool->before_buffer);
+	tool->before_buffer = next;
+}
+
+void tool_brush_copy_before_ab(const tool_brush_t tool, const asset_t* asset, asset_block_t* array)
+{
+	RUNTIME_ASSERT(tool->type == BRUSH_TYPE_ASSET_BLOCK);
+	region_t region = region_validate(tool->region);
+	game_asset_copy(asset, region, array);
+	for (int i = 0; i < tool->before_count; i++)
+	{
+		tool_brush_element_t* curr = tool->before_buffer + i;
+		array[(curr->asset.x - tool->region.x0) + (curr->asset.y - tool->region.y0) * region_width(tool->region)] = curr->asset.block;
+	}
+}
+
+void tool_brush_set_size(tool_brush_t tool, int size)
+{
+	tool->size = size;
 }
 
 tool_event_t tool_brush_handle_mouse_move(tool_brush_t tool, bool m1_down, int x, int y, int scroll_y)

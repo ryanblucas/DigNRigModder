@@ -170,7 +170,7 @@ static void save_info_window_change_current(element_t element)
 		return;
 	}
 	action_buffer_pre_add_block(action_buffer, state, current_selection_region);
-	for (int y = current_selection_region.y0; y <= current_selection_region.y1; y++)
+ 	for (int y = current_selection_region.y0; y <= current_selection_region.y1; y++)
 	{
 		for (int x = current_selection_region.x0; x <= current_selection_region.x1; x++)
 		{

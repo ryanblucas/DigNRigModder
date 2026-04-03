@@ -16,6 +16,14 @@ static tool_select_t tool_select;
 
 static action_buffer_t action_buffer;
 
+static void layer_invalidate(void)
+{
+	screen_sprite_destroy(cache);
+	cache = game_spritify_asset(layer);
+	RUNTIME_ASSERT(cache);
+	screen_repaint();
+}
+
 static void layer_handle_file_change(const char* directory)
 {
 	screen_sprite_destroy(cache);
@@ -24,10 +32,12 @@ static void layer_handle_file_change(const char* directory)
 	layer = file_asset_load(directory);
 	RUNTIME_ASSERT(layer.blocks);
 	layer_info_asset_set(&layer);
-	cache = game_spritify_asset(layer);
-	RUNTIME_ASSERT(cache);
+	layer_invalidate();
+}
 
-	screen_repaint();
+static void layer_handle_block_change(region_t region)
+{
+	layer_invalidate();
 }
 
 static inline void layer_render_tile_type_as(asset_tile_type_t type, char ch, attribute_t attrib)
@@ -83,7 +93,7 @@ static void layer_handle_mouse_button(bool m1_down, int x, int y)
 
 		action_buffer_post_add_asset_block(action_buffer, &layer);
 
-		cache = game_spritify_asset(layer);
+		layer_invalidate();
 		break;
 	}
 	case EVENT_SELECTION_RESIZE_STOP:
@@ -112,8 +122,7 @@ static void layer_do_action(action_t* act)
 		return;
 	}
 	action_buffer_reverse_asset_block(&layer, act);
-	cache = game_spritify_asset(layer);
-	screen_repaint();
+	layer_invalidate();
 }
 
 static void layer_handle_keyboard(virtual_key_t key, keyboard_control_t ctrl)
@@ -121,14 +130,10 @@ static void layer_handle_keyboard(virtual_key_t key, keyboard_control_t ctrl)
 	if (ctrl == CTRL_LEFT_PRESSED && key == 'Z')
 	{
 		layer_do_action(action_buffer_back(action_buffer));
-		cache = game_spritify_asset(layer);
-		screen_repaint();
 	}
 	else if (ctrl == CTRL_LEFT_PRESSED && key == 'Y')
 	{
 		layer_do_action(action_buffer_forward(action_buffer));
-		cache = game_spritify_asset(layer);
-		screen_repaint();
 	}
 }
 
@@ -141,11 +146,13 @@ void layer_initialize(editor_state_t* state)
 		.initialize = layer_info_initialize,
 		.destroy = layer_info_destroy,
 		.show = layer_info_show,
-		.proc = layer_info_proc
+		.proc = layer_info_proc,
+		.interact_tree_item = layer_info_handle_interact_tree_item
 	};
 	info_add_class(&class);
 	tool_select = tool_select_create(TARGET_WIDTH, TARGET_HEIGHT);
 	action_buffer = action_buffer_initialize();
+	layer_info_action_buffer_set(action_buffer);
 }
 
 void layer_destroy(void)
@@ -160,7 +167,8 @@ void layer_start(void)
 {
 	info_events_t info_events =
 	{
-		.file_handler = layer_handle_file_change
+		.file_handler = layer_handle_file_change,
+		.block_handler = layer_handle_block_change,
 	};
 	info_set_event_handlers(&info_events);
 	screen_events_t screen_events =

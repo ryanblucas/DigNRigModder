@@ -888,6 +888,9 @@ bool serialize_on_change_field(element_t element)
 	case TYPE_DNR_MINERAL_SPAWN_RULE_T:
 		change_field_modal_mineral_spawn_rule(owner, element->value);
 		break;
+	case TYPE_ASSET_TILE_TYPE_T:
+		change_field_modal_asset_tile_type(owner, element->value);
+		break;
 	case TYPE_UINT8_T:
 		change_field_modal_integer(owner, element->value, sizeof(uint8_t));
 		break;

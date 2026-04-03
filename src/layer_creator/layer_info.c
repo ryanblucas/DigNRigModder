@@ -19,9 +19,13 @@ enum child_window_index
 static HWND child_windows[CWI_COUNT];
 static info_internal_t internal;
 static asset_t* asset;
-static asset_block_t current_block;
 
-void layer_info_initialize(const info_internal_t* _internal)
+static asset_block_t current_block;
+static region_t region;
+
+static action_buffer_t action_buffer;
+
+void layer_info_initialize(info_internal_t* _internal)
 {
 	internal = *_internal;
 
@@ -36,6 +40,9 @@ void layer_info_initialize(const info_internal_t* _internal)
 
 	child_windows[CWI_LAYER_CURRENT_TREEVIEW] = CreateWindowExW(0, WC_TREEVIEWW, NULL, WS_VISIBLE | WS_CHILD | WS_BORDER | TVS_HASLINES | TVS_LINESATROOT | TVS_HASBUTTONS, INFO_BOX_CLIENT_WIDTH / 2, 190, INFO_BOX_CLIENT_WIDTH / 2 - 2, 200, internal.window, NULL, NULL, NULL);
 	SendMessageW(child_windows[CWI_LAYER_CURRENT_TREEVIEW], WM_SETFONT, (WPARAM)internal.font_text, (LPARAM)FALSE);
+
+	_internal->global_treeview = child_windows[CWI_LAYER_TREEVIEW];
+	_internal->current_treeview = child_windows[CWI_LAYER_CURRENT_TREEVIEW];
 
 	layer_info_show(false);
 }
@@ -135,6 +142,44 @@ bool layer_info_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESULT*
 	return false;
 }
 
+void layer_info_handle_interact_tree_item(bool is_global, element_t element)
+{
+	/* only should change elementary fields */
+	if (serialize_element_get_size(element) > 4 || serialize_element_get_count(element) > 1)
+	{
+		return;
+	}
+
+	if (is_global)
+	{
+		field_t begin_copy = field_create(serialize_element_get_value(element), serialize_element_get_size(element));
+		if (!serialize_on_change_field(element) || begin_copy == field_create(serialize_element_get_value(element), serialize_element_get_size(element)))
+		{
+			return;
+		}
+		RAISE_EVENT(internal.events->global_field_handler, serialize_element_get_value(element));
+		action_buffer_add_field(action_buffer, element, begin_copy);
+		return;
+	}
+
+	field_t previous = field_create(serialize_element_get_value(element), serialize_element_get_size(element));
+	if (!serialize_on_change_field(element) || previous == field_create(serialize_element_get_value(element), serialize_element_get_size(element)))
+	{
+		return;
+	}
+	action_buffer_pre_add_asset_block(action_buffer, asset, region);
+	for (int y = region.y0; y <= region.y1; y++)
+	{
+		for (int x = region.x0; x <= region.x1; x++)
+		{
+			uint8_t* current = (uint8_t*)serialize_element_get_value(element);
+			memcpy((uint8_t*)&asset->blocks[x + y * TARGET_WIDTH] + (current - (uint8_t*)&current_block), current, serialize_element_get_size(element));
+		}
+	}
+	RAISE_EVENT(internal.events->block_handler, region);
+	action_buffer_post_add_asset_block(action_buffer, asset);
+}
+
 void layer_info_asset_set(asset_t* _asset)
 {
 	asset = _asset;
@@ -154,10 +199,10 @@ enum layer_info_current_field
 	LICF_TRANSPARENCY = 1 << 2
 };
 
-void layer_info_asset_set_current(region_t region)
+void layer_info_asset_set_current(region_t _region)
 {
-	RUNTIME_ASSERT(!region_is_invalid(region));
-	region = region_validate(region);
+	RUNTIME_ASSERT(!region_is_invalid(_region));
+	region = region_validate(_region);
 	TreeView_DeleteAllItems(child_windows[CWI_LAYER_CURRENT_TREEVIEW]);
 	current_block = asset->blocks[region.x0 + region.y0 * TARGET_WIDTH];
 	enum layer_info_current_field mask = 0;
@@ -202,4 +247,14 @@ void layer_info_asset_set_current(region_t region)
 	{
 		serialize_element_enable(transparency, false);
 	}
+}
+
+action_buffer_t layer_info_action_buffer_get(void)
+{
+	return action_buffer;
+}
+
+void layer_info_action_buffer_set(action_buffer_t _action_buffer)
+{
+	action_buffer = _action_buffer;
 }

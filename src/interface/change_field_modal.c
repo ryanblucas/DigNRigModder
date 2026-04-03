@@ -257,6 +257,14 @@ void change_field_modal_mineral_spawn_rule(HWND owner, dnr_mineral_spawn_rule_t*
 	cfm_enum_internal(owner, L"Change mineral spawn rule", (int*)value, array, 10, NULL, NULL);
 }
 
+void change_field_modal_asset_tile_type(HWND owner, asset_tile_type_t* value)
+{
+#define ADD_SERIALIZABLE_ENUM(name, value) #name L"\0"
+	WCHAR* array = SERIALIZABLE_ASSET_TILE_TYPE;
+#undef ADD_SERIALIZABLE_ENUM
+	cfm_enum_internal(owner, L"Change asset tile type", (int*)value, array, 16, NULL, NULL);
+}
+
 static INT_PTR cfm_text_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
 	switch (msg)

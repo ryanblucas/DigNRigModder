@@ -26,12 +26,42 @@ static asset_t* asset;
 
 static info_tool_t current_tool;
 
-static asset_block_t current_block;
+static asset_block_t blocks[3];
 static region_t region;
 
 static action_buffer_t action_buffer;
 
 static int brush_size = 1;
+
+enum layer_info_current_field
+{
+	LICF_TILE_TYPE = 1 << 0,
+	LICF_VISUAL = 1 << 1,
+	LICF_TRANSPARENCY = 1 << 2
+};
+
+static inline void layer_info_asset_set_treeview(enum layer_info_current_field mask)
+{
+	TreeView_DeleteAllItems(child_windows[CWI_LAYER_CURRENT_TREEVIEW]);
+#define ADD_SERIALIZABLE(type, name) element_t name = serialize_single(#type, &blocks[current_tool].name, #name, child_windows[CWI_LAYER_CURRENT_TREEVIEW], NULL);
+#define ADD_SERIALIZABLE_ARRAY(type, name, count) element_t name = serialize_array(#type, &blocks[current_tool].name, count, #name, child_windows[CWI_LAYER_CURRENT_TREEVIEW], NULL);
+	SERIALIZABLE_ASSET_BLOCK
+#undef ADD_SERIALIZABLE
+#undef ADD_SERIALIZABLE_ARRAY
+
+	if (mask & LICF_TILE_TYPE)
+	{
+		serialize_element_enable(tile_type, false);
+	}
+	if (mask & LICF_VISUAL)
+	{
+		serialize_element_enable(visual, false);
+	}
+	if (mask & LICF_TRANSPARENCY)
+	{
+		serialize_element_enable(transparency, false);
+	}
+}
 
 void layer_info_initialize(info_internal_t* _internal)
 {
@@ -131,6 +161,18 @@ static void layer_info_state_set_tree_view(asset_t* asset)
 	debug_profiler_pop("Surface level serializing");
 }
 
+static enum child_window_index layer_info_child_window_from_handle(HWND hwnd)
+{
+	for (int i = 0; i < CWI_COUNT; i++)
+	{
+		if (child_windows[i] == hwnd)
+		{
+			return i;
+		}
+	}
+	return -1;
+}
+
 bool layer_info_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESULT* out)
 {
 	*out = 0;
@@ -139,6 +181,7 @@ bool layer_info_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESULT*
 	case WM_COMMAND:
 	{
 		HWND window = (HWND)lparam;
+		enum child_window_index index = layer_info_child_window_from_handle(window);
 		if (window == child_windows[CWI_LAYER_FILE_COMBOBOX])
 		{
 			if (HIWORD(wparam) == CBN_DROPDOWN)
@@ -151,24 +194,15 @@ bool layer_info_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESULT*
 				layer_info_sync_combobox_with_console();
 			}
 		}
-		else if (window == child_windows[CWI_LAYER_ERASER_BUTTON])
+		else if (index >= CWI_LAYER_ERASER_BUTTON && index <= CWI_LAYER_BRUSH_BUTTON)
 		{
+			TreeView_DeleteAllItems(child_windows[CWI_LAYER_CURRENT_TREEVIEW]);
 			EnableWindow(child_windows[CWI_LAYER_ERASER_BUTTON + current_tool], TRUE);
-			current_tool = TOOL_ERASER;
-			RAISE_EVENT(internal.events->tool_handler, current_tool);
-			EnableWindow(child_windows[CWI_LAYER_ERASER_BUTTON + current_tool], FALSE);
-		}
-		else if (window == child_windows[CWI_LAYER_SELECT_BUTTON])
-		{
-			EnableWindow(child_windows[CWI_LAYER_ERASER_BUTTON + current_tool], TRUE);
-			current_tool = TOOL_SELECT;
-			RAISE_EVENT(internal.events->tool_handler, current_tool);
-			EnableWindow(child_windows[CWI_LAYER_ERASER_BUTTON + current_tool], FALSE);
-		}
-		else if (window == child_windows[CWI_LAYER_BRUSH_BUTTON])
-		{
-			EnableWindow(child_windows[CWI_LAYER_ERASER_BUTTON + current_tool], TRUE);
-			current_tool = TOOL_BRUSH;
+			current_tool = index - CWI_LAYER_ERASER_BUTTON;
+			if (current_tool != TOOL_ERASER)
+			{
+				layer_info_asset_set_treeview(0);
+			}
 			RAISE_EVENT(internal.events->tool_handler, current_tool);
 			EnableWindow(child_windows[CWI_LAYER_ERASER_BUTTON + current_tool], FALSE);
 		}
@@ -226,7 +260,7 @@ void layer_info_handle_interact_tree_item(bool is_global, element_t element)
 		for (int x = region.x0; x <= region.x1; x++)
 		{
 			uint8_t* current = (uint8_t*)serialize_element_get_value(element);
-			memcpy((uint8_t*)&asset->blocks[x + y * TARGET_WIDTH] + (current - (uint8_t*)&current_block), current, serialize_element_get_size(element));
+			memcpy((uint8_t*)&asset->blocks[x + y * TARGET_WIDTH] + (current - (uint8_t*)&blocks[current_tool]), current, serialize_element_get_size(element));
 		}
 	}
 	RAISE_EVENT(internal.events->block_handler, region);
@@ -245,61 +279,36 @@ void layer_info_asset_set(asset_t* _asset)
 	PostMessageW(internal.window, INFO_BOX_MSG_STATE_READY, (WPARAM)asset, 0);
 }
 
-enum layer_info_current_field
-{
-	LICF_TILE_TYPE = 1 << 0,
-	LICF_VISUAL = 1 << 1,
-	LICF_TRANSPARENCY = 1 << 2
-};
-
 void layer_info_asset_set_current(region_t _region)
 {
 	RUNTIME_ASSERT(!region_is_invalid(_region));
 	region = region_validate(_region);
-	TreeView_DeleteAllItems(child_windows[CWI_LAYER_CURRENT_TREEVIEW]);
-	current_block = asset->blocks[region.x0 + region.y0 * TARGET_WIDTH];
+	blocks[current_tool] = asset->blocks[region.x0 + region.y0 * TARGET_WIDTH];
 	enum layer_info_current_field mask = 0;
 	for (int y = 0; y < region_height(region); y++)
 	{
 		for (int x = 0; x < region_width(region); x++)
 		{
 			asset_block_t* curr = &asset->blocks[(region.x0 + x) + (region.y0 + y) * TARGET_WIDTH];
-			if (~mask & LICF_TILE_TYPE && current_block.tile_type != curr->tile_type)
+			if (~mask & LICF_TILE_TYPE && blocks[current_tool].tile_type != curr->tile_type)
 			{
-				current_block.tile_type = 0;
+				blocks[current_tool].tile_type = 0;
 				mask |= LICF_TILE_TYPE;
 			}
-			else if (~mask & LICF_VISUAL && current_block.visual.Attributes != curr->visual.Attributes || current_block.visual.Char.AsciiChar != curr->visual.Char.AsciiChar)
+			else if (~mask & LICF_VISUAL && blocks[current_tool].visual.Attributes != curr->visual.Attributes || blocks[current_tool].visual.Char.AsciiChar != curr->visual.Char.AsciiChar)
 			{
-				current_block.visual = (CHAR_INFO){ 0 };
+				blocks[current_tool].visual = (CHAR_INFO){ 0 };
 				mask |= LICF_VISUAL;
 			}
-			else if (~mask & LICF_TILE_TYPE && current_block.transparency != curr->transparency)
+			else if (~mask & LICF_TILE_TYPE && blocks[current_tool].transparency != curr->transparency)
 			{
-				current_block.transparency = false;
+				blocks[current_tool].transparency = false;
 				mask |= LICF_TRANSPARENCY;
 			}
 		}
 	}
 
-#define ADD_SERIALIZABLE(type, name) element_t name = serialize_single(#type, &current_block.name, #name, child_windows[CWI_LAYER_CURRENT_TREEVIEW], NULL);
-#define ADD_SERIALIZABLE_ARRAY(type, name, count) element_t name = serialize_array(#type, &current_block.name, count, #name, child_windows[CWI_LAYER_CURRENT_TREEVIEW], NULL);
-	SERIALIZABLE_ASSET_BLOCK
-#undef ADD_SERIALIZABLE
-#undef ADD_SERIALIZABLE_ARRAY
-
-	if (mask & LICF_TILE_TYPE)
-	{
-		serialize_element_enable(tile_type, false);
-	}
-	if (mask & LICF_VISUAL)
-	{
-		serialize_element_enable(visual, false);
-	}
-	if (mask & LICF_TRANSPARENCY)
-	{
-		serialize_element_enable(transparency, false);
-	}
+	layer_info_asset_set_treeview(mask);
 }
 
 action_buffer_t layer_info_action_buffer_get(void)
@@ -319,7 +328,7 @@ info_tool_t layer_info_get_current_tool(void)
 
 void layer_info_get_current_brush_block(asset_block_t* res)
 {
-	*res = (asset_block_t){ 0 };
+	*res = blocks[TOOL_BRUSH];
 }
 
 int layer_info_get_current_brush_size(void)

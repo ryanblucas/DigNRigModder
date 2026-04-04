@@ -38,7 +38,6 @@ typedef struct info_events
 	info_handle_change_brush_block_t brush_block_handler;
 	info_handle_change_block_t block_handler;
 	info_handle_change_global_field_t global_field_handler;
-
 	info_handle_change_file_t file_handler;
 } info_events_t;
 

@@ -66,6 +66,31 @@ static inline int file_fgetc(struct file* file)
 	return ch;
 }
 
+static inline int file_fprintf(struct file* file, const char* fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	int res = vfprintf(file->handle, fmt, args);
+	va_end(args);
+
+	/* This doesn't work if a %s is passed in that has multiple lines. For the purposes of this module, it doesn't matter */
+	while (*fmt)
+	{
+		if (*fmt == '\n')
+		{
+			file->line++;
+			file->col = 0;
+		}
+		else
+		{
+			file->col++;
+		}
+		fmt++;
+	}
+
+	return res;
+}
+
 static bool file_next(struct file* file, struct token* out)
 {
 	int ch = file_fpeek(file);
@@ -382,6 +407,62 @@ void file_asset_unload(asset_t* asset)
 {
 	free(asset->blocks);
 	*asset = (asset_t){ 0 };
+}
+
+bool file_asset_save(const char* directory, const asset_t* asset)
+{
+	bool result = false;
+	struct file mfile = { .handle = fopen(directory, "w"), .line = 0, .col = 0 };
+	if (!mfile.handle)
+	{
+		debug_format("Failed to open file \"%s\" for writing\n", directory);
+		return false;
+	}
+	struct file* file = &mfile;
+	ENSURE_CONDITION(file, file_fprintf(file, "#Width\n%i\n#Height\n%i\n", asset->width, asset->height) > 0);
+	ENSURE_CONDITION(file, file_fprintf(file, "#Image\n") > 0);
+	for (int y = 0; y < asset->height; y++)
+	{
+		for (int x = 0; x < asset->width; x++)
+		{
+			ENSURE_CONDITION(file, file_fprintf(file, "%i ", asset->blocks[y * asset->width + x].visual.Char.AsciiChar) > 0);
+		}
+		ENSURE_CONDITION(file, file_fprintf(file, "\n") > 0);
+	}
+	ENSURE_CONDITION(file, file_fprintf(file, "#Color\n") > 0);
+	for (int y = 0; y < asset->height; y++)
+	{
+		for (int x = 0; x < asset->width; x++)
+		{
+			ENSURE_CONDITION(file, file_fprintf(file, "%i ", asset->blocks[y * asset->width + x].visual.Attributes) > 0);
+		}
+		ENSURE_CONDITION(file, file_fprintf(file, "\n") > 0);
+	}
+	ENSURE_CONDITION(file, file_fprintf(file, "#TileType\n") > 0);
+	for (int y = 0; y < asset->height; y++)
+	{
+		for (int x = 0; x < asset->width; x++)
+		{
+			ENSURE_CONDITION(file, file_fprintf(file, "%i ", asset->blocks[y * asset->width + x].tile_type) > 0);
+		}
+		ENSURE_CONDITION(file, file_fprintf(file, "\n") > 0);
+	}
+	ENSURE_CONDITION(file, file_fprintf(file, "#Transparency\n") > 0);
+	for (int y = 0; y < asset->height; y++)
+	{
+		for (int x = 0; x < asset->width; x++)
+		{
+			ENSURE_CONDITION(file, file_fprintf(file, "%i ", asset->blocks[y * asset->width + x].transparency) > 0);
+		}
+		ENSURE_CONDITION(file, file_fprintf(file, "\n") > 0);
+	}
+	ENSURE_CONDITION(file, file_fprintf(file, "#PaletteColor\n%i\n", asset->dirt_color) > 0);
+	ENSURE_CONDITION(file, file_fprintf(file, "#X weather\n%i %i %f\n", asset->weather1, asset->weather2, asset->weather3) > 0);
+
+	result = true;
+cleanup:
+	fclose(file);
+	return result;
 }
 
 static void file_state_load_shop_item(const uint32_t* arena, shop_item_t* item, int index)

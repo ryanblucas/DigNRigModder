@@ -402,6 +402,7 @@ bool file_editor_save(const editor_state_t* state);
 
 asset_t file_asset_load(const char* directory);
 void file_asset_unload(asset_t* asset);
+bool file_asset_save(const char* directory, const asset_t* asset);
 
 dnr_state_t* file_state_load(const char* directory);
 void file_state_unload(dnr_state_t* save);

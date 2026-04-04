@@ -1,5 +1,6 @@
 Save viewer
 	Determine how liquids are stored in save files
+
 Tools
 	When pasting something, the result of that is immediately selected and allowed to be moved.
 		If the user chooses to move that object, it should be on a seperate layer
@@ -10,14 +11,29 @@ Tools
 		sorted set to store the blocks, I don't think it'll really fix the underlying problem. The next best solution is to implement
 		something akin to the selection tool, where no changes are actually committed until the mouse is let go. What the user sees
 		between mouse down and mouse up is just a sprite being rendered over the screen. That's another promising solution to this.
+	Text tool
+
 Layer creator
 	UI needs to be improved
+	Add copy selection to brush button
+	Add brick brush button
+	Add stone brush button
+	Add dirt brush button
+	Add prefabs
+	Add palette of blocks to choose from
+
 Screen
 	Maybe move scrolling logic to here?
 	Determine how weather works and implement it
 
-Create sprite creator
-Create campaign creator
+Sprite creator
+	Refactor layer creator to be more generic and reusable for the sprite creator
+	Remove brick, stone, dirt brush buttons inherited from layer creator
+
+Campaign creator
+	Patches game's binary files to support custom campaigns
+		The rig blocks that connect to the factory in the actual game are hardcoded in, this can be changed
+		The names of each layer are hardcoded in, add support to change this
 
 Important, yet not urgent
 	Determine all the reserved fields

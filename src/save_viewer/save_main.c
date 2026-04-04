@@ -185,66 +185,67 @@ static void save_viewer_do_action(action_t* act)
 
 static void save_viewer_handle_keyboard(virtual_key_t vk, keyboard_control_t ctrl)
 {
-	if (ctrl & CTRL_LEFT_PRESSED)
+	if (~ctrl & CTRL_LEFT_PRESSED)
 	{
-		if (vk == 'S')
+		switch (vk)
 		{
-			debug_format("Saving to disk...\n");
-			if (!file_state_save(save_directory, save))
-			{
-				MessageBoxW(NULL, L"Failed to save file, maybe run in admin mode?", L"Dig-N-Rig Modder - Error!", MB_OK | MB_ICONERROR);
-			}
+		case VK_UP:
+			save_viewer_move_window(1);
+			break;
+		case VK_DOWN:
+			save_viewer_move_window(-1);
+			break;
+		case VK_DELETE:
+			save_viewer_delete_selection();
+			break;
 		}
-		else if (vk == 'R')
-		{
-			if (ctrl & CTRL_SHIFT_PRESSED)
-			{
-				save_viewer_prompt_which_save();
-				path_find_dnr_save(save_directory, sizeof save_directory, editor->current_save);
-			}
-			debug_format("Reloading save...\n");
-			dnr_state_t* next = file_state_load(save_directory);
-			if (!next)
-			{
-				debug_format("Failed to reopen save! Try saving again.\n");
-				return;
-			}
-			file_state_unload(save);
-			save = next;
+		return;
+	}
 
-			save_viewer_invalidate_region((region_t) { 0, 0, WORLD_WIDTH - 1, WORLD_HEIGHT - 1 });
+	switch (vk)
+	{
+	case 'S':
+		debug_format("Saving to disk...\n");
+		if (!file_state_save(save_directory, save))
+		{
+			MessageBoxW(NULL, L"Failed to save file, maybe run in admin mode?", L"Dig-N-Rig Modder - Error!", MB_OK | MB_ICONERROR);
+		}
+		break;
+	case 'R':
+	{
+		if (ctrl & CTRL_SHIFT_PRESSED)
+		{
+			save_viewer_prompt_which_save();
+			path_find_dnr_save(save_directory, sizeof save_directory, editor->current_save);
+		}
+		debug_format("Reloading save...\n");
+		dnr_state_t* next = file_state_load(save_directory);
+		if (!next)
+		{
+			debug_format("Failed to reopen save! Try saving again.\n");
+			return;
+		}
+		file_state_unload(save);
+		save = next;
 
-			save_info_state_set(save);
-			screen_repaint();
-		}
-		else if (vk == 'Z')
-		{
-			save_viewer_do_action(action_buffer_back(action_buffer));
-		}
-		else if (vk == 'Y')
-		{
-			save_viewer_do_action(action_buffer_forward(action_buffer));
-		}
-		else if (vk == 'C')
-		{
-			save_viewer_copy();
-		}
-		else if (vk == 'V')
-		{
-			save_viewer_paste();
-		}
+		save_viewer_invalidate_region((region_t) { 0, 0, WORLD_WIDTH - 1, WORLD_HEIGHT - 1 });
+
+		save_info_state_set(save);
+		screen_repaint();
+		break;
 	}
-	else if (vk == VK_UP)
-	{
-		save_viewer_move_window(1);
-	}
-	else if (vk == VK_DOWN)
-	{
-		save_viewer_move_window(-1);
-	}
-	else if (vk == VK_DELETE)
-	{
-		save_viewer_delete_selection();
+	case 'Z':
+		save_viewer_do_action(action_buffer_back(action_buffer));
+		break;
+	case 'Y':
+		save_viewer_do_action(action_buffer_forward(action_buffer));
+		break;
+	case 'C':
+		save_viewer_copy();
+		break;
+	case 'V':
+		save_viewer_paste();
+		break;
 	}
 }
 

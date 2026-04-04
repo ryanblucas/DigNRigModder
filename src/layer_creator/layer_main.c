@@ -20,6 +20,9 @@ static tool_select_t tool_select;
 
 static action_buffer_t action_buffer;
 
+static region_t clipboard_region;
+static asset_block_t* clipboard_data;
+
 static void layer_invalidate(void)
 {
 	screen_sprite_destroy(cache);
@@ -243,26 +246,77 @@ static void layer_do_action(action_t* act)
 	layer_invalidate();
 }
 
+static void layer_copy(void)
+{
+	if (region_is_invalid(tool_select_region(tool_select)))
+	{
+		return;
+	}
+
+	if (clipboard_data)
+	{
+		free(clipboard_data);
+	}
+
+	clipboard_region = tool_select_region(tool_select);
+	clipboard_data = dig_malloc(region_size(clipboard_region) * sizeof * clipboard_data);
+	game_asset_copy(&layer, clipboard_region, clipboard_data);
+}
+
+static void layer_paste(void)
+{
+	region_t region = tool_select_region(tool_select);
+	if (!clipboard_data || region_is_invalid(region))
+	{
+		return;
+	}
+
+	region_t dest = { region.x0, region.y0, region.x0 + region_width(clipboard_region) - 1, region.y0 + region_height(clipboard_region) - 1 };
+
+	if (!dig_inside_bounds(dest.x0, dest.y0) || !dig_inside_bounds(dest.x1, dest.y1))
+	{
+		return;
+	}
+
+	action_buffer_pre_add_asset_block(action_buffer, &layer, dest);
+
+	game_asset_delete(&layer, region);
+	game_asset_paste(&layer, dest, clipboard_data);
+
+	action_buffer_post_add_asset_block(action_buffer, &layer);
+
+	tool_select_set_region(tool_select, dest);
+	layer_invalidate();
+}
+
 static void layer_handle_keyboard(virtual_key_t key, keyboard_control_t ctrl)
 {
-	if (ctrl == CTRL_LEFT_PRESSED)
+	if (ctrl != CTRL_LEFT_PRESSED)
 	{
-		if (key == 'Z')
+		return;
+	}
+
+	switch (key)
+	{
+	case 'Z':
+		layer_do_action(action_buffer_back(action_buffer));
+		break;
+	case 'Y':
+		layer_do_action(action_buffer_forward(action_buffer));
+		break;
+	case 'S':
+		debug_format("Saving to disk...\n");
+		if (!file_asset_save(directory, &layer))
 		{
-			layer_do_action(action_buffer_back(action_buffer));
+			MessageBoxW(NULL, L"Failed to save file, maybe run in admin mode?", L"Dig-N-Rig Modder - Error!", MB_OK | MB_ICONERROR);
 		}
-		else if (key == 'Y')
-		{
-			layer_do_action(action_buffer_forward(action_buffer));
-		}
-		else if (key == 'S')
-		{
-			debug_format("Saving to disk...\n");
-			if (!file_asset_save(directory, &layer))
-			{
-				MessageBoxW(NULL, L"Failed to save file, maybe run in admin mode?", L"Dig-N-Rig Modder - Error!", MB_OK | MB_ICONERROR);
-			}
-		}
+		break;
+	case 'C':
+		layer_copy();
+		break;
+	case 'V':
+		layer_paste();
+		break;
 	}
 }
 
@@ -294,6 +348,7 @@ void layer_destroy(void)
 	screen_sprite_destroy(cache);
 	tool_select_destroy(tool_select);
 	action_buffer_destroy(action_buffer);
+	free(clipboard_data);
 }
 
 void layer_start(void)

@@ -27,9 +27,6 @@ enum child_window_index
 	CWI_SAVE_BRUSH_BUTTON,
 	CWI_SAVE_BRUSH_SIZE_THUMB,
 
-	CWI_SAVE_START = CWI_SAVE_TREEVIEW,
-	CWI_SAVE_END = CWI_SAVE_BRUSH_SIZE_THUMB,
-
 	CWI_COUNT
 };
 
@@ -107,7 +104,7 @@ void save_info_destroy(void)
 
 void save_info_show(bool is_visible)
 {
-	for (int i = CWI_SAVE_START; i <= CWI_SAVE_END; i++)
+	for (int i = 0; i < CWI_COUNT; i++)
 	{
 		ShowWindow(child_windows[i], is_visible ? SW_SHOW : SW_HIDE);
 	}

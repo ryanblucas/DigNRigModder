@@ -199,6 +199,7 @@ bool layer_info_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESULT*
 			TreeView_DeleteAllItems(child_windows[CWI_LAYER_CURRENT_TREEVIEW]);
 			EnableWindow(child_windows[CWI_LAYER_ERASER_BUTTON + current_tool], TRUE);
 			current_tool = index - CWI_LAYER_ERASER_BUTTON;
+			region = INVALID_REGION;
 			if (current_tool != TOOL_ERASER)
 			{
 				layer_info_asset_set_treeview(0);
@@ -254,6 +255,10 @@ void layer_info_handle_interact_tree_item(bool is_global, element_t element)
 	{
 		return;
 	}
+	if (region_is_invalid(region))
+	{
+		return;
+	}
 	action_buffer_pre_add_asset_block(action_buffer, asset, region);
 	for (int y = region.y0; y <= region.y1; y++)
 	{
@@ -281,7 +286,12 @@ void layer_info_asset_set(asset_t* _asset)
 
 void layer_info_asset_set_current(region_t _region)
 {
-	RUNTIME_ASSERT(!region_is_invalid(_region));
+	if (region_is_invalid(_region))
+	{
+		TreeView_DeleteAllItems(child_windows[CWI_LAYER_CURRENT_TREEVIEW]);
+		region = _region;
+		return;
+	}
 	region = region_validate(_region);
 	blocks[current_tool] = asset->blocks[region.x0 + region.y0 * TARGET_WIDTH];
 	enum layer_info_current_field mask = 0;

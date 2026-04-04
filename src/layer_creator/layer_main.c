@@ -57,6 +57,11 @@ static void layer_handle_brush_size_change(int new_size)
 	tool_brush_set_size(tool_eraser, new_size);
 }
 
+static void layer_handle_global_field_change(const void* field)
+{
+	layer_invalidate();
+}
+
 static void layer_erase(tool_brush_t brush, region_t region)
 {
 	RUNTIME_ASSERT(brush == tool_eraser);
@@ -283,7 +288,8 @@ void layer_start(void)
 		.file_handler = layer_handle_file_change,
 		.block_handler = layer_handle_block_change,
 		.tool_handler = layer_handle_tool_change,
-		.brush_size_handler = layer_handle_brush_size_change
+		.brush_size_handler = layer_handle_brush_size_change,
+		.global_field_handler = layer_handle_global_field_change
 	};
 	info_set_event_handlers(&info_events);
 	screen_events_t screen_events =

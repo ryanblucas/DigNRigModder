@@ -12,6 +12,9 @@ Tools
 		between mouse down and mouse up is just a sprite being rendered over the screen. That's another promising solution to this.
 Layer creator
 	UI needs to be improved
+Screen
+	Maybe move scrolling logic to here?
+	Determine how weather works and implement it
 
 Create sprite creator
 Create campaign creator

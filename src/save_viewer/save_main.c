@@ -190,7 +190,10 @@ static void save_viewer_handle_keyboard(virtual_key_t vk, keyboard_control_t ctr
 		if (vk == 'S')
 		{
 			debug_format("Saving to disk...\n");
-			file_state_save(save_directory, save);
+			if (!file_state_save(save_directory, save))
+			{
+				MessageBoxW(NULL, L"Failed to save file, maybe run in admin mode?", L"Dig-N-Rig Modder - Error!", MB_OK | MB_ICONERROR);
+			}
 		}
 		else if (vk == 'R')
 		{

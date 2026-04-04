@@ -425,7 +425,7 @@ bool file_asset_save(const char* directory, const asset_t* asset)
 	{
 		for (int x = 0; x < asset->width; x++)
 		{
-			ENSURE_CONDITION(file, file_fprintf(file, "%i ", asset->blocks[y * asset->width + x].visual.Char.AsciiChar) > 0);
+			ENSURE_CONDITION(file, file_fprintf(file, "%hhu ", asset->blocks[y * asset->width + x].visual.Char.AsciiChar) > 0);
 		}
 		ENSURE_CONDITION(file, file_fprintf(file, "\n") > 0);
 	}
@@ -434,7 +434,7 @@ bool file_asset_save(const char* directory, const asset_t* asset)
 	{
 		for (int x = 0; x < asset->width; x++)
 		{
-			ENSURE_CONDITION(file, file_fprintf(file, "%i ", asset->blocks[y * asset->width + x].visual.Attributes) > 0);
+			ENSURE_CONDITION(file, file_fprintf(file, "%hhu ", asset->blocks[y * asset->width + x].visual.Attributes) > 0);
 		}
 		ENSURE_CONDITION(file, file_fprintf(file, "\n") > 0);
 	}
@@ -443,7 +443,7 @@ bool file_asset_save(const char* directory, const asset_t* asset)
 	{
 		for (int x = 0; x < asset->width; x++)
 		{
-			ENSURE_CONDITION(file, file_fprintf(file, "%i ", asset->blocks[y * asset->width + x].tile_type) > 0);
+			ENSURE_CONDITION(file, file_fprintf(file, "%hhu ", asset->blocks[y * asset->width + x].tile_type) > 0);
 		}
 		ENSURE_CONDITION(file, file_fprintf(file, "\n") > 0);
 	}
@@ -452,11 +452,11 @@ bool file_asset_save(const char* directory, const asset_t* asset)
 	{
 		for (int x = 0; x < asset->width; x++)
 		{
-			ENSURE_CONDITION(file, file_fprintf(file, "%i ", asset->blocks[y * asset->width + x].transparency) > 0);
+			ENSURE_CONDITION(file, file_fprintf(file, "%hhu ", asset->blocks[y * asset->width + x].transparency) > 0);
 		}
 		ENSURE_CONDITION(file, file_fprintf(file, "\n") > 0);
 	}
-	ENSURE_CONDITION(file, file_fprintf(file, "#PaletteColor\n%i\n", asset->dirt_color) > 0);
+	ENSURE_CONDITION(file, file_fprintf(file, "#PaletteColor\n%u\n", asset->dirt_color) > 0);
 	ENSURE_CONDITION(file, file_fprintf(file, "#X weather\n%i %i %f\n", asset->weather1, asset->weather2, asset->weather3) > 0);
 
 	result = true;

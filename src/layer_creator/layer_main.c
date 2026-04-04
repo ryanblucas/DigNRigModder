@@ -8,7 +8,9 @@
 #include "../info_box.h"
 #include "../screen.h"
 #include "../tool.h"
+#include <stdio.h>
 
+static char directory[MAX_PATH];
 static asset_t layer;
 static sprite_t cache;
 
@@ -26,11 +28,13 @@ static void layer_invalidate(void)
 	screen_repaint();
 }
 
-static void layer_handle_file_change(const char* directory)
+static void layer_handle_file_change(const char* _directory)
 {
 	screen_sprite_destroy(cache);
+	cache = NULL;
 	file_asset_unload(&layer);
 
+	snprintf(directory, sizeof directory, "%s", _directory);
 	layer = file_asset_load(directory);
 	RUNTIME_ASSERT(layer.blocks);
 	layer_info_asset_set(&layer);
@@ -241,13 +245,24 @@ static void layer_do_action(action_t* act)
 
 static void layer_handle_keyboard(virtual_key_t key, keyboard_control_t ctrl)
 {
-	if (ctrl == CTRL_LEFT_PRESSED && key == 'Z')
+	if (ctrl == CTRL_LEFT_PRESSED)
 	{
-		layer_do_action(action_buffer_back(action_buffer));
-	}
-	else if (ctrl == CTRL_LEFT_PRESSED && key == 'Y')
-	{
-		layer_do_action(action_buffer_forward(action_buffer));
+		if (key == 'Z')
+		{
+			layer_do_action(action_buffer_back(action_buffer));
+		}
+		else if (key == 'Y')
+		{
+			layer_do_action(action_buffer_forward(action_buffer));
+		}
+		else if (key == 'S')
+		{
+			debug_format("Saving to disk...\n");
+			if (!file_asset_save(directory, &layer))
+			{
+				MessageBoxW(NULL, L"Failed to save file, maybe run in admin mode?", L"Dig-N-Rig Modder - Error!", MB_OK | MB_ICONERROR);
+			}
+		}
 	}
 }
 

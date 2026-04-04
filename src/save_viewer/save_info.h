@@ -12,7 +12,7 @@
 #include "../types.h"
 #include <Windows.h>
 
-void save_info_initialize(const info_internal_t* internal);
+void save_info_initialize(info_internal_t* internal);
 void save_info_destroy(void);
 
 void save_info_show(bool is_visible);

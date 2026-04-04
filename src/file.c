@@ -461,7 +461,7 @@ bool file_asset_save(const char* directory, const asset_t* asset)
 
 	result = true;
 cleanup:
-	fclose(file);
+	fclose(file->handle);
 	return result;
 }
 

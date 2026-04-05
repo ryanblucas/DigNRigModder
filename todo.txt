@@ -37,7 +37,6 @@ Campaign creator
 
 Important, yet not urgent
 	Determine all the reserved fields
-	Refactor serialize
 	Add unit testing for every module
 	Add documentation to all functions and modules
 	Add more RUNTIME_ASSERTs, or remove them if that makes the most sense

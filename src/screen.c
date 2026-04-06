@@ -121,6 +121,7 @@ void screen_loop(void)
 {
 	INPUT_RECORD ir;
 	DWORD read;
+	bool consumed_first_focus = false;
 	while (ReadConsoleInputW(in, &ir, 1, &read) && read == 1)
 	{
 		if (ir.EventType == KEY_EVENT)
@@ -135,13 +136,13 @@ void screen_loop(void)
 		else if (ir.EventType == MOUSE_EVENT)
 		{
 			MOUSE_EVENT_RECORD mer = ir.Event.MouseEvent;
-			static DWORD prevButtonState = 0;
+			static DWORD prev_button_state = 0;
 			if (mer.dwEventFlags == MOUSE_WHEELED)
 			{
 				WORD scroll = HIWORD(mer.dwButtonState);
 				RAISE_EVENT(events.mouse_wheel, (signed short)scroll / WHEEL_DELTA);
 			}
-			else if (mer.dwEventFlags == 0 && (mer.dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED || prevButtonState & FROM_LEFT_1ST_BUTTON_PRESSED))
+			else if (mer.dwEventFlags == 0 && (mer.dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED || prev_button_state & FROM_LEFT_1ST_BUTTON_PRESSED))
 			{
 				RAISE_EVENT(events.mouse_button, mer.dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED, mer.dwMousePosition.X, mer.dwMousePosition.Y);
 			}
@@ -149,7 +150,21 @@ void screen_loop(void)
 			{
 				RAISE_EVENT(events.mouse_move, mer.dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED, mer.dwMousePosition.X, mer.dwMousePosition.Y);
 			}
-			prevButtonState = mer.dwButtonState;
+			prev_button_state = mer.dwButtonState;
+		}
+		else if (ir.EventType == FOCUS_EVENT && ir.Event.FocusEvent.bSetFocus)
+		{
+			if (!consumed_first_focus)
+			{
+				consumed_first_focus = true;
+				continue;
+			}
+			POINT pt;
+			RUNTIME_ASSERT(GetCursorPos(&pt));
+			RUNTIME_ASSERT(ScreenToClient(GetConsoleWindow(), &pt));
+			pt.x /= TARGET_CELL_SIZE;
+			pt.y /= TARGET_CELL_SIZE;
+			RAISE_EVENT(events.mouse_button, true, pt.x, pt.y);
 		}
 		else if (ir.EventType == WINDOW_BUFFER_SIZE_EVENT)
 		{

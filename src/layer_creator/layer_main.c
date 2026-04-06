@@ -219,6 +219,8 @@ static void layer_handle_mouse_move(bool m1_down, int x, int y)
 	info_tool_t current = layer_info_get_current_tool();
 	if (current == TOOL_SELECT)
 	{
+		static int i = 0;
+		debug_format("%i\n", ++i);
 		tool_select_handle_mouse_move(tool_select, m1_down, x, y, 0);
 		layer_invalidate();
 	}

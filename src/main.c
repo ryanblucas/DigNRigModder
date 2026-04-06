@@ -48,8 +48,29 @@ static void change_mode_handler(info_mode_t old_mode)
 	debug_profiler_pop("Mode change");
 }
 
+static void cleanup(void)
+{
+	file_editor_save(&editor);
+
+	save_destroy();
+	layer_destroy();
+
+	info_destroy();
+	screen_destroy();
+}
+
+static void ctrl_handler(DWORD ctrl_type)
+{
+	if (ctrl_type == CTRL_CLOSE_EVENT)
+	{
+		cleanup();
+	}
+}
+
 int main()
 {
+	SetConsoleCtrlHandler(ctrl_handler, TRUE);
+
 	if (!file_editor_load(&editor))
 	{
 		editor.current_save = 1;
@@ -70,12 +91,6 @@ int main()
 	   For example, if the user stops the application from the info box in the save mode, the console is freed then screen_loop returns for this
 	   function to call save_end. save_end will try to move the console up to the top, which it obviously cannot do because the console was freed earlier. */
 
-	file_editor_save(&editor);
-
-	save_destroy();
-	layer_destroy();
-
-	info_destroy();
-	screen_destroy();
+	cleanup();
 	return 0;
 }

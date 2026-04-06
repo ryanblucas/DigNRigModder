@@ -313,6 +313,23 @@ cleanup:
 	return result;
 }
 
+static inline void file_asset_layer_color_correct(asset_t* res)
+{
+	for (int i = 0; i < res->width * res->height; i++)
+	{
+		char ch = res->blocks[i].visual.Char.AsciiChar;
+		if (ch == GAME_STONE_CHAR)
+		{
+			res->blocks[i].visual.Attributes = CREATE_ATTRIBUTE(DARK_YELLOW, 0);
+		}
+		else if (ch == 0)
+		{
+			WORD attrib = res->blocks[i].visual.Attributes;
+			res->blocks[i].visual.Attributes = CREATE_ATTRIBUTE(ATTRIBUTE_BACKGROUND(attrib), ATTRIBUTE_FOREGROUND(attrib));
+		}
+	}
+}
+
 asset_t file_asset_load(const char* directory)
 {
 	asset_t res = { .blocks = NULL, .dirt_color = DNR_DEFAULT_DIRT_COLOR };
@@ -324,6 +341,13 @@ asset_t file_asset_load(const char* directory)
 	{
 		debug_format("File \"%s\" does not exist\n", directory);
 		return res;
+	}
+
+	bool is_layer = false;
+	char* end = strrchr(directory, '.');
+	if (end && strncmp(end, ".layer", 6) == 0)
+	{
+		is_layer = true;
 	}
 
 	/*
@@ -361,6 +385,10 @@ asset_t file_asset_load(const char* directory)
 		else if (strncmp(curr.data.str, "Color", DATA_STRING_MAX_SIZE) == 0)
 		{
 			ENSURE_CONDITION(pfile, file_asset_parse_attribute_array(directory, pfile, &curr, &res, offsetof(asset_block_t, visual.Attributes)));
+			if (is_layer)
+			{
+				file_asset_layer_color_correct(&res);
+			}
 		}
 		else if (strncmp(curr.data.str, "TileType", DATA_STRING_MAX_SIZE) == 0)
 		{

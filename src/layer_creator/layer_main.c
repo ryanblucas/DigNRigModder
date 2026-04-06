@@ -23,6 +23,8 @@ static action_buffer_t action_buffer;
 static region_t clipboard_region;
 static asset_block_t* clipboard_data;
 
+static editor_state_t* editor_state;
+
 static void layer_invalidate(void)
 {
 	screen_sprite_destroy(cache);
@@ -38,6 +40,7 @@ static void layer_handle_file_change(const char* _directory)
 	file_asset_unload(&layer);
 
 	snprintf(directory, sizeof directory, "%s", _directory);
+	snprintf(editor_state->current_layer_directory, sizeof editor_state->current_layer_directory, "%s", _directory);
 	layer = file_asset_load(directory);
 	RUNTIME_ASSERT(layer.blocks);
 	layer_info_asset_set(&layer);
@@ -322,6 +325,8 @@ static void layer_handle_keyboard(virtual_key_t key, keyboard_control_t ctrl)
 
 void layer_initialize(editor_state_t* state)
 {
+	editor_state = state;
+
 	info_mode_class_t class =
 	{
 		.mode = MODE_LAYER,
@@ -370,6 +375,11 @@ void layer_start(void)
 		.keyboard = layer_handle_keyboard,
 	};
 	screen_set_event_handlers(&screen_events);
+	if (*editor_state->current_layer_directory)
+	{
+		layer_info_directory_set(editor_state->current_layer_directory);
+		layer_handle_file_change(editor_state->current_layer_directory);
+	}
 }
 
 void layer_end(void)

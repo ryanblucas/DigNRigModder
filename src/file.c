@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define DATA_STRING_MAX_SIZE 16
+#define DATA_STRING_MAX_SIZE 272
 
 #define _UNEXPECTED_TOKEN_MESSAGE(file, tok, etype) debug_format("(%s, %i) Unexpected token %i, expected %i at line %i, col %i\n", directory, __LINE__, tok.type, etype, (file)->line, (file)->col);
 #define MATCH_AND_ADVANCE_TOKEN(file, tok, etype) if (tok.type != (etype)) { _UNEXPECTED_TOKEN_MESSAGE(file, tok, etype); goto cleanup; } else { file_next(file, &tok); }
@@ -231,6 +231,14 @@ bool file_editor_load(editor_state_t* state)
 			}
 			file_next(&file, &curr);
 		}
+		else if (strncmp(curr.data.str, "CurrentLayerDirectory", DATA_STRING_MAX_SIZE) == 0)
+		{
+			file_next(&file, &curr);
+			MATCH_AND_ADVANCE_TOKEN(&file, curr, TOKEN_NEWLINE);
+			MATCH_TOKEN(&file, curr, TOKEN_STRING);
+			snprintf(state->current_layer_directory, MAX_PATH, "%s", curr.data.str);
+			file_next(&file, &curr);
+		}
 		else
 		{
 			debug_format("Invalid editor config header \"%s\"\n", curr.data.str);
@@ -271,6 +279,7 @@ bool file_editor_save(const editor_state_t* state)
 		break;
 	}
 	fprintf(file, "#CurrentMode\n%s\n", mode_descriptor);
+	fprintf(file, "#CurrentLayerDirectory\n%s\n", state->current_layer_directory);
 	
 	fclose(file);
 	return true;
@@ -317,10 +326,10 @@ static inline void file_asset_layer_color_correct(asset_t* res)
 {
 	for (int i = 0; i < res->width * res->height; i++)
 	{
-		char ch = res->blocks[i].visual.Char.AsciiChar;
+		uint8_t ch = (uint8_t)res->blocks[i].visual.Char.AsciiChar;
 		if (ch == GAME_STONE_CHAR)
 		{
-			res->blocks[i].visual.Attributes = CREATE_ATTRIBUTE(DARK_YELLOW, 0);
+			res->blocks[i].visual.Attributes = CREATE_ATTRIBUTE(DARK_YELLOW, DARK_BLACK);
 		}
 		else if (ch == 0)
 		{

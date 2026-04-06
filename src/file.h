@@ -394,6 +394,7 @@ SERIALIZABLE_ASSET
 typedef struct editor_state
 {
 	int current_save;
+	char current_layer_directory[MAX_PATH];
 	info_mode_t current_mode;
 } editor_state_t;
 

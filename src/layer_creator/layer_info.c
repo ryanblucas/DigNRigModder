@@ -4,6 +4,7 @@
 
 #include "layer_info.h"
 #include "../path.h"
+#include <stdio.h>
 
 #define INFO_BOX_MSG_STATE_READY (WM_USER + 0x20)
 
@@ -40,6 +41,8 @@ static region_t region;
 static action_buffer_t action_buffer;
 
 static int brush_size = 1;
+
+static char directory[MAX_PATH];
 
 enum layer_info_current_field
 {
@@ -138,16 +141,15 @@ static void layer_info_populate_combobox(int max)
 
 static void layer_info_sync_combobox_with_console(void)
 {
-	char buf[MAX_PATH];
-	path_find_dnr_main(buf, sizeof buf, "Layers\\");
-	char* end = buf + strnlen(buf, sizeof buf);
-	GetWindowTextA(child_windows[CWI_LAYER_FILE_COMBOBOX], end, (int)(sizeof buf - (size_t)(end - buf)));
-	RAISE_EVENT(internal.events->file_handler, buf);
+	path_find_dnr_main(directory, sizeof directory, "Layers\\");
+	char* end = directory + strnlen(directory, sizeof directory);
+	GetWindowTextA(child_windows[CWI_LAYER_FILE_COMBOBOX], end, (int)(sizeof directory - (size_t)(end - directory)));
+	RAISE_EVENT(internal.events->file_handler, directory);
 }
 
 void layer_info_show(bool is_visible)
 {
-	if (is_visible)
+	if (is_visible && !*directory)
 	{
 		layer_info_populate_combobox(1);
 		SendMessageW(child_windows[CWI_LAYER_FILE_COMBOBOX], CB_SETCURSEL, (WPARAM)0, 0);
@@ -384,4 +386,27 @@ void layer_info_get_current_brush_block(asset_block_t* res)
 int layer_info_get_current_brush_size(void)
 {
 	return brush_size;
+}
+
+void layer_info_directory_set(const char* _directory)
+{
+	FILE* file = fopen(_directory, "r");
+	RUNTIME_ASSERT(file);
+	fclose(file);
+
+	snprintf(directory, sizeof directory, "%s", _directory);
+	char* name = strrchr(_directory, '\\');
+	if (!name)
+	{
+		name = _directory;
+	}
+
+	RUNTIME_ASSERT(SendMessageW(child_windows[CWI_LAYER_FILE_COMBOBOX], CB_RESETCONTENT, 0, 0) != CB_ERR);
+	RUNTIME_ASSERT(SendMessageA(child_windows[CWI_LAYER_FILE_COMBOBOX], CB_ADDSTRING, 0, (LPARAM)(name + 1)) != CB_ERR);
+	RUNTIME_ASSERT(SendMessageW(child_windows[CWI_LAYER_FILE_COMBOBOX], CB_SETCURSEL, (WPARAM)0, 0) != CB_ERR);
+}
+
+void layer_info_directory_get(char* _directory, size_t buf_size)
+{
+	snprintf(_directory, buf_size, "%s", directory);
 }

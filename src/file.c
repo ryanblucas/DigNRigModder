@@ -325,7 +325,7 @@ static inline void file_asset_layer_color_correct(asset_t* res)
 		else if (ch == 0)
 		{
 			WORD attrib = res->blocks[i].visual.Attributes;
-			res->blocks[i].visual.Attributes = CREATE_ATTRIBUTE(ATTRIBUTE_BACKGROUND(attrib), ATTRIBUTE_FOREGROUND(attrib));
+			res->blocks[i].visual.Attributes = CREATE_ATTRIBUTE(ATTRIBUTE_BACKGROUND(attrib), ATTRIBUTE_BACKGROUND(attrib));
 		}
 	}
 }

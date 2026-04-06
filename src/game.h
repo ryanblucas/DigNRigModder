@@ -8,6 +8,10 @@
 #include "file.h"
 #include <Windows.h>
 
+#define GAME_BLANK_CHAR 0xDB
+#define GAME_STONE_CHAR 0xB0
+#define GAME_BRICK_CHAR 0xB1
+
 typedef struct complete_block
 {
 	dnr_block_t block;

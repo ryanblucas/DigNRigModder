@@ -15,10 +15,6 @@ Tools
 
 Layer creator
 	UI needs to be improved
-	Add copy selection to brush button
-	Add brick brush button
-	Add stone brush button
-	Add dirt brush button
 	Add prefabs
 	Add palette of blocks to choose from
 

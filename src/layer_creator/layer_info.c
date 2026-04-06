@@ -11,12 +11,20 @@ enum child_window_index
 {
 	CWI_LAYER_FILE_COMBOBOX,
 	CWI_LAYER_FILE_COMBOBOX_LABEL,
+
 	CWI_LAYER_TREEVIEW,
 	CWI_LAYER_CURRENT_TREEVIEW,
+
 	CWI_LAYER_ERASER_BUTTON,
 	CWI_LAYER_SELECT_BUTTON,
 	CWI_LAYER_BRUSH_BUTTON,
 	CWI_LAYER_BRUSH_SIZE_THUMB,
+
+	CWI_LAYER_COPY_SELECTED_BUTTON,
+	CWI_LAYER_BRICK_BRUSH_BUTTON,
+	CWI_LAYER_STONE_BRUSH_BUTTON,
+	CWI_LAYER_BLANK_BRUSH_BUTTON,
+
 	CWI_COUNT
 };
 
@@ -84,10 +92,15 @@ void layer_info_initialize(info_internal_t* _internal)
 	child_windows[CWI_LAYER_BRUSH_BUTTON] = CreateWindowExW(0, L"BUTTON", L"Brush", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 3, 144, 72, 22, internal.window, NULL, NULL, NULL);
 	child_windows[CWI_LAYER_BRUSH_SIZE_THUMB] = CreateWindowExW(0, TRACKBAR_CLASSW, L"Brush size", WS_VISIBLE | WS_CHILD | TBS_AUTOTICKS | TBS_ENABLESELRANGE, 3, 167, 72, 22, internal.window, NULL, NULL, NULL);
 	SendMessageW(child_windows[CWI_LAYER_BRUSH_SIZE_THUMB], TBM_SETRANGE, TRUE, MAKELONG(INFO_BRUSH_MIN_SIZE, INFO_BRUSH_MAX_SIZE));
+	
+	child_windows[CWI_LAYER_COPY_SELECTED_BUTTON] = CreateWindowExW(0, L"BUTTON", L"Copy selected to brush", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 100, 98, 120, 22, internal.window, NULL, NULL, NULL);
+	child_windows[CWI_LAYER_BRICK_BRUSH_BUTTON] = CreateWindowExW(0, L"BUTTON", L"Brick brush", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 100, 121, 72, 22, internal.window, NULL, NULL, NULL);
+	child_windows[CWI_LAYER_STONE_BRUSH_BUTTON] = CreateWindowExW(0, L"BUTTON", L"Stone brush", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 100, 144, 72, 22, internal.window, NULL, NULL, NULL);
+	child_windows[CWI_LAYER_BLANK_BRUSH_BUTTON] = CreateWindowExW(0, L"BUTTON", L"Blank brush", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 100, 167, 72, 22, internal.window, NULL, NULL, NULL);
 
-	for (int i = 0; i < 3; i++)
+	for (int i = CWI_LAYER_ERASER_BUTTON; i <= CWI_LAYER_BLANK_BRUSH_BUTTON; i++)
 	{
-		SendMessageW(child_windows[CWI_LAYER_ERASER_BUTTON + i], WM_SETFONT, (WPARAM)internal.font_text, (LPARAM)FALSE);
+		SendMessageW(child_windows[i], WM_SETFONT, (WPARAM)internal.font_text, (LPARAM)FALSE);
 	}
 
 	_internal->global_treeview = child_windows[CWI_LAYER_TREEVIEW];
@@ -173,6 +186,59 @@ static enum child_window_index layer_info_child_window_from_handle(HWND hwnd)
 	return -1;
 }
 
+static void layer_info_handle_command(HWND window, WPARAM wparam)
+{
+	enum child_window_index index = layer_info_child_window_from_handle(window);
+	if (window == child_windows[CWI_LAYER_FILE_COMBOBOX])
+	{
+		if (HIWORD(wparam) == CBN_DROPDOWN)
+		{
+			/* refresh every time expanded.. good idea? or waste of time? */
+			layer_info_populate_combobox(0);
+		}
+		else if (HIWORD(wparam) == CBN_SELCHANGE)
+		{
+			layer_info_sync_combobox_with_console();
+		}
+	}
+	else if (index >= CWI_LAYER_ERASER_BUTTON && index <= CWI_LAYER_BRUSH_BUTTON)
+	{
+		TreeView_DeleteAllItems(child_windows[CWI_LAYER_CURRENT_TREEVIEW]);
+		EnableWindow(child_windows[CWI_LAYER_ERASER_BUTTON + current_tool], TRUE);
+		current_tool = index - CWI_LAYER_ERASER_BUTTON;
+		region = INVALID_REGION;
+		if (current_tool != TOOL_ERASER)
+		{
+			layer_info_asset_set_treeview(0);
+		}
+		RAISE_EVENT(internal.events->tool_handler, current_tool);
+		EnableWindow(child_windows[CWI_LAYER_ERASER_BUTTON + current_tool], FALSE);
+	}
+	else if (index >= CWI_LAYER_COPY_SELECTED_BUTTON && index <= CWI_LAYER_BLANK_BRUSH_BUTTON)
+	{
+		blocks[TOOL_BRUSH].visual.Attributes = CREATE_ATTRIBUTE(DARK_YELLOW, DARK_BLACK);
+		switch (index)
+		{
+		case CWI_LAYER_COPY_SELECTED_BUTTON:
+			blocks[TOOL_BRUSH] = blocks[TOOL_SELECT];
+			break;
+		case CWI_LAYER_BRICK_BRUSH_BUTTON:
+			blocks[TOOL_BRUSH].visual.Char.AsciiChar = GAME_BRICK_CHAR;
+			break;
+		case CWI_LAYER_STONE_BRUSH_BUTTON:
+			blocks[TOOL_BRUSH].visual.Char.AsciiChar = GAME_STONE_CHAR;
+			break;
+		case CWI_LAYER_BLANK_BRUSH_BUTTON:
+			blocks[TOOL_BRUSH].visual.Char.AsciiChar = GAME_BLANK_CHAR;
+			break;
+		}
+		if (current_tool == TOOL_BRUSH)
+		{
+			layer_info_asset_set_treeview(0);
+		}
+	}
+}
+
 bool layer_info_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESULT* out)
 {
 	*out = 0;
@@ -180,33 +246,7 @@ bool layer_info_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESULT*
 	{
 	case WM_COMMAND:
 	{
-		HWND window = (HWND)lparam;
-		enum child_window_index index = layer_info_child_window_from_handle(window);
-		if (window == child_windows[CWI_LAYER_FILE_COMBOBOX])
-		{
-			if (HIWORD(wparam) == CBN_DROPDOWN)
-			{
-				/* refresh every time expanded.. good idea? or waste of time? */
-				layer_info_populate_combobox(0);
-			}
-			else if (HIWORD(wparam) == CBN_SELCHANGE)
-			{
-				layer_info_sync_combobox_with_console();
-			}
-		}
-		else if (index >= CWI_LAYER_ERASER_BUTTON && index <= CWI_LAYER_BRUSH_BUTTON)
-		{
-			TreeView_DeleteAllItems(child_windows[CWI_LAYER_CURRENT_TREEVIEW]);
-			EnableWindow(child_windows[CWI_LAYER_ERASER_BUTTON + current_tool], TRUE);
-			current_tool = index - CWI_LAYER_ERASER_BUTTON;
-			region = INVALID_REGION;
-			if (current_tool != TOOL_ERASER)
-			{
-				layer_info_asset_set_treeview(0);
-			}
-			RAISE_EVENT(internal.events->tool_handler, current_tool);
-			EnableWindow(child_windows[CWI_LAYER_ERASER_BUTTON + current_tool], FALSE);
-		}
+		layer_info_handle_command((HWND)lparam, wparam);
 		break;
 	}
 	case WM_HSCROLL:

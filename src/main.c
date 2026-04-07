@@ -59,12 +59,14 @@ static void cleanup(void)
 	screen_destroy();
 }
 
-static void ctrl_handler(DWORD ctrl_type)
+static BOOL WINAPI ctrl_handler(DWORD ctrl_type)
 {
 	if (ctrl_type == CTRL_CLOSE_EVENT)
 	{
 		cleanup();
+		return TRUE;
 	}
+	return FALSE;
 }
 
 int main()
@@ -73,6 +75,7 @@ int main()
 
 	if (!file_editor_load(&editor))
 	{
+		debug_format("No editor config found, making new one\n");
 		editor.current_save = 1;
 	}
 

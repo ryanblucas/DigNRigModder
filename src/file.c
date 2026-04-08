@@ -194,12 +194,14 @@ bool file_editor_load(editor_state_t* state)
 	struct file file = { 0 };
 	char directory[MAX_PATH];
 	file.handle = fopen(path_find_dnr_docs(directory, sizeof directory, "editor_config.ini"), "r");
+
+	memset(state, 0, sizeof * state);
+	state->current_save = 1;
+
 	if (!file.handle)
 	{
 		return false;
 	}
-
-	memset(state, 0, sizeof * state);
 
 	bool result = false;
 	struct token curr;
@@ -266,6 +268,7 @@ bool file_editor_save(const editor_state_t* state)
 		return false;
 	}
 
+	debug_format("Started saving file\n");
 	fprintf(file, "#CurrentSave\n%i\n", state->current_save);
 
 	const char* mode_descriptor = NULL;
@@ -282,6 +285,7 @@ bool file_editor_save(const editor_state_t* state)
 	fprintf(file, "#CurrentLayerDirectory\n%s\n", state->current_layer_directory);
 	
 	fclose(file);
+	debug_format("Finished saving file\n");
 	return true;
 }
 

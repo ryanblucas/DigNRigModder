@@ -18,6 +18,7 @@ struct charmap_control_window_data
 };
 
 static HFONT dnr_font;
+static bool already_initialized;
 
 static inline int charmap_control_calculate_abs_width(HWND hwnd)
 {
@@ -153,6 +154,11 @@ static LRESULT charmap_control_window_proc(HWND hwnd, UINT msg, WPARAM wparam, L
 
 void charmap_control_initialize(void)
 {
+	if (already_initialized)
+	{
+		return;
+	}
+
 	WNDCLASSW class = { 0 };
 	class.lpszClassName = CHARMAP_CONTROL_CLASS_NAME;
 	class.lpfnWndProc = charmap_control_window_proc;
@@ -160,10 +166,17 @@ void charmap_control_initialize(void)
 
 	dnr_font = CreateFontA(-8, -8, 0, 0, FW_DONTCARE, FALSE, FALSE, FALSE, OEM_CHARSET, OUT_DEVICE_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH, DNR_FONT_A);
 	RUNTIME_ASSERT(dnr_font);
+	already_initialized = true;
 }
 
 void charmap_control_destroy(void)
 {
+	if (!already_initialized)
+	{
+		return;
+	}
+
 	UnregisterClassW(CHARMAP_CONTROL_CLASS_NAME, NULL);
 	DeleteObject(dnr_font);
+	already_initialized = false;
 }

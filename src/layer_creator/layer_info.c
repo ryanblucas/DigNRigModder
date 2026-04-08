@@ -4,6 +4,7 @@
 
 #include "layer_info.h"
 #include "../path.h"
+#include "../interface/mineral_palette.h"
 #include <stdio.h>
 
 #define INFO_BOX_MSG_STATE_READY (WM_USER + 0x20)
@@ -22,9 +23,9 @@ enum child_window_index
 	CWI_LAYER_BRUSH_SIZE_THUMB,
 
 	CWI_LAYER_COPY_SELECTED_BUTTON,
-	CWI_LAYER_BRICK_BRUSH_BUTTON,
-	CWI_LAYER_STONE_BRUSH_BUTTON,
-	CWI_LAYER_BLANK_BRUSH_BUTTON,
+	CWI_LAYER_SAVE_BRUSH_TO_PALETTE_BUTTON,
+
+	CWI_LAYER_PALETTE,
 
 	CWI_COUNT
 };
@@ -97,14 +98,23 @@ void layer_info_initialize(info_internal_t* _internal)
 	SendMessageW(child_windows[CWI_LAYER_BRUSH_SIZE_THUMB], TBM_SETRANGE, TRUE, MAKELONG(INFO_BRUSH_MIN_SIZE, INFO_BRUSH_MAX_SIZE));
 	
 	child_windows[CWI_LAYER_COPY_SELECTED_BUTTON] = CreateWindowExW(0, L"BUTTON", L"Copy selected to brush", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 100, 98, 120, 22, internal.window, NULL, NULL, NULL);
-	child_windows[CWI_LAYER_BRICK_BRUSH_BUTTON] = CreateWindowExW(0, L"BUTTON", L"Brick brush", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 100, 121, 72, 22, internal.window, NULL, NULL, NULL);
-	child_windows[CWI_LAYER_STONE_BRUSH_BUTTON] = CreateWindowExW(0, L"BUTTON", L"Stone brush", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 100, 144, 72, 22, internal.window, NULL, NULL, NULL);
-	child_windows[CWI_LAYER_BLANK_BRUSH_BUTTON] = CreateWindowExW(0, L"BUTTON", L"Blank brush", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 100, 167, 72, 22, internal.window, NULL, NULL, NULL);
+	child_windows[CWI_LAYER_SAVE_BRUSH_TO_PALETTE_BUTTON] = CreateWindowExW(0, L"BUTTON", L"Save brush to palette", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 100, 121, 120, 22, internal.window, NULL, NULL, NULL);
 
-	for (int i = CWI_LAYER_ERASER_BUTTON; i <= CWI_LAYER_BLANK_BRUSH_BUTTON; i++)
+	for (int i = CWI_LAYER_ERASER_BUTTON; i <= CWI_LAYER_SAVE_BRUSH_TO_PALETTE_BUTTON; i++)
 	{
 		SendMessageW(child_windows[i], WM_SETFONT, (WPARAM)internal.font_text, (LPARAM)FALSE);
 	}
+
+	mineral_palette_initialize();
+	child_windows[CWI_LAYER_PALETTE] = CreateWindowExW(0, MINERAL_PALETTE_CLASS_NAME, NULL, WS_VISIBLE | WS_CHILD, 300, 50, 48, 24 * 4, internal.window, NULL, NULL, NULL);
+	MINERAL_PALETTE_SET_CELL_SIZE(child_windows[CWI_LAYER_PALETTE], 3);
+
+	asset_block_t block = { (CHAR_INFO){ .Attributes = CREATE_ATTRIBUTE(DARK_YELLOW, DARK_BLACK), .Char.AsciiChar = GAME_BRICK_CHAR }, TILE_TYPE_DEFAULT, 0};
+	MINERAL_PALETTE_SET_CELL(child_windows[CWI_LAYER_PALETTE], 0, &block);
+	block = (asset_block_t) { (CHAR_INFO) { .Attributes = CREATE_ATTRIBUTE(DARK_YELLOW, DARK_BLACK), .Char.AsciiChar = GAME_STONE_CHAR }, TILE_TYPE_DEFAULT, 0 };
+	MINERAL_PALETTE_SET_CELL(child_windows[CWI_LAYER_PALETTE], 1, &block);
+	block = (asset_block_t){ (CHAR_INFO) { .Attributes = CREATE_ATTRIBUTE(DARK_YELLOW, DARK_BLACK), .Char.AsciiChar = GAME_BLANK_CHAR }, TILE_TYPE_DEFAULT, 0 };
+	MINERAL_PALETTE_SET_CELL(child_windows[CWI_LAYER_PALETTE], 2, &block);
 
 	_internal->global_treeview = child_windows[CWI_LAYER_TREEVIEW];
 	_internal->current_treeview = child_windows[CWI_LAYER_CURRENT_TREEVIEW];
@@ -120,6 +130,7 @@ void layer_info_destroy(void)
 	{
 		DestroyWindow(child_windows[i]);
 	}
+	mineral_palette_destroy();
 }
 
 static void layer_info_populate_combobox(int max)
@@ -216,7 +227,7 @@ static void layer_info_handle_command(HWND window, WPARAM wparam)
 		RAISE_EVENT(internal.events->tool_handler, current_tool);
 		EnableWindow(child_windows[CWI_LAYER_ERASER_BUTTON + current_tool], FALSE);
 	}
-	else if (index >= CWI_LAYER_COPY_SELECTED_BUTTON && index <= CWI_LAYER_BLANK_BRUSH_BUTTON)
+	else if (index >= CWI_LAYER_COPY_SELECTED_BUTTON && index <= CWI_LAYER_SAVE_BRUSH_TO_PALETTE_BUTTON)
 	{
 		blocks[TOOL_BRUSH].visual.Attributes = CREATE_ATTRIBUTE(DARK_YELLOW, DARK_BLACK);
 		switch (index)
@@ -224,15 +235,15 @@ static void layer_info_handle_command(HWND window, WPARAM wparam)
 		case CWI_LAYER_COPY_SELECTED_BUTTON:
 			blocks[TOOL_BRUSH] = blocks[TOOL_SELECT];
 			break;
-		case CWI_LAYER_BRICK_BRUSH_BUTTON:
-			blocks[TOOL_BRUSH].visual.Char.AsciiChar = GAME_BRICK_CHAR;
+		case CWI_LAYER_SAVE_BRUSH_TO_PALETTE_BUTTON:
+		{
+			int index = MINERAL_PALETTE_GET_SELECTED_CELL(child_windows[CWI_LAYER_PALETTE]);
+			if (index != -1)
+			{
+				MINERAL_PALETTE_SET_CELL(child_windows[CWI_LAYER_PALETTE], index, &blocks[current_tool]);
+			}
 			break;
-		case CWI_LAYER_STONE_BRUSH_BUTTON:
-			blocks[TOOL_BRUSH].visual.Char.AsciiChar = GAME_STONE_CHAR;
-			break;
-		case CWI_LAYER_BLANK_BRUSH_BUTTON:
-			blocks[TOOL_BRUSH].visual.Char.AsciiChar = GAME_BLANK_CHAR;
-			break;
+		}
 		}
 		if (current_tool == TOOL_BRUSH)
 		{
@@ -395,7 +406,7 @@ void layer_info_directory_set(const char* _directory)
 	fclose(file);
 
 	snprintf(directory, sizeof directory, "%s", _directory);
-	char* name = strrchr(_directory, '\\');
+	const char* name = (const char*)strrchr(_directory, '\\');
 	if (!name)
 	{
 		name = _directory;

@@ -66,6 +66,9 @@
     <ClCompile Include="src\tool.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\interface\mineral_palette.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\types.h">
@@ -120,6 +123,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\tool.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\interface\mineral_palette.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

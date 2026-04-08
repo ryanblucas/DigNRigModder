@@ -18,14 +18,33 @@ struct mineral_control_internal
 };
 
 static HFONT dnr_font;
+static bool already_initialized;
 
-static inline COLORREF mineral_control_get_color(struct mineral_control_internal* mci, int index)
+static inline COLORREF mineral_control_get_color(COLORREF dirt_color, int index)
 {
 	if (index == DNR_DIRT_INDEX)
 	{
-		return mci->dirt_color;
+		return dirt_color;
 	}
 	return palette[index];
+}
+
+void mineral_control_gdi_render_cell(HDC hdc, int x, int y, int wx, int wy, CHAR_INFO ci, COLORREF dirt_color)
+{
+	HDC memory_dc = CreateCompatibleDC(hdc);
+	HBITMAP memory_bmp = CreateCompatibleBitmap(hdc, wx, wy);
+
+	SelectObject(memory_dc, memory_bmp);
+
+	SelectObject(memory_dc, dnr_font);
+	SetTextColor(memory_dc, mineral_control_get_color(dirt_color, ATTRIBUTE_FOREGROUND(ci.Attributes)));
+	SetBkColor(memory_dc, mineral_control_get_color(dirt_color, ATTRIBUTE_BACKGROUND(ci.Attributes)));
+	TextOutA(memory_dc, 0, 0, &ci.Char.AsciiChar, 1);
+
+	StretchBlt(hdc, x, y, wx, wy, memory_dc, 0, 0, 8, 8, SRCCOPY);
+
+	DeleteObject(memory_bmp);
+	DeleteObject(memory_dc);
 }
 
 static LRESULT mineral_control_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
@@ -62,20 +81,7 @@ static LRESULT mineral_control_window_proc(HWND hwnd, UINT msg, WPARAM wparam, L
 		PAINTSTRUCT ps;
 		RUNTIME_ASSERT(BeginPaint(hwnd, &ps));
 
-		HDC memory_dc = CreateCompatibleDC(ps.hdc);
-		HBITMAP memory_bmp = CreateCompatibleBitmap(ps.hdc, mci->rect.right, mci->rect.bottom);
-
-		SelectObject(memory_dc, memory_bmp);
-		
-		SelectObject(memory_dc, dnr_font);
-		SetTextColor(memory_dc, mineral_control_get_color(mci, ATTRIBUTE_FOREGROUND(mci->attrib)));
-		SetBkColor(memory_dc, mineral_control_get_color(mci, ATTRIBUTE_BACKGROUND(mci->attrib)));
-		TextOutA(memory_dc, 0, 0, &mci->character, 1);
-
-		StretchBlt(ps.hdc, 0, 0, mci->rect.right, mci->rect.bottom, memory_dc, 0, 0, 8, 8, SRCCOPY);
-
-		DeleteObject(memory_bmp);
-		DeleteObject(memory_dc);
+		mineral_control_gdi_render_cell(ps.hdc, 0, 0, mci->rect.right, mci->rect.bottom, (CHAR_INFO) { .Char.AsciiChar = mci->character, .Attributes = mci->attrib }, mci->dirt_color);
 
 		EndPaint(hwnd, &ps);
 		return 0;
@@ -100,6 +106,10 @@ static LRESULT mineral_control_window_proc(HWND hwnd, UINT msg, WPARAM wparam, L
 
 void mineral_control_initialize(void)
 {
+	if (already_initialized)
+	{
+		return;
+	}
 	WNDCLASSW class = { 0 };
 	class.lpszClassName = MINERAL_CONTROL_CLASS_NAME;
 	class.lpfnWndProc = mineral_control_window_proc;
@@ -107,10 +117,16 @@ void mineral_control_initialize(void)
 
 	dnr_font = CreateFontA(-8, -8, 0, 0, FW_DONTCARE, FALSE, FALSE, FALSE, OEM_CHARSET, OUT_DEVICE_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH, DNR_FONT_A);
 	RUNTIME_ASSERT(dnr_font);
+	already_initialized = true;
 }
 
 void mineral_control_destroy(void)
 {
+	if (!already_initialized)
+	{
+		return;
+	}
 	UnregisterClassW(MINERAL_CONTROL_CLASS_NAME, NULL);
 	DeleteObject(dnr_font);
+	already_initialized = false;
 }

@@ -137,6 +137,7 @@
     <ClCompile Include="src\game.c" />
     <ClCompile Include="src\info_box.c" />
     <ClCompile Include="src\interface\mineral_control.c" />
+    <ClCompile Include="src\interface\mineral_palette.c" />
     <ClCompile Include="src\layer_creator\layer_info.c" />
     <ClCompile Include="src\layer_creator\layer_main.c" />
     <ClCompile Include="src\main.c" />
@@ -156,6 +157,7 @@
     <ClInclude Include="src\game.h" />
     <ClInclude Include="src\info_box.h" />
     <ClInclude Include="src\interface\mineral_control.h" />
+    <ClInclude Include="src\interface\mineral_palette.h" />
     <ClInclude Include="src\layer_creator\layer_info.h" />
     <ClInclude Include="src\layer_creator\layer_main.h" />
     <ClInclude Include="src\path.h" />

@@ -16,7 +16,6 @@ Tools
 Layer creator
 	UI needs to be improved
 	Add prefabs
-	Add palette of blocks to choose from
 
 Screen
 	Maybe move scrolling logic to here?

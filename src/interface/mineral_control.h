@@ -17,3 +17,5 @@
 
 void mineral_control_initialize(void);
 void mineral_control_destroy(void);
+
+void mineral_control_gdi_render_cell(HDC hdc, int x, int y, int wx, int wy, CHAR_INFO ci, COLORREF dirt_color);

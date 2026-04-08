@@ -214,6 +214,21 @@ static void layer_info_handle_command(HWND window, WPARAM wparam)
 			layer_info_sync_combobox_with_console();
 		}
 	}
+	else if (window == child_windows[CWI_LAYER_PALETTE] && HIWORD(wparam) == MINERAL_PALETTE_CONTROL_SET_SELECTED_CELL)
+	{
+		int index = MINERAL_PALETTE_GET_SELECTED_CELL(child_windows[CWI_LAYER_PALETTE]);
+		if (index != -1)
+		{
+			asset_block_t block;
+			MINERAL_PALETTE_GET_CELL(child_windows[CWI_LAYER_PALETTE], index, &block);
+			blocks[TOOL_BRUSH] = block;
+			RAISE_EVENT(internal.events->brush_block_handler, &block);
+			if (current_tool == TOOL_BRUSH)
+			{
+				layer_info_asset_set_treeview(0);
+			}
+		}
+	}
 	else if (index >= CWI_LAYER_ERASER_BUTTON && index <= CWI_LAYER_BRUSH_BUTTON)
 	{
 		TreeView_DeleteAllItems(child_windows[CWI_LAYER_CURRENT_TREEVIEW]);

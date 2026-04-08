@@ -103,7 +103,13 @@ static LRESULT mineral_palette_window_proc(HWND hwnd, UINT msg, WPARAM wparam, L
 	}
 	case WM_LBUTTONDOWN:
 	{
-		MINERAL_PALETTE_SELECT_CELL(hwnd, MINERAL_PALETTE_GET_INDEX_FROM_POSITION(hwnd, LOWORD(lparam), HIWORD(lparam)));
+		int index = MINERAL_PALETTE_GET_INDEX_FROM_POSITION(hwnd, LOWORD(lparam), HIWORD(lparam));
+		if (index == mpi->selected_index)
+		{
+			index = -1;
+		}
+		MINERAL_PALETTE_SELECT_CELL(hwnd, index);
+		SendMessageW(GetParent(hwnd), WM_COMMAND, MAKEWPARAM(GetDlgCtrlID(hwnd), MINERAL_PALETTE_CONTROL_SET_SELECTED_CELL), (LPARAM)hwnd);
 		break;
 	}
 	case MINERAL_PALETTE_MSG_SET_CELL_SIZE:
@@ -148,12 +154,14 @@ static LRESULT mineral_palette_window_proc(HWND hwnd, UINT msg, WPARAM wparam, L
 	case MINERAL_PALETTE_MSG_GET_CELL:
 	{
 		RUNTIME_ASSERT((int)wparam >= 0 && (int)wparam < mpi->width * mpi->height);
-		return (LRESULT)(&mpi->blocks[(int)wparam]);
+		asset_block_t* out = (asset_block_t*)lparam;
+		*out = mpi->blocks[(int)wparam];
+		break;
 	}
 	case MINERAL_PALETTE_MSG_SELECT_CELL:
 	{
 		mpi->selected_index = (int)wparam;
-		RUNTIME_ASSERT(mpi->selected_index >= 0 && mpi->selected_index < mpi->width * mpi->height);
+		RUNTIME_ASSERT(mpi->selected_index >= -1 && mpi->selected_index < mpi->width * mpi->height);
 		InvalidateRect(hwnd, NULL, TRUE);
 		break;
 	}

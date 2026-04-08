@@ -63,7 +63,7 @@ static BOOL WINAPI ctrl_handler(DWORD ctrl_type)
 {
 	if (ctrl_type == CTRL_CLOSE_EVENT)
 	{
-		cleanup();
+		file_editor_save(&editor);
 		return TRUE;
 	}
 	return FALSE;

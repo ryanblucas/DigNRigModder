@@ -164,9 +164,6 @@ static DWORD info_thread_proc(LPVOID param)
 	}
 	window = NULL;
 	FreeConsole();
-	/* with FreeConsole() being called here, it's not great programming, but the main method will 
-		call info_destroy and clean up resources used here instead of doing it right here.
-		Otherwise, I'd have to find some way to free some memory allocated in another thread */
 	return result;
 }
 

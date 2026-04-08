@@ -122,6 +122,7 @@ void screen_loop(void)
 	INPUT_RECORD ir;
 	DWORD read;
 	bool consumed_first_focus = false;
+	DWORD prev_button_state = 0;
 	while (ReadConsoleInputW(in, &ir, 1, &read) && read == 1)
 	{
 		if (ir.EventType == KEY_EVENT)
@@ -136,7 +137,6 @@ void screen_loop(void)
 		else if (ir.EventType == MOUSE_EVENT)
 		{
 			MOUSE_EVENT_RECORD mer = ir.Event.MouseEvent;
-			static DWORD prev_button_state = 0;
 			if (mer.dwEventFlags == MOUSE_WHEELED)
 			{
 				WORD scroll = HIWORD(mer.dwButtonState);
@@ -165,6 +165,7 @@ void screen_loop(void)
 			pt.x /= TARGET_CELL_SIZE;
 			pt.y /= TARGET_CELL_SIZE;
 			RAISE_EVENT(events.mouse_button, true, pt.x, pt.y);
+			prev_button_state = FROM_LEFT_1ST_BUTTON_PRESSED;
 		}
 		else if (ir.EventType == WINDOW_BUFFER_SIZE_EVENT)
 		{

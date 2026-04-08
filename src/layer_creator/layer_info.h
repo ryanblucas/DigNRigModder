@@ -26,3 +26,6 @@ int layer_info_get_current_brush_size(void);
 
 void layer_info_directory_set(const char* directory);
 void layer_info_directory_get(char* directory, size_t buf_size);
+
+void layer_info_palette_save(asset_block_t* palette, size_t palette_size);
+void layer_info_palette_copy(const asset_block_t* palette, size_t palette_size);

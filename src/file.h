@@ -396,6 +396,7 @@ typedef struct editor_state
 	int current_save;
 	char current_layer_directory[MAX_PATH];
 	info_mode_t current_mode;
+	asset_block_t asset_palette[8];
 } editor_state_t;
 
 bool file_editor_load(editor_state_t* state);

@@ -380,9 +380,11 @@ void layer_start(void)
 		layer_info_directory_set(editor_state->current_layer_directory);
 		layer_handle_file_change(editor_state->current_layer_directory);
 	}
+	layer_info_palette_copy(editor_state->asset_palette, sizeof editor_state->asset_palette / sizeof * editor_state->asset_palette);
 }
 
 void layer_end(void)
 {
 	tool_select_reset(tool_select);
+	layer_info_palette_save(editor_state->asset_palette, sizeof editor_state->asset_palette / sizeof * editor_state->asset_palette);
 }

@@ -241,6 +241,26 @@ bool file_editor_load(editor_state_t* state)
 			snprintf(state->current_layer_directory, MAX_PATH, "%s", curr.data.str);
 			file_next(&file, &curr);
 		}
+		else if (strncmp(curr.data.str, "AssetPalette", DATA_STRING_MAX_SIZE) == 0)
+		{
+			file_next(&file, &curr);
+			MATCH_AND_ADVANCE_TOKEN(&file, curr, TOKEN_NEWLINE);
+			for (int i = 0; i < sizeof state->asset_palette / sizeof * state->asset_palette; i++)
+			{
+				MATCH_TOKEN(&file, curr, TOKEN_INTEGER);
+				state->asset_palette[i].visual.Attributes = (WORD)curr.data.integer;
+				file_next(&file, &curr);
+				MATCH_TOKEN(&file, curr, TOKEN_INTEGER);
+				state->asset_palette[i].visual.Char.AsciiChar = (char)curr.data.integer;
+				file_next(&file, &curr);
+				MATCH_TOKEN(&file, curr, TOKEN_INTEGER);
+				state->asset_palette[i].tile_type = (asset_tile_type_t)curr.data.integer;
+				file_next(&file, &curr);
+				MATCH_TOKEN(&file, curr, TOKEN_INTEGER);
+				state->asset_palette[i].transparency = (boolean32_t)curr.data.integer;
+				file_next(&file, &curr);
+			}
+		}
 		else
 		{
 			debug_format("Invalid editor config header \"%s\"\n", curr.data.str);
@@ -283,6 +303,11 @@ bool file_editor_save(const editor_state_t* state)
 	}
 	fprintf(file, "#CurrentMode\n%s\n", mode_descriptor);
 	fprintf(file, "#CurrentLayerDirectory\n%s\n", state->current_layer_directory);
+	fprintf(file, "#AssetPalette\n");
+	for (int i = 0; i < sizeof state->asset_palette / sizeof * state->asset_palette; i++)
+	{
+		fprintf(file, "%hhu %hhu %hhu %hhu\n", state->asset_palette[i].visual.Attributes, state->asset_palette[i].visual.Char.AsciiChar, state->asset_palette[i].tile_type, state->asset_palette[i].transparency);
+	}
 	
 	fclose(file);
 	debug_format("Finished saving file\n");

@@ -31,7 +31,7 @@ static LRESULT mineral_palette_window_proc(HWND hwnd, UINT msg, WPARAM wparam, L
 	{
 		CREATESTRUCTW* cs = (CREATESTRUCTW*)lparam;
 		size_t reserved = (size_t)(cs->cx / START_CELL_SIZE) * (size_t)(cs->cy / START_CELL_SIZE);
-		reserved = (size_t)1 << (size_t)(log2(reserved) + 1);
+		reserved = (size_t)1 << (size_t)(log2((double)reserved) + 1.0);
 
 		struct mineral_palette_internal* mpi = dig_malloc(sizeof * mpi + reserved * sizeof * mpi->blocks);
 		memset(mpi, 0, sizeof * mpi + reserved * sizeof * mpi->blocks);
@@ -56,7 +56,7 @@ static LRESULT mineral_palette_window_proc(HWND hwnd, UINT msg, WPARAM wparam, L
 		int width = new_size->right - new_size->left;
 		int height = new_size->bottom - new_size->top;
 		size_t reserved = (size_t)width * (size_t)height / (mpi->cell_size * mpi->cell_size);
-		reserved = (size_t)1 << (size_t)(log2(reserved) + 1);
+		reserved = (size_t)1 << (size_t)(log2((double)reserved) + 1.0);
 		if (reserved > mpi->blocks_reserved)
 		{
 			struct mineral_palette_internal* new_mpi = dig_malloc(sizeof * new_mpi + reserved * sizeof * new_mpi->blocks);
@@ -168,6 +168,10 @@ static LRESULT mineral_palette_window_proc(HWND hwnd, UINT msg, WPARAM wparam, L
 	case MINERAL_PALETTE_MSG_GET_SELECTED_CELL:
 	{
 		return (LRESULT)mpi->selected_index;
+	}
+	case MINERAL_PALETTE_MSG_GET_SIZE:
+	{
+		return (LRESULT)(mpi->width * mpi->height);
 	}
 	case WM_DESTROY:
 		free(mpi);

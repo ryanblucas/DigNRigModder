@@ -222,7 +222,6 @@ static void layer_info_handle_command(HWND window, WPARAM wparam)
 			asset_block_t block;
 			MINERAL_PALETTE_GET_CELL(child_windows[CWI_LAYER_PALETTE], index, &block);
 			blocks[TOOL_BRUSH] = block;
-			RAISE_EVENT(internal.events->brush_block_handler, &block);
 			if (current_tool == TOOL_BRUSH)
 			{
 				layer_info_asset_set_treeview(0);
@@ -435,4 +434,22 @@ void layer_info_directory_set(const char* _directory)
 void layer_info_directory_get(char* _directory, size_t buf_size)
 {
 	snprintf(_directory, buf_size, "%s", directory);
+}
+
+void layer_info_palette_save(asset_block_t* palette, size_t palette_size)
+{
+	int min = min((int)palette_size, MINERAL_PALETTE_GET_SIZE(child_windows[CWI_LAYER_PALETTE]));
+	for (int i = 0; i < min; i++)
+	{
+		MINERAL_PALETTE_GET_CELL(child_windows[CWI_LAYER_PALETTE], i, &palette[i]);
+	}
+}
+
+void layer_info_palette_copy(const asset_block_t* palette, size_t palette_size)
+{
+	int min = min((int)palette_size, MINERAL_PALETTE_GET_SIZE(child_windows[CWI_LAYER_PALETTE]));
+	for (int i = 0; i < min; i++)
+	{
+		MINERAL_PALETTE_SET_CELL(child_windows[CWI_LAYER_PALETTE], i, &palette[i]);
+	}
 }

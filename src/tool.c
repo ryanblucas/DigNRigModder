@@ -416,7 +416,7 @@ tool_event_t tool_brush_handle_mouse_click(tool_brush_t tool, bool m1_down, int 
 		int radius = tool->size - 1;
 		tool->region = region_keep_inside(
 			(region_t) { x - radius, y - radius, x + radius, y + radius},
-			(region_t) { 0, 0, WORLD_WIDTH - 1, WORLD_HEIGHT - 1 });
+			tool->arena);
 		return tool->last_event = EVENT_BRUSH_START;
 	}
 

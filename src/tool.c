@@ -345,55 +345,44 @@ tool_event_t tool_brush_handle_mouse_move(tool_brush_t tool, bool m1_down, int x
 	int new_selected_y = y + scroll_y;
 	int radius = tool->size - 1;
 
-	region_t final;
-	if (tool->prev_selected_x == -1 && tool->prev_selected_y == -1)
+	region_t final = region_validate((region_t) { new_selected_x, new_selected_y, tool->prev_selected_x, tool->prev_selected_y });
+	RUNTIME_ASSERT(dig_inside_bounds(final.x0, final.y0) && dig_inside_bounds(final.x1, final.y1));
+	final.x0 -= radius;
+	final.y0 -= radius;
+	final.x1 += radius;
+	final.y1 += radius;
+	final = region_keep_inside(final, tool->arena);
+
+	int cx = new_selected_x;
+	int cy = new_selected_y;
+	int dx = abs(cx - tool->prev_selected_x);
+	int dy = -abs(cy - tool->prev_selected_y);
+	int ix = cx < tool->prev_selected_x ? 1 : -1;
+	int iy = cy < tool->prev_selected_y ? 1 : -1;
+
+	int error = dx + dy;
+
+	/* theres probably a way of doing this more efficiently for a line with a thickness */
+	while (true)
 	{
-		final = (region_t){ new_selected_x - radius, new_selected_y - radius, new_selected_x + radius, new_selected_y + radius };
-		final = region_keep_inside(final, tool->arena);
-		RUNTIME_ASSERT(dig_inside_bounds(final.x0, final.y0) && dig_inside_bounds(final.x1, final.y1));
-		tool->callback(tool, final);
-	}
-	else
-	{
-		final = region_validate((region_t) { new_selected_x, new_selected_y, tool->prev_selected_x, tool->prev_selected_y });
-		RUNTIME_ASSERT(dig_inside_bounds(final.x0, final.y0) && dig_inside_bounds(final.x1, final.y1));
-		final.x0 -= radius;
-		final.y0 -= radius;
-		final.x1 += radius;
-		final.y1 += radius;
-		final = region_keep_inside(final, tool->arena);
-
-		int cx = new_selected_x;
-		int cy = new_selected_y;
-		int dx = abs(cx - tool->prev_selected_x);
-		int dy = -abs(cy - tool->prev_selected_y);
-		int ix = cx < tool->prev_selected_x ? 1 : -1;
-		int iy = cy < tool->prev_selected_y ? 1 : -1;
-
-		int error = dx + dy;
-
-		/* theres probably a way of doing this more efficiently for a line with a thickness */
-		while (true)
+		tool->callback(tool, region_keep_inside((region_t) { cx - radius, cy - radius, cx + radius, cy + radius }, tool->arena));
+		if (error * 2 <= dx)
 		{
-			tool->callback(tool, region_keep_inside((region_t) { cx - radius, cy - radius, cx + radius, cy + radius }, tool->arena));
-			if (error * 2 <= dx)
+			if (cy == tool->prev_selected_y)
 			{
-				if (cy == tool->prev_selected_y)
-				{
-					break;
-				}
-				cy += iy;
-				error += dx;
+				break;
 			}
-			if (error * 2 >= dy)
+			cy += iy;
+			error += dx;
+		}
+		if (error * 2 >= dy)
+		{
+			if (cx == tool->prev_selected_x)
 			{
-				if (cx == tool->prev_selected_x)
-				{
-					break;
-				}
-				cx += ix;
-				error += dy;
+				break;
 			}
+			cx += ix;
+			error += dy;
 		}
 	}
 
@@ -412,6 +401,8 @@ tool_event_t tool_brush_handle_mouse_click(tool_brush_t tool, bool m1_down, int 
 	}
 	if (m1_down)
 	{
+		tool->prev_selected_x = x;
+		tool->prev_selected_y = y;
 		y += scroll_y;
 		int radius = tool->size - 1;
 		tool->region = region_keep_inside(
@@ -425,6 +416,5 @@ tool_event_t tool_brush_handle_mouse_click(tool_brush_t tool, bool m1_down, int 
 		return tool->last_event = EVENT_NOTHING;
 	}
 
-	tool->prev_selected_x = tool->prev_selected_y = -1;
 	return tool->last_event = EVENT_BRUSH_END;
 }

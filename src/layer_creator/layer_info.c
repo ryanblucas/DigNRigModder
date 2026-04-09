@@ -23,7 +23,6 @@ enum child_window_index
 	CWI_LAYER_BRUSH_SIZE_THUMB,
 
 	CWI_LAYER_COPY_SELECTED_BUTTON,
-	CWI_LAYER_SAVE_BRUSH_TO_PALETTE_BUTTON,
 
 	CWI_LAYER_PALETTE,
 
@@ -98,9 +97,9 @@ void layer_info_initialize(info_internal_t* _internal)
 	SendMessageW(child_windows[CWI_LAYER_BRUSH_SIZE_THUMB], TBM_SETRANGE, TRUE, MAKELONG(INFO_BRUSH_MIN_SIZE, INFO_BRUSH_MAX_SIZE));
 	
 	child_windows[CWI_LAYER_COPY_SELECTED_BUTTON] = CreateWindowExW(0, L"BUTTON", L"Copy selected to brush", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 100, 98, 120, 22, internal.window, NULL, NULL, NULL);
-	child_windows[CWI_LAYER_SAVE_BRUSH_TO_PALETTE_BUTTON] = CreateWindowExW(0, L"BUTTON", L"Save brush to palette", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 100, 121, 120, 22, internal.window, NULL, NULL, NULL);
+	SendMessageW(child_windows[CWI_LAYER_COPY_SELECTED_BUTTON], WM_SETFONT, (WPARAM)internal.font_text, (LPARAM)FALSE);
 
-	for (int i = CWI_LAYER_ERASER_BUTTON; i <= CWI_LAYER_SAVE_BRUSH_TO_PALETTE_BUTTON; i++)
+	for (int i = CWI_LAYER_ERASER_BUTTON; i <= CWI_LAYER_COPY_SELECTED_BUTTON; i++)
 	{
 		SendMessageW(child_windows[i], WM_SETFONT, (WPARAM)internal.font_text, (LPARAM)FALSE);
 	}
@@ -241,24 +240,10 @@ static void layer_info_handle_command(HWND window, WPARAM wparam)
 		RAISE_EVENT(internal.events->tool_handler, current_tool);
 		EnableWindow(child_windows[CWI_LAYER_ERASER_BUTTON + current_tool], FALSE);
 	}
-	else if (index >= CWI_LAYER_COPY_SELECTED_BUTTON && index <= CWI_LAYER_SAVE_BRUSH_TO_PALETTE_BUTTON)
+	else if (index == CWI_LAYER_COPY_SELECTED_BUTTON)
 	{
-		blocks[TOOL_BRUSH].visual.Attributes = CREATE_ATTRIBUTE(DARK_YELLOW, DARK_BLACK);
-		switch (index)
-		{
-		case CWI_LAYER_COPY_SELECTED_BUTTON:
-			blocks[TOOL_BRUSH] = blocks[TOOL_SELECT];
-			break;
-		case CWI_LAYER_SAVE_BRUSH_TO_PALETTE_BUTTON:
-		{
-			int index = MINERAL_PALETTE_GET_SELECTED_CELL(child_windows[CWI_LAYER_PALETTE]);
-			if (index != -1)
-			{
-				MINERAL_PALETTE_SET_CELL(child_windows[CWI_LAYER_PALETTE], index, &blocks[current_tool]);
-			}
-			break;
-		}
-		}
+		blocks[TOOL_BRUSH] = blocks[TOOL_SELECT];
+		MINERAL_PALETTE_SET_CELL(child_windows[CWI_LAYER_PALETTE], MINERAL_PALETTE_GET_SELECTED_CELL(child_windows[CWI_LAYER_PALETTE]), &blocks[TOOL_BRUSH]);
 		if (current_tool == TOOL_BRUSH)
 		{
 			layer_info_asset_set_treeview(0);
@@ -320,6 +305,11 @@ void layer_info_handle_interact_tree_item(bool is_global, element_t element)
 	field_t previous = field_create(serialize_element_get_value(element), serialize_element_get_size(element));
 	if (!serialize_on_change_field(element) || previous == field_create(serialize_element_get_value(element), serialize_element_get_size(element)))
 	{
+		return;
+	}
+	if (current_tool == TOOL_BRUSH && MINERAL_PALETTE_GET_SELECTED_CELL(child_windows[CWI_LAYER_PALETTE]) != -1)
+	{
+		MINERAL_PALETTE_SET_CELL(child_windows[CWI_LAYER_PALETTE], MINERAL_PALETTE_GET_SELECTED_CELL(child_windows[CWI_LAYER_PALETTE]), &blocks[TOOL_BRUSH]);
 		return;
 	}
 	if (region_is_invalid(region))

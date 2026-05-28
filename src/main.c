@@ -3,7 +3,7 @@
 */
 
 #include "save_viewer/save_main.h"
-#include "layer_creator/layer_main.h"
+#include "asset_creator/asset_main.h"
 #include "screen.h"
 #include "info_box.h"
 
@@ -17,7 +17,7 @@ static void call_respective_start(info_mode_t mode)
 		save_start();
 		break;
 	case MODE_LAYER:
-		layer_start();
+		asset_start();
 		break;
 	}
 }
@@ -30,7 +30,7 @@ static void call_respective_end(info_mode_t mode)
 		save_end();
 		break;
 	case MODE_LAYER:
-		layer_end();
+		asset_end();
 		break;
 	}
 }
@@ -53,7 +53,7 @@ static void cleanup(void)
 	file_editor_save(&editor);
 
 	save_destroy();
-	layer_destroy();
+	asset_destroy();
 
 	info_destroy();
 	screen_destroy();
@@ -81,7 +81,7 @@ int main()
 	}
 
 	save_initialize(&editor);
-	layer_initialize(&editor);
+	asset_initialize(&editor);
 
 	screen_initialize();
 	screen_change_title("Dig-N-Rig Display");

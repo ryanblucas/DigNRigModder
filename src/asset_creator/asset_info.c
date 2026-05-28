@@ -1,0 +1,445 @@
+/*
+	asset_info.c ~ RL
+*/
+
+#include "asset_info.h"
+#include "../path.h"
+#include "../interface/mineral_palette.h"
+#include <stdio.h>
+
+#define INFO_BOX_MSG_STATE_READY (WM_USER + 0x20)
+
+enum child_window_index
+{
+	CWI_ASSET_FILE_COMBOBOX,
+	CWI_ASSET_FILE_COMBOBOX_LABEL,
+
+	CWI_ASSET_TREEVIEW,
+	CWI_ASSET_CURRENT_TREEVIEW,
+
+	CWI_ASSET_ERASER_BUTTON,
+	CWI_ASSET_SELECT_BUTTON,
+	CWI_ASSET_BRUSH_BUTTON,
+	CWI_ASSET_BRUSH_SIZE_THUMB,
+
+	CWI_ASSET_COPY_SELECTED_BUTTON,
+
+	CWI_ASSET_PALETTE,
+
+	CWI_COUNT
+};
+
+static HWND child_windows[CWI_COUNT];
+static info_internal_t internal;
+static asset_t* asset;
+
+static info_tool_t current_tool;
+
+static asset_block_t blocks[3];
+static region_t region;
+
+static action_buffer_t action_buffer;
+
+static int brush_size = 1;
+
+static char directory[MAX_PATH];
+
+enum asset_info_current_field
+{
+	AICF_TILE_TYPE = 1 << 0,
+	AICF_VISUAL = 1 << 1,
+	AICF_TRANSPARENCY = 1 << 2
+};
+
+static inline void asset_info_asset_set_treeview(enum asset_info_current_field mask)
+{
+	TreeView_DeleteAllItems(child_windows[CWI_ASSET_CURRENT_TREEVIEW]);
+#define ADD_SERIALIZABLE(type, name) element_t name = serialize_single(#type, &blocks[current_tool].name, #name, child_windows[CWI_ASSET_CURRENT_TREEVIEW], NULL);
+#define ADD_SERIALIZABLE_ARRAY(type, name, count) element_t name = serialize_array(#type, &blocks[current_tool].name, count, #name, child_windows[CWI_ASSET_CURRENT_TREEVIEW], NULL);
+	SERIALIZABLE_ASSET_BLOCK
+#undef ADD_SERIALIZABLE
+#undef ADD_SERIALIZABLE_ARRAY
+
+	if (mask & AICF_TILE_TYPE)
+	{
+		serialize_element_enable(tile_type, false);
+	}
+	if (mask & AICF_VISUAL)
+	{
+		serialize_element_enable(visual, false);
+	}
+	if (mask & AICF_TRANSPARENCY)
+	{
+		serialize_element_enable(transparency, false);
+	}
+}
+
+void asset_info_initialize(info_internal_t* _internal)
+{
+	internal = *_internal;
+
+	child_windows[CWI_ASSET_FILE_COMBOBOX] = CreateWindowExW(0, WC_COMBOBOXW, NULL, WS_VSCROLL | CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_CHILD | WS_OVERLAPPED | WS_VISIBLE, 40, 25, INFO_BOX_CLIENT_WIDTH / 2 - 40, 200, internal.window, NULL, NULL, NULL);
+	SendMessageW(child_windows[CWI_ASSET_FILE_COMBOBOX], WM_SETFONT, (WPARAM)internal.font_caption, 0);
+
+	child_windows[CWI_ASSET_FILE_COMBOBOX_LABEL] = CreateWindowExW(0, L"STATIC", L"File:", WS_VISIBLE | WS_CHILD, 8, 29, 24, 18, internal.window, NULL, NULL, NULL);
+	SendMessageW(child_windows[CWI_ASSET_FILE_COMBOBOX_LABEL], WM_SETFONT, (WPARAM)internal.font_caption, 0);
+
+	child_windows[CWI_ASSET_TREEVIEW] = CreateWindowExW(0, WC_TREEVIEWW, NULL, WS_VISIBLE | WS_CHILD | WS_BORDER | TVS_HASLINES | TVS_LINESATROOT | TVS_HASBUTTONS, 2, 190, INFO_BOX_CLIENT_WIDTH / 2 - 2, 200, internal.window, NULL, NULL, NULL);
+	SendMessageW(child_windows[CWI_ASSET_TREEVIEW], WM_SETFONT, (WPARAM)internal.font_text, (LPARAM)FALSE);
+
+	child_windows[CWI_ASSET_CURRENT_TREEVIEW] = CreateWindowExW(0, WC_TREEVIEWW, NULL, WS_VISIBLE | WS_CHILD | WS_BORDER | TVS_HASLINES | TVS_LINESATROOT | TVS_HASBUTTONS, INFO_BOX_CLIENT_WIDTH / 2, 190, INFO_BOX_CLIENT_WIDTH / 2 - 2, 200, internal.window, NULL, NULL, NULL);
+	SendMessageW(child_windows[CWI_ASSET_CURRENT_TREEVIEW], WM_SETFONT, (WPARAM)internal.font_text, (LPARAM)FALSE);
+
+	child_windows[CWI_ASSET_ERASER_BUTTON] = CreateWindowExW(0, L"BUTTON", L"Erase", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 3, 98, 72, 22, internal.window, NULL, NULL, NULL);
+	child_windows[CWI_ASSET_SELECT_BUTTON] = CreateWindowExW(0, L"BUTTON", L"Select", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 3, 121, 72, 22, internal.window, NULL, NULL, NULL);
+	child_windows[CWI_ASSET_BRUSH_BUTTON] = CreateWindowExW(0, L"BUTTON", L"Brush", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 3, 144, 72, 22, internal.window, NULL, NULL, NULL);
+	child_windows[CWI_ASSET_BRUSH_SIZE_THUMB] = CreateWindowExW(0, TRACKBAR_CLASSW, L"Brush size", WS_VISIBLE | WS_CHILD | TBS_AUTOTICKS | TBS_ENABLESELRANGE, 3, 167, 72, 22, internal.window, NULL, NULL, NULL);
+	SendMessageW(child_windows[CWI_ASSET_BRUSH_SIZE_THUMB], TBM_SETRANGE, TRUE, MAKELONG(INFO_BRUSH_MIN_SIZE, INFO_BRUSH_MAX_SIZE));
+	
+	child_windows[CWI_ASSET_COPY_SELECTED_BUTTON] = CreateWindowExW(0, L"BUTTON", L"Copy selected to brush", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 100, 98, 120, 22, internal.window, NULL, NULL, NULL);
+	SendMessageW(child_windows[CWI_ASSET_COPY_SELECTED_BUTTON], WM_SETFONT, (WPARAM)internal.font_text, (LPARAM)FALSE);
+
+	for (int i = CWI_ASSET_ERASER_BUTTON; i <= CWI_ASSET_COPY_SELECTED_BUTTON; i++)
+	{
+		SendMessageW(child_windows[i], WM_SETFONT, (WPARAM)internal.font_text, (LPARAM)FALSE);
+	}
+
+	mineral_palette_initialize();
+	child_windows[CWI_ASSET_PALETTE] = CreateWindowExW(0, MINERAL_PALETTE_CLASS_NAME, NULL, WS_VISIBLE | WS_CHILD, 300, 50, 48, 24 * 4, internal.window, NULL, NULL, NULL);
+	MINERAL_PALETTE_SET_CELL_SIZE(child_windows[CWI_ASSET_PALETTE], 3);
+
+	asset_block_t block = { (CHAR_INFO){ .Attributes = CREATE_ATTRIBUTE(DARK_YELLOW, DARK_BLACK), .Char.AsciiChar = GAME_BRICK_CHAR }, TILE_TYPE_DEFAULT, 0};
+	MINERAL_PALETTE_SET_CELL(child_windows[CWI_ASSET_PALETTE], 0, &block);
+	block = (asset_block_t) { (CHAR_INFO) { .Attributes = CREATE_ATTRIBUTE(DARK_YELLOW, DARK_BLACK), .Char.AsciiChar = GAME_STONE_CHAR }, TILE_TYPE_DEFAULT, 0 };
+	MINERAL_PALETTE_SET_CELL(child_windows[CWI_ASSET_PALETTE], 1, &block);
+	block = (asset_block_t){ (CHAR_INFO) { .Attributes = CREATE_ATTRIBUTE(DARK_YELLOW, DARK_BLACK), .Char.AsciiChar = GAME_BLANK_CHAR }, TILE_TYPE_DEFAULT, 0 };
+	MINERAL_PALETTE_SET_CELL(child_windows[CWI_ASSET_PALETTE], 2, &block);
+
+	_internal->global_treeview = child_windows[CWI_ASSET_TREEVIEW];
+	_internal->current_treeview = child_windows[CWI_ASSET_CURRENT_TREEVIEW];
+
+	current_tool = TOOL_SELECT;
+	EnableWindow(child_windows[CWI_ASSET_SELECT_BUTTON], FALSE);
+	asset_info_show(false);
+}
+
+void asset_info_destroy(void)
+{
+	for (int i = 0; i < CWI_COUNT; i++)
+	{
+		DestroyWindow(child_windows[i]);
+	}
+	mineral_palette_destroy();
+}
+
+static void asset_info_populate_combobox(int max)
+{
+	debug_profiler_push();
+	RUNTIME_ASSERT(SendMessageW(child_windows[CWI_ASSET_FILE_COMBOBOX], CB_RESETCONTENT, 0, 0) != CB_ERR);
+	char buf[MAX_PATH];
+	char* directories = path_enumerate_directory_create(path_find_dnr_main(buf, sizeof buf, "Layers\\*.layer"), &max);
+	char* curr = directories;
+	while (max-- > 0)
+	{
+		/* more research on if this is a valid move here to do SendMessageA instead of converting the string to a wide one then SendMessageW */
+		RUNTIME_ASSERT(SendMessageA(child_windows[CWI_ASSET_FILE_COMBOBOX], CB_ADDSTRING, 0, (LPARAM)curr) != CB_ERR);
+		curr += strnlen(curr, MAX_PATH) + 1;
+	}
+	free(directories);
+	debug_profiler_pop("Populating layer combobox");
+}
+
+static void asset_info_sync_combobox_with_console(void)
+{
+	path_find_dnr_main(directory, sizeof directory, "Layers\\");
+	char* end = directory + strnlen(directory, sizeof directory);
+	GetWindowTextA(child_windows[CWI_ASSET_FILE_COMBOBOX], end, (int)(sizeof directory - (size_t)(end - directory)));
+	RAISE_EVENT(internal.events->file_handler, directory);
+}
+
+void asset_info_show(bool is_visible)
+{
+	if (is_visible && !*directory)
+	{
+		asset_info_populate_combobox(1);
+		SendMessageW(child_windows[CWI_ASSET_FILE_COMBOBOX], CB_SETCURSEL, (WPARAM)0, 0);
+		asset_info_sync_combobox_with_console();
+	}
+
+	for (int i = 0; i < CWI_COUNT; i++)
+	{
+		ShowWindow(child_windows[i], is_visible ? SW_SHOW : SW_HIDE);
+	}
+}
+
+static void asset_info_state_set_tree_view(asset_t* asset)
+{
+	debug_profiler_push();
+	asset_t* item = asset;
+
+#define ADD_SERIALIZABLE(type, name) serialize_single(#type, &item->name, #name, child_windows[CWI_ASSET_TREEVIEW], NULL);
+#define ADD_SERIALIZABLE_ARRAY(type, name, count) serialize_array(#type, &item->name, count, #name, child_windows[CWI_ASSET_TREEVIEW], NULL);
+	SERIALIZABLE_ASSET
+#undef ADD_SERIALIZABLE
+#undef ADD_SERIALIZABLE_ARRAY
+
+	debug_profiler_pop("Surface level serializing");
+}
+
+static enum child_window_index asset_info_child_window_from_handle(HWND hwnd)
+{
+	for (int i = 0; i < CWI_COUNT; i++)
+	{
+		if (child_windows[i] == hwnd)
+		{
+			return i;
+		}
+	}
+	return -1;
+}
+
+static void asset_info_handle_command(HWND window, WPARAM wparam)
+{
+	enum child_window_index index = asset_info_child_window_from_handle(window);
+	if (window == child_windows[CWI_ASSET_FILE_COMBOBOX])
+	{
+		if (HIWORD(wparam) == CBN_DROPDOWN)
+		{
+			/* refresh every time expanded.. good idea? or waste of time? */
+			asset_info_populate_combobox(0);
+		}
+		else if (HIWORD(wparam) == CBN_SELCHANGE)
+		{
+			asset_info_sync_combobox_with_console();
+		}
+	}
+	else if (window == child_windows[CWI_ASSET_PALETTE] && HIWORD(wparam) == MINERAL_PALETTE_CONTROL_SET_SELECTED_CELL)
+	{
+		int index = MINERAL_PALETTE_GET_SELECTED_CELL(child_windows[CWI_ASSET_PALETTE]);
+		if (index != -1)
+		{
+			asset_block_t block;
+			MINERAL_PALETTE_GET_CELL(child_windows[CWI_ASSET_PALETTE], index, &block);
+			blocks[TOOL_BRUSH] = block;
+			if (current_tool == TOOL_BRUSH)
+			{
+				asset_info_asset_set_treeview(0);
+			}
+		}
+	}
+	else if (index >= CWI_ASSET_ERASER_BUTTON && index <= CWI_ASSET_BRUSH_BUTTON)
+	{
+		TreeView_DeleteAllItems(child_windows[CWI_ASSET_CURRENT_TREEVIEW]);
+		EnableWindow(child_windows[CWI_ASSET_ERASER_BUTTON + current_tool], TRUE);
+		current_tool = index - CWI_ASSET_ERASER_BUTTON;
+		region = INVALID_REGION;
+		if (current_tool != TOOL_ERASER)
+		{
+			asset_info_asset_set_treeview(0);
+		}
+		RAISE_EVENT(internal.events->tool_handler, current_tool);
+		EnableWindow(child_windows[CWI_ASSET_ERASER_BUTTON + current_tool], FALSE);
+	}
+	else if (index == CWI_ASSET_COPY_SELECTED_BUTTON)
+	{
+		blocks[TOOL_BRUSH] = blocks[TOOL_SELECT];
+		MINERAL_PALETTE_SET_CELL(child_windows[CWI_ASSET_PALETTE], MINERAL_PALETTE_GET_SELECTED_CELL(child_windows[CWI_ASSET_PALETTE]), &blocks[TOOL_BRUSH]);
+		if (current_tool == TOOL_BRUSH)
+		{
+			asset_info_asset_set_treeview(0);
+		}
+	}
+}
+
+bool asset_info_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESULT* out)
+{
+	*out = 0;
+	switch (msg)
+	{
+	case WM_COMMAND:
+	{
+		asset_info_handle_command((HWND)lparam, wparam);
+		break;
+	}
+	case WM_HSCROLL:
+	{
+		if ((HWND)lparam != child_windows[CWI_ASSET_BRUSH_SIZE_THUMB] || LOWORD(wparam) != SB_ENDSCROLL)
+		{
+			return true;
+		}
+		brush_size = (int)SendMessageW(child_windows[CWI_ASSET_BRUSH_SIZE_THUMB], TBM_GETPOS, 0, 0);
+		RAISE_EVENT(internal.events->brush_size_handler, brush_size);
+		return true;
+	}
+	case INFO_BOX_MSG_STATE_READY:
+	{
+		TreeView_DeleteAllItems(child_windows[CWI_ASSET_TREEVIEW]);
+		TreeView_DeleteAllItems(child_windows[CWI_ASSET_CURRENT_TREEVIEW]);
+		asset_info_state_set_tree_view((asset_t*)wparam);
+		break;
+	}
+	}
+	return false;
+}
+
+void asset_info_handle_interact_tree_item(bool is_global, element_t element)
+{
+	/* only should change elementary fields */
+	if (serialize_element_get_size(element) > 4 || serialize_element_get_count(element) > 1)
+	{
+		return;
+	}
+
+	if (is_global)
+	{
+		field_t begin_copy = field_create(serialize_element_get_value(element), serialize_element_get_size(element));
+		if (!serialize_on_change_field(element) || begin_copy == field_create(serialize_element_get_value(element), serialize_element_get_size(element)))
+		{
+			return;
+		}
+		RAISE_EVENT(internal.events->global_field_handler, serialize_element_get_value(element));
+		action_buffer_add_field(action_buffer, element, begin_copy);
+		return;
+	}
+
+	field_t previous = field_create(serialize_element_get_value(element), serialize_element_get_size(element));
+	if (!serialize_on_change_field(element) || previous == field_create(serialize_element_get_value(element), serialize_element_get_size(element)))
+	{
+		return;
+	}
+	if (current_tool == TOOL_BRUSH && MINERAL_PALETTE_GET_SELECTED_CELL(child_windows[CWI_ASSET_PALETTE]) != -1)
+	{
+		MINERAL_PALETTE_SET_CELL(child_windows[CWI_ASSET_PALETTE], MINERAL_PALETTE_GET_SELECTED_CELL(child_windows[CWI_ASSET_PALETTE]), &blocks[TOOL_BRUSH]);
+		return;
+	}
+	if (region_is_invalid(region))
+	{
+		return;
+	}
+	action_buffer_pre_add_asset_block(action_buffer, asset, region);
+	for (int y = region.y0; y <= region.y1; y++)
+	{
+		for (int x = region.x0; x <= region.x1; x++)
+		{
+			uint8_t* current = (uint8_t*)serialize_element_get_value(element);
+			memcpy((uint8_t*)&asset->blocks[x + y * TARGET_WIDTH] + (current - (uint8_t*)&blocks[current_tool]), current, serialize_element_get_size(element));
+		}
+	}
+	RAISE_EVENT(internal.events->block_handler, region);
+	action_buffer_post_add_asset_block(action_buffer, asset);
+}
+
+void asset_info_set(asset_t* _asset)
+{
+	asset = _asset;
+	/* i do not like this */
+	for (int i = 0; i < 100 && !internal.window; i++)
+	{
+		Sleep(10);
+	}
+	RUNTIME_ASSERT(internal.window);
+	PostMessageW(internal.window, INFO_BOX_MSG_STATE_READY, (WPARAM)asset, 0);
+}
+
+void asset_info_set_current(region_t _region)
+{
+	if (region_is_invalid(_region))
+	{
+		TreeView_DeleteAllItems(child_windows[CWI_ASSET_CURRENT_TREEVIEW]);
+		region = _region;
+		return;
+	}
+	region = region_validate(_region);
+	blocks[current_tool] = asset->blocks[region.x0 + region.y0 * TARGET_WIDTH];
+	enum asset_info_current_field mask = 0;
+	for (int y = 0; y < region_height(region); y++)
+	{
+		for (int x = 0; x < region_width(region); x++)
+		{
+			asset_block_t* curr = &asset->blocks[(region.x0 + x) + (region.y0 + y) * TARGET_WIDTH];
+			if (~mask & AICF_TILE_TYPE && blocks[current_tool].tile_type != curr->tile_type)
+			{
+				blocks[current_tool].tile_type = 0;
+				mask |= AICF_TILE_TYPE;
+			}
+			else if (~mask & AICF_VISUAL && blocks[current_tool].visual.Attributes != curr->visual.Attributes || blocks[current_tool].visual.Char.AsciiChar != curr->visual.Char.AsciiChar)
+			{
+				blocks[current_tool].visual = (CHAR_INFO){ 0 };
+				mask |= AICF_VISUAL;
+			}
+			else if (~mask & AICF_TILE_TYPE && blocks[current_tool].transparency != curr->transparency)
+			{
+				blocks[current_tool].transparency = false;
+				mask |= AICF_TRANSPARENCY;
+			}
+		}
+	}
+
+	asset_info_asset_set_treeview(mask);
+}
+
+action_buffer_t asset_info_action_buffer_get(void)
+{
+	return action_buffer;
+}
+
+void asset_info_action_buffer_set(action_buffer_t _action_buffer)
+{
+	action_buffer = _action_buffer;
+}
+
+info_tool_t asset_info_get_current_tool(void)
+{
+	return current_tool;
+}
+
+void asset_info_get_current_brush_block(asset_block_t* res)
+{
+	*res = blocks[TOOL_BRUSH];
+}
+
+int asset_info_get_current_brush_size(void)
+{
+	return brush_size;
+}
+
+void asset_info_directory_set(const char* _directory)
+{
+	FILE* file = fopen(_directory, "r");
+	RUNTIME_ASSERT(file);
+	fclose(file);
+
+	snprintf(directory, sizeof directory, "%s", _directory);
+	const char* name = (const char*)strrchr(_directory, '\\');
+	if (!name)
+	{
+		name = _directory;
+	}
+
+	RUNTIME_ASSERT(SendMessageW(child_windows[CWI_ASSET_FILE_COMBOBOX], CB_RESETCONTENT, 0, 0) != CB_ERR);
+	RUNTIME_ASSERT(SendMessageA(child_windows[CWI_ASSET_FILE_COMBOBOX], CB_ADDSTRING, 0, (LPARAM)(name + 1)) != CB_ERR);
+	RUNTIME_ASSERT(SendMessageW(child_windows[CWI_ASSET_FILE_COMBOBOX], CB_SETCURSEL, (WPARAM)0, 0) != CB_ERR);
+}
+
+void asset_info_directory_get(char* _directory, size_t buf_size)
+{
+	snprintf(_directory, buf_size, "%s", directory);
+}
+
+void asset_info_palette_save(asset_block_t* palette, size_t palette_size)
+{
+	int min = min((int)palette_size, MINERAL_PALETTE_GET_SIZE(child_windows[CWI_ASSET_PALETTE]));
+	for (int i = 0; i < min; i++)
+	{
+		MINERAL_PALETTE_GET_CELL(child_windows[CWI_ASSET_PALETTE], i, &palette[i]);
+	}
+}
+
+void asset_info_palette_copy(const asset_block_t* palette, size_t palette_size)
+{
+	int min = min((int)palette_size, MINERAL_PALETTE_GET_SIZE(child_windows[CWI_ASSET_PALETTE]));
+	for (int i = 0; i < min; i++)
+	{
+		MINERAL_PALETTE_SET_CELL(child_windows[CWI_ASSET_PALETTE], i, &palette[i]);
+	}
+}

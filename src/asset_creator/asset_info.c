@@ -133,10 +133,16 @@ void asset_info_show(bool is_visible)
 {
 	if (is_visible && !*directory)
 	{
-		WIN32_FIND_DATA wfd;
-		path_find_dnr_main(directory, sizeof directory, "Layers");
-		FindFirstFileA(directory, &wfd);
-		strncat(directory, "\\*.layer", sizeof directory - strlen(directory) - 1);
+		char buf[MAX_PATH];
+		path_find_dnr_main(buf, sizeof buf, "Layers");
+		snprintf(directory, sizeof directory, "%s\\*.layer", buf);
+
+		WIN32_FIND_DATAA wfd;
+		HANDLE handle = FindFirstFileA(directory, &wfd);
+		RUNTIME_ASSERT(handle != INVALID_HANDLE_VALUE);
+		FindClose(handle);
+
+		snprintf(directory, sizeof directory, "%s\\%s", buf, wfd.cFileName);
 		RAISE_EVENT(internal.events->file_handler, directory);
 	}
 
@@ -181,7 +187,7 @@ static void asset_info_handle_command(HWND window, WPARAM wparam)
 		{
 			.lStructSize = sizeof ofn,
 			.hwndOwner = internal.window,
-			.lpstrFilter = "Asset files\0*.layer\0*.sprite",
+			.lpstrFilter = "Asset files\0*.layer;*.sprite",
 			.lpstrFile = directory, .nMaxFile = sizeof directory,
 			.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST
 		};

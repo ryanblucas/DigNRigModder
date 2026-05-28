@@ -16,7 +16,7 @@ static void call_respective_start(info_mode_t mode)
 	case MODE_SAVE:
 		save_start();
 		break;
-	case MODE_LAYER:
+	case MODE_ASSET:
 		asset_start();
 		break;
 	}
@@ -29,7 +29,7 @@ static void call_respective_end(info_mode_t mode)
 	case MODE_SAVE:
 		save_end();
 		break;
-	case MODE_LAYER:
+	case MODE_ASSET:
 		asset_end();
 		break;
 	}

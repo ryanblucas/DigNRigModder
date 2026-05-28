@@ -229,7 +229,7 @@ bool file_editor_load(editor_state_t* state)
 			}
 			else if (strncmp(curr.data.str, "Layer", DATA_STRING_MAX_SIZE) == 0)
 			{
-				state->current_mode = MODE_LAYER;
+				state->current_mode = MODE_ASSET;
 			}
 			file_next(&file, &curr);
 		}
@@ -297,7 +297,7 @@ bool file_editor_save(const editor_state_t* state)
 	case MODE_SAVE:
 		mode_descriptor = "Save";
 		break;
-	case MODE_LAYER:
+	case MODE_ASSET:
 		mode_descriptor = "Layer";
 		break;
 	}

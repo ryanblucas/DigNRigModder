@@ -330,8 +330,8 @@ void asset_initialize(editor_state_t* state)
 
 	info_mode_class_t class =
 	{
-		.mode = MODE_LAYER,
-		.caption = "Layer",
+		.mode = MODE_ASSET,
+		.caption = "Asset",
 		.initialize = asset_info_initialize,
 		.destroy = asset_info_destroy,
 		.show = asset_info_show,

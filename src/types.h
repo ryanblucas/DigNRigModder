@@ -32,7 +32,7 @@
 typedef enum info_mode
 {
 	MODE_SAVE,
-	MODE_LAYER,
+	MODE_ASSET,
 	// MODE_SPRITE,
 	MODE_COUNT
 } info_mode_t;

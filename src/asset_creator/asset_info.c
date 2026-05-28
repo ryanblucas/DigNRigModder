@@ -11,8 +11,7 @@
 
 enum child_window_index
 {
-	CWI_ASSET_FILE_COMBOBOX,
-	CWI_ASSET_FILE_COMBOBOX_LABEL,
+	CWI_ASSET_FILE_SELECTER,
 
 	CWI_ASSET_TREEVIEW,
 	CWI_ASSET_CURRENT_TREEVIEW,
@@ -78,11 +77,9 @@ void asset_info_initialize(info_internal_t* _internal)
 {
 	internal = *_internal;
 
-	child_windows[CWI_ASSET_FILE_COMBOBOX] = CreateWindowExW(0, WC_COMBOBOXW, NULL, WS_VSCROLL | CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_CHILD | WS_OVERLAPPED | WS_VISIBLE, 40, 25, INFO_BOX_CLIENT_WIDTH / 2 - 40, 200, internal.window, NULL, NULL, NULL);
-	SendMessageW(child_windows[CWI_ASSET_FILE_COMBOBOX], WM_SETFONT, (WPARAM)internal.font_caption, 0);
-
-	child_windows[CWI_ASSET_FILE_COMBOBOX_LABEL] = CreateWindowExW(0, L"STATIC", L"File:", WS_VISIBLE | WS_CHILD, 8, 29, 24, 18, internal.window, NULL, NULL, NULL);
-	SendMessageW(child_windows[CWI_ASSET_FILE_COMBOBOX_LABEL], WM_SETFONT, (WPARAM)internal.font_caption, 0);
+	child_windows[CWI_ASSET_FILE_SELECTER] = CreateWindowExW(0, L"BUTTON", NULL, WS_CHILD | WS_OVERLAPPED | WS_VISIBLE, 8, 29, 62, 22, internal.window, NULL, NULL, NULL);
+	SendMessageW(child_windows[CWI_ASSET_FILE_SELECTER], WM_SETFONT, (WPARAM)internal.font_caption, 0);
+	SetWindowTextW(child_windows[CWI_ASSET_FILE_SELECTER], L"Find file");
 
 	child_windows[CWI_ASSET_TREEVIEW] = CreateWindowExW(0, WC_TREEVIEWW, NULL, WS_VISIBLE | WS_CHILD | WS_BORDER | TVS_HASLINES | TVS_LINESATROOT | TVS_HASBUTTONS, 2, 190, INFO_BOX_CLIENT_WIDTH / 2 - 2, 200, internal.window, NULL, NULL, NULL);
 	SendMessageW(child_windows[CWI_ASSET_TREEVIEW], WM_SETFONT, (WPARAM)internal.font_text, (LPARAM)FALSE);
@@ -132,38 +129,15 @@ void asset_info_destroy(void)
 	mineral_palette_destroy();
 }
 
-static void asset_info_populate_combobox(int max)
-{
-	debug_profiler_push();
-	RUNTIME_ASSERT(SendMessageW(child_windows[CWI_ASSET_FILE_COMBOBOX], CB_RESETCONTENT, 0, 0) != CB_ERR);
-	char buf[MAX_PATH];
-	char* directories = path_enumerate_directory_create(path_find_dnr_main(buf, sizeof buf, "Layers\\*.layer"), &max);
-	char* curr = directories;
-	while (max-- > 0)
-	{
-		/* more research on if this is a valid move here to do SendMessageA instead of converting the string to a wide one then SendMessageW */
-		RUNTIME_ASSERT(SendMessageA(child_windows[CWI_ASSET_FILE_COMBOBOX], CB_ADDSTRING, 0, (LPARAM)curr) != CB_ERR);
-		curr += strnlen(curr, MAX_PATH) + 1;
-	}
-	free(directories);
-	debug_profiler_pop("Populating layer combobox");
-}
-
-static void asset_info_sync_combobox_with_console(void)
-{
-	path_find_dnr_main(directory, sizeof directory, "Layers\\");
-	char* end = directory + strnlen(directory, sizeof directory);
-	GetWindowTextA(child_windows[CWI_ASSET_FILE_COMBOBOX], end, (int)(sizeof directory - (size_t)(end - directory)));
-	RAISE_EVENT(internal.events->file_handler, directory);
-}
-
 void asset_info_show(bool is_visible)
 {
 	if (is_visible && !*directory)
 	{
-		asset_info_populate_combobox(1);
-		SendMessageW(child_windows[CWI_ASSET_FILE_COMBOBOX], CB_SETCURSEL, (WPARAM)0, 0);
-		asset_info_sync_combobox_with_console();
+		WIN32_FIND_DATA wfd;
+		path_find_dnr_main(directory, sizeof directory, "Layers");
+		FindFirstFileA(directory, &wfd);
+		strncat(directory, "\\*.layer", sizeof directory - strlen(directory) - 1);
+		RAISE_EVENT(internal.events->file_handler, directory);
 	}
 
 	for (int i = 0; i < CWI_COUNT; i++)
@@ -201,17 +175,18 @@ static enum child_window_index asset_info_child_window_from_handle(HWND hwnd)
 static void asset_info_handle_command(HWND window, WPARAM wparam)
 {
 	enum child_window_index index = asset_info_child_window_from_handle(window);
-	if (window == child_windows[CWI_ASSET_FILE_COMBOBOX])
+	if (window == child_windows[CWI_ASSET_FILE_SELECTER])
 	{
-		if (HIWORD(wparam) == CBN_DROPDOWN)
+		OPENFILENAMEA ofn =
 		{
-			/* refresh every time expanded.. good idea? or waste of time? */
-			asset_info_populate_combobox(0);
-		}
-		else if (HIWORD(wparam) == CBN_SELCHANGE)
-		{
-			asset_info_sync_combobox_with_console();
-		}
+			.lStructSize = sizeof ofn,
+			.hwndOwner = internal.window,
+			.lpstrFilter = "Asset files\0*.layer\0*.sprite",
+			.lpstrFile = directory, .nMaxFile = sizeof directory,
+			.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST
+		};
+		GetOpenFileNameA(&ofn);
+		RAISE_EVENT(internal.events->file_handler, directory);
 	}
 	else if (window == child_windows[CWI_ASSET_PALETTE] && HIWORD(wparam) == MINERAL_PALETTE_CONTROL_SET_SELECTED_CELL)
 	{
@@ -415,10 +390,6 @@ void asset_info_directory_set(const char* _directory)
 	{
 		name = _directory;
 	}
-
-	RUNTIME_ASSERT(SendMessageW(child_windows[CWI_ASSET_FILE_COMBOBOX], CB_RESETCONTENT, 0, 0) != CB_ERR);
-	RUNTIME_ASSERT(SendMessageA(child_windows[CWI_ASSET_FILE_COMBOBOX], CB_ADDSTRING, 0, (LPARAM)(name + 1)) != CB_ERR);
-	RUNTIME_ASSERT(SendMessageW(child_windows[CWI_ASSET_FILE_COMBOBOX], CB_SETCURSEL, (WPARAM)0, 0) != CB_ERR);
 }
 
 void asset_info_directory_get(char* _directory, size_t buf_size)

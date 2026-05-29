@@ -233,6 +233,8 @@ sprite_t game_spritify_asset(const asset_t asset)
 
 void game_asset_copy(const asset_t* state, region_t region, asset_block_t* arr)
 {
+	region_t asset_region = { 0, 0, state->width - 1, state->height - 1 };
+	RUNTIME_ASSERT(!region_is_invalid(region) && region_is_inside(asset_region, region.x0, region.y0) && region_is_inside(asset_region, region.x1, region.y1));
 	region = region_validate(region);
 	for (int y = 0; y < region_height(region); y++)
 	{
@@ -245,10 +247,11 @@ void game_asset_copy(const asset_t* state, region_t region, asset_block_t* arr)
 
 void game_asset_paste(asset_t* state, region_t region, const asset_block_t* arr)
 {
+	RUNTIME_ASSERT(!region_is_invalid(region));
 	region = region_validate(region);
-	for (int y = 0; y < region_height(region); y++)
+	for (int y = 0; y <= min(region.y1 - region.y0, state->height - region.y0 - 1); y++)
 	{
-		for (int x = 0; x < region_width(region); x++)
+		for (int x = 0; x <= min(region.x1 - region.x0, state->width - region.x0 - 1); x++)
 		{
 			state->blocks[(y + region.y0) * state->width + x + region.x0] = arr[y * region_width(region) + x];
 		}
@@ -257,10 +260,11 @@ void game_asset_paste(asset_t* state, region_t region, const asset_block_t* arr)
 
 void game_asset_delete(asset_t* state, region_t region)
 {
+	RUNTIME_ASSERT(!region_is_invalid(region));
 	region = region_validate(region);
-	for (int y = 0; y < region_height(region); y++)
+	for (int y = 0; y <= min(region.y1 - region.y0, state->height - region.y0 - 1); y++)
 	{
-		for (int x = 0; x < region_width(region); x++)
+		for (int x = 0; x <= min(region.x1 - region.x0, state->width - region.x0 - 1); x++)
 		{
 			state->blocks[(y + region.y0) * state->width + x + region.x0] = (asset_block_t){ 0 };
 		}

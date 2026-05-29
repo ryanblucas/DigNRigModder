@@ -78,7 +78,7 @@ region_t tool_select_move_region(const tool_select_t tool)
 			tool->move_x - tool->hinge_x + region_width(src_region) - 1,
 			tool->move_y - tool->hinge_y + region_height(src_region) - 1
 		};
-		return region_keep_inside(dest_region, tool->arena);
+		return dest_region;
 	}
 	return INVALID_REGION;
 }
@@ -259,6 +259,20 @@ tool_brush_type_t tool_brush_type(const tool_brush_t tool)
 	return tool->type;
 }
 
+static void tool_brush_try_reserve_more(tool_brush_t tool)
+{
+	if (tool->before_count < tool->before_reserved)
+	{
+		return;
+	}
+	size_t buf_size = tool->before_reserved * sizeof * tool->before_buffer;
+	tool->before_reserved *= 2;
+	tool_brush_element_t* next = dig_malloc(buf_size * 2);
+	memcpy(next, tool->before_buffer, buf_size);
+	free(tool->before_buffer);
+	tool->before_buffer = next;
+}
+
 void tool_brush_add_to_before_list_cb(tool_brush_t tool, complete_block_t* element)
 {
 	RUNTIME_ASSERT(tool->type == BRUSH_TYPE_COMPLETE_BLOCK);
@@ -271,17 +285,7 @@ void tool_brush_add_to_before_list_cb(tool_brush_t tool, complete_block_t* eleme
 	}
 
 	tool->before_buffer[tool->before_count++] = (tool_brush_element_t){ *element };
-	if (tool->before_count < tool->before_reserved)
-	{
-		return;
-	}
-
-	size_t buf_size = tool->before_reserved * sizeof * tool->before_buffer;
-	tool->before_reserved *= 2;
-	tool_brush_element_t* next = dig_malloc(buf_size * 2);
-	memcpy(next, tool->before_buffer, buf_size);
-	free(tool->before_buffer);
-	tool->before_buffer = next;
+	tool_brush_try_reserve_more(tool);
 }
 
 void tool_brush_copy_before_cb(const tool_brush_t tool, const dnr_state_t* save, complete_block_t* array)
@@ -308,17 +312,7 @@ void tool_brush_add_to_before_list_ab(tool_brush_t tool, asset_block_t* element,
 	}
 
 	tool->before_buffer[tool->before_count++] = (tool_brush_element_t){ .asset.block = *element, .asset.x = x, .asset.y = y };
-	if (tool->before_count < tool->before_reserved)
-	{
-		return;
-	}
-
-	size_t buf_size = tool->before_reserved * sizeof * tool->before_buffer;
-	tool->before_reserved *= 2;
-	tool_brush_element_t* next = dig_malloc(buf_size * 2);
-	memcpy(next, tool->before_buffer, buf_size);
-	free(tool->before_buffer);
-	tool->before_buffer = next;
+	tool_brush_try_reserve_more(tool);
 }
 
 void tool_brush_copy_before_ab(const tool_brush_t tool, const asset_t* asset, asset_block_t* array)

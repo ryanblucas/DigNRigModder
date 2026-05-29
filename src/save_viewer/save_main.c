@@ -258,7 +258,7 @@ static void save_viewer_select_handle_mouse_button(bool m1_down, int x, int y)
 	{
 		region_t dest_region = tool_select_move_region(select_tool);
 		region_t src_region = tool_select_region(select_tool);
-		region_t total = region_merge(src_region, dest_region);
+		region_t total = region_keep_inside(region_merge(src_region, dest_region), (region_t){ .x1 = WORLD_WIDTH - 1, .y1 = WORLD_HEIGHT - 1 });
 		action_buffer_pre_add_block(action_buffer, save, total);
 
 		src_region.x1 = src_region.x0 + region_width(dest_region) - 1;

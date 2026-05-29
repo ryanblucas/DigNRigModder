@@ -159,6 +159,24 @@ static void asset_handle_repaint(void)
 	   clipped here, too. TO DO b/c I want to have the sprite centered */
 
 	tool_select_render(tool_select, 0);
+	char ch = ' ';
+	attribute_t attrib = 0;
+	for (int y = asset.height; y < TARGET_HEIGHT; y++)
+	{
+		for (int x = 0; x < TARGET_WIDTH; x++)
+		{
+			screen_set_attrib_region(&attrib, (region_t) { x, y, x, y });
+			screen_set_char_region(&ch, (region_t) { x, y, x, y });
+		}
+	}
+	for (int y = 0; y < asset.height; y++)
+	{
+		for (int x = asset.width; x < TARGET_WIDTH; x++)
+		{
+			screen_set_attrib_region(&attrib, (region_t) { x, y, x, y });
+			screen_set_char_region(&ch, (region_t) { x, y, x, y });
+		}
+	}
 }
 
 static void asset_select_handle_mouse_button(bool m1_down, int x, int y)
@@ -170,7 +188,7 @@ static void asset_select_handle_mouse_button(bool m1_down, int x, int y)
 	{
 		region_t src = tool_select_region(tool_select);
 		region_t dest = tool_select_move_region(tool_select);
-		region_t total = region_merge(src, dest);
+		region_t total = region_keep_inside(region_merge(src, dest), (region_t){ .x1 = asset.width - 1, .y1 = asset.height - 1 });
 
 		action_buffer_pre_add_asset_block(action_buffer, &asset, total);
 
@@ -295,8 +313,8 @@ static void asset_paste(void)
 	}
 
 	region_t dest = { region.x0, region.y0, region.x0 + region_width(clipboard_region) - 1, region.y0 + region_height(clipboard_region) - 1 };
-
-	if (!dig_inside_bounds(dest.x0, dest.y0) || !dig_inside_bounds(dest.x1, dest.y1))
+	region_t asset_region = { 0, 0, asset.width - 1, asset.height - 1 };
+	if (!region_is_inside(asset_region, dest.x0, dest.y0) || !region_is_inside(asset_region, dest.x1, dest.y1))
 	{
 		return;
 	}

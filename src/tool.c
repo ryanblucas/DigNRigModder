@@ -163,6 +163,10 @@ tool_event_t tool_select_handle_mouse_move(tool_select_t tool, bool m1_down, int
 
 	if (tool->hinge_x >= 0 && tool->hinge_y >= 0)
 	{
+		if (new_selected_x < 0 || new_selected_x >= region_width(tool->arena) || new_selected_y < 0 || new_selected_y >= region_height(tool->arena))
+		{
+			return tool->last_event = EVENT_SELECTION_MOVE;
+		}
 		tool->move_x = new_selected_x;
 		tool->move_y = new_selected_y;
 		return tool->last_event = EVENT_SELECTION_MOVE;
@@ -201,6 +205,11 @@ tool_event_t tool_select_handle_mouse_click(tool_select_t tool, bool m1_down, in
 	{
 		tool_select_start_move(tool, x, y, scroll_y);
 		return tool->last_event = EVENT_SELECTION_MOVE_START;
+	}
+
+	if (x < 0 || y < 0 || x >= region_width(tool->arena) || y >= region_height(tool->arena))
+	{
+		return tool->last_event = EVENT_NOTHING;
 	}
 
 	tool->selection.x0 = tool->selection.x1 = x;

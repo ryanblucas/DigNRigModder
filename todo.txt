@@ -13,17 +13,13 @@ Tools
 		between mouse down and mouse up is just a sprite being rendered over the screen. That's another promising solution to this.
 	Text tool
 
-Layer creator
-	UI needs to be improved
-	Add prefabs
-
 Screen
 	Maybe move scrolling logic to here?
 	Determine how weather works and implement it
 
-Sprite creator
-	Refactor layer creator to be more generic and reusable for the sprite creator
-	Remove brick, stone, dirt brush buttons inherited from layer creator
+Asset creator
+	UI needs to be improved
+	Add prefabs
 
 Campaign creator
 	Patches game's binary files to support custom campaigns

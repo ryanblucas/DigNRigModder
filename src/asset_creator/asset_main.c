@@ -10,8 +10,11 @@
 #include "../tool.h"
 #include <stdio.h>
 
+static void asset_brush(tool_brush_t brush, region_t region);
+static void asset_erase(tool_brush_t brush, region_t region);
+
 static char directory[MAX_PATH];
-static asset_t layer;
+static asset_t asset;
 static sprite_t cache;
 
 static tool_brush_t tool_eraser;
@@ -28,23 +31,33 @@ static editor_state_t* editor_state;
 static void asset_invalidate(void)
 {
 	screen_sprite_destroy(cache);
-	cache = game_spritify_asset(layer);
+	cache = game_spritify_asset(asset);
 	RUNTIME_ASSERT(cache);
 	screen_repaint();
 }
 
 static void asset_handle_file_change(const char* _directory)
 {
+	screen_clear();
+
 	screen_sprite_destroy(cache);
 	cache = NULL;
-	file_asset_unload(&layer);
+	file_asset_unload(&asset);
 
 	snprintf(directory, sizeof directory, "%s", _directory);
 	snprintf(editor_state->current_layer_directory, sizeof editor_state->current_layer_directory, "%s", _directory);
-	layer = file_asset_load(directory);
-	RUNTIME_ASSERT(layer.blocks);
-	asset_info_set(&layer);
+	asset = file_asset_load(directory);
+	RUNTIME_ASSERT(asset.blocks);
+	asset_info_set(&asset);
 	asset_invalidate();
+
+	tool_brush_destroy(tool_eraser);
+	tool_brush_destroy(tool_brush);
+	tool_select_destroy(tool_select);
+
+	tool_eraser = tool_brush_create(asset_erase, BRUSH_TYPE_ASSET_BLOCK, asset.width, asset.height);
+	tool_brush = tool_brush_create(asset_brush, BRUSH_TYPE_ASSET_BLOCK, asset.width, asset.height);
+	tool_select = tool_select_create(asset.width, asset.height);
 }
 
 static void asset_handle_block_change(region_t region)
@@ -77,9 +90,9 @@ static void asset_erase(tool_brush_t brush, region_t region)
 	RUNTIME_ASSERT(brush == tool_eraser);
 
 	asset_block_t* temp = dig_malloc(sizeof * temp * region_size(region));
-	game_asset_copy(&layer, region, temp);
+	game_asset_copy(&asset, region, temp);
 
-	game_asset_delete(&layer, region);
+	game_asset_delete(&asset, region);
 
 	for (int i = 0; i < region_size(region); i++)
 	{
@@ -93,7 +106,7 @@ static void asset_brush(tool_brush_t brush, region_t region)
 	RUNTIME_ASSERT(brush == tool_brush);
 
 	asset_block_t* temp = dig_malloc(sizeof * temp * region_size(region));
-	game_asset_copy(&layer, region, temp);
+	game_asset_copy(&asset, region, temp);
 
 	asset_block_t block;
 	asset_info_get_current_brush_block(&block);
@@ -102,7 +115,7 @@ static void asset_brush(tool_brush_t brush, region_t region)
 		for (int x = 0; x < region_height(region); x++)
 		{
 			tool_brush_add_to_before_list_ab(brush, &temp[x + y * region_width(region)], x + region.x0, y + region.y0);
-			game_asset_paste(&layer, (region_t) { x + region.x0, y + region.y0, x + region.x0, y + region.y0 }, & block);
+			game_asset_paste(&asset, (region_t) { x + region.x0, y + region.y0, x + region.x0, y + region.y0 }, & block);
 		}
 	}
 
@@ -111,11 +124,12 @@ static void asset_brush(tool_brush_t brush, region_t region)
 
 static inline void asset_render_tile_type_as(asset_tile_type_t type, char ch, attribute_t attrib)
 {
-	for (int y = 0; y < TARGET_HEIGHT; y++)
+	for (int y = 0; y < asset.height; y++)
 	{
-		for (int x = 0; x < TARGET_WIDTH; x++)
+		for (int x = 0; x < asset.width; x++)
 		{
-			if (layer.blocks[y * TARGET_WIDTH + x].tile_type == type)
+			asset_block_t* block = &asset.blocks[y * asset.width + x];
+			if (block->tile_type == type && block->transparency)
 			{
 				screen_set_attrib_region(&attrib, (region_t) { x, y, x, y });
 				screen_set_char_region(&ch, (region_t) { x, y, x, y });
@@ -139,6 +153,11 @@ static void asset_handle_repaint(void)
 	asset_render_tile_type_as(TILE_TYPE_WATER, 'X', CREATE_ATTRIBUTE(DARK_BLUE, DARK_BLACK));
 	asset_render_tile_type_as(TILE_TYPE_STALACTITE, 0x1F, CREATE_ATTRIBUTE(DARK_YELLOW, DARK_BLACK));
 
+	/* This will draw outside of the bounds if a sprite is being moved outside the bounds.
+	   On layers, this is fine because it automatically gets clipped. But, on sprites,
+	   they are usually less than the dimensions of the screen and therefore need to get
+	   clipped here, too. TO DO b/c I want to have the sprite centered */
+
 	tool_select_render(tool_select, 0);
 }
 
@@ -153,15 +172,15 @@ static void asset_select_handle_mouse_button(bool m1_down, int x, int y)
 		region_t dest = tool_select_move_region(tool_select);
 		region_t total = region_merge(src, dest);
 
-		action_buffer_pre_add_asset_block(action_buffer, &layer, total);
+		action_buffer_pre_add_asset_block(action_buffer, &asset, total);
 
 		asset_block_t* arr = dig_malloc(region_size(src) * sizeof * arr);
-		game_asset_copy(&layer, src, arr);
-		game_asset_delete(&layer, src);
-		game_asset_paste(&layer, dest, arr);
+		game_asset_copy(&asset, src, arr);
+		game_asset_delete(&asset, src);
+		game_asset_paste(&asset, dest, arr);
 		free(arr);
 
-		action_buffer_post_add_asset_block(action_buffer, &layer);
+		action_buffer_post_add_asset_block(action_buffer, &asset);
 
 		asset_invalidate();
 		break;
@@ -183,8 +202,8 @@ static void asset_brush_handle_mouse_button(tool_brush_t brush, bool m1_down, in
 		region_t region = tool_brush_region(brush);
 		asset_block_t* temp = dig_malloc(region_size(region) * sizeof * temp * 2);
 
-		tool_brush_copy_before_ab(brush, &layer, temp);
-		game_asset_copy(&layer, region, temp + region_size(region));
+		tool_brush_copy_before_ab(brush, &asset, temp);
+		game_asset_copy(&asset, region, temp + region_size(region));
 
 		action_buffer_add_asset_block(action_buffer, temp, temp + region_size(region), region);
 
@@ -246,7 +265,7 @@ static void asset_do_action(action_t* act)
 	{
 		return;
 	}
-	action_buffer_reverse_asset_block(&layer, act);
+	action_buffer_reverse_asset_block(&asset, act);
 	asset_invalidate();
 }
 
@@ -264,7 +283,7 @@ static void asset_copy(void)
 
 	clipboard_region = tool_select_region(tool_select);
 	clipboard_data = dig_malloc(region_size(clipboard_region) * sizeof * clipboard_data);
-	game_asset_copy(&layer, clipboard_region, clipboard_data);
+	game_asset_copy(&asset, clipboard_region, clipboard_data);
 }
 
 static void asset_paste(void)
@@ -282,12 +301,12 @@ static void asset_paste(void)
 		return;
 	}
 
-	action_buffer_pre_add_asset_block(action_buffer, &layer, dest);
+	action_buffer_pre_add_asset_block(action_buffer, &asset, dest);
 
-	game_asset_delete(&layer, region);
-	game_asset_paste(&layer, dest, clipboard_data);
+	game_asset_delete(&asset, region);
+	game_asset_paste(&asset, dest, clipboard_data);
 
-	action_buffer_post_add_asset_block(action_buffer, &layer);
+	action_buffer_post_add_asset_block(action_buffer, &asset);
 
 	tool_select_set_region(tool_select, dest);
 	asset_invalidate();
@@ -310,7 +329,7 @@ static void asset_handle_keyboard(virtual_key_t key, keyboard_control_t ctrl)
 		break;
 	case 'S':
 		debug_format("Saving to disk...\n");
-		if (!file_asset_save(directory, &layer))
+		if (!file_asset_save(directory, &asset))
 		{
 			MessageBoxW(NULL, L"Failed to save file, maybe run in admin mode?", L"Dig-N-Rig Modder - Error!", MB_OK | MB_ICONERROR);
 		}
@@ -350,7 +369,7 @@ void asset_initialize(editor_state_t* state)
 
 void asset_destroy(void)
 {
-	file_asset_unload(&layer);
+	file_asset_unload(&asset);
 	screen_sprite_destroy(cache);
 	tool_select_destroy(tool_select);
 	action_buffer_destroy(action_buffer);

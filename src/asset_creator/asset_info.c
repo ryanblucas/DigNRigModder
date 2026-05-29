@@ -303,7 +303,7 @@ void asset_info_handle_interact_tree_item(bool is_global, element_t element)
 		for (int x = region.x0; x <= region.x1; x++)
 		{
 			uint8_t* current = (uint8_t*)serialize_element_get_value(element);
-			memcpy((uint8_t*)&asset->blocks[x + y * TARGET_WIDTH] + (current - (uint8_t*)&blocks[current_tool]), current, serialize_element_get_size(element));
+			memcpy((uint8_t*)&asset->blocks[x + y * asset->width] + (current - (uint8_t*)&blocks[current_tool]), current, serialize_element_get_size(element));
 		}
 	}
 	RAISE_EVENT(internal.events->block_handler, region);
@@ -331,13 +331,13 @@ void asset_info_set_current(region_t _region)
 		return;
 	}
 	region = region_validate(_region);
-	blocks[current_tool] = asset->blocks[region.x0 + region.y0 * TARGET_WIDTH];
+	blocks[current_tool] = asset->blocks[region.x0 + region.y0 * asset->width];
 	enum asset_info_current_field mask = 0;
 	for (int y = 0; y < region_height(region); y++)
 	{
 		for (int x = 0; x < region_width(region); x++)
 		{
-			asset_block_t* curr = &asset->blocks[(region.x0 + x) + (region.y0 + y) * TARGET_WIDTH];
+			asset_block_t* curr = &asset->blocks[(region.x0 + x) + (region.y0 + y) * asset->width];
 			if (~mask & AICF_TILE_TYPE && blocks[current_tool].tile_type != curr->tile_type)
 			{
 				blocks[current_tool].tile_type = 0;

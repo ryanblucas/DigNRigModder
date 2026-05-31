@@ -83,13 +83,15 @@ region_t tool_select_move_region(const tool_select_t tool)
 	return INVALID_REGION;
 }
 
-void tool_select_render(const tool_select_t tool, int scroll_y)
+void tool_select_render(const tool_select_t tool, int scroll_x, int scroll_y)
 {
 	if (region_is_invalid(tool->selection))
 	{
 		return;
 	}
 	region_t screen_region = region_validate(tool->selection);
+	screen_region.x0 -= scroll_x;
+	screen_region.x1 -= scroll_x;	
 	screen_region.y0 -= scroll_y;
 	screen_region.y1 -= scroll_y;
 	if (tool->hinge_x >= 0 && tool->hinge_y >= 0)
@@ -98,7 +100,7 @@ void tool_select_render(const tool_select_t tool, int scroll_y)
 		memset(selected, 0, region_size(screen_region) * sizeof * selected);
 
 		screen_set_attrib_region(selected, screen_region);
-		screen_sprite_render(tool->move_x - tool->hinge_x, tool->move_y - tool->hinge_y - scroll_y, tool->selection_visual);
+		screen_sprite_render(tool->move_x - tool->hinge_x - scroll_x, tool->move_y - tool->hinge_y - scroll_y, tool->selection_visual);
 		free(selected);
 		return;
 	}

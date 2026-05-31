@@ -144,7 +144,7 @@ static void save_viewer_handle_repaint()
 		screen_sprite_render((int)save->player.x_spawn, (int)save->player.y_spawn - y_pos, flag);
 	}
 
-	tool_select_render(select_tool, y_pos);
+	tool_select_render(select_tool, 0, y_pos);
 }
 
 static void save_viewer_delete_selection(void)

@@ -62,7 +62,7 @@ void tool_select_set_region(tool_select_t tool, region_t region);
 region_t tool_select_move_region(const tool_select_t tool);
 
 /* renders selection (invert what is selected or render what is being moved) */
-void tool_select_render(const tool_select_t tool, int scroll_y);
+void tool_select_render(const tool_select_t tool, int scroll_x, int scroll_y);
 /* Handles a mouse movement for a selection tool */
 tool_event_t tool_select_handle_mouse_move(tool_select_t tool, bool m1_down, int x, int y, int scroll_y);
 /* Handles a mouse click for a selection tool */

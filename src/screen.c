@@ -407,13 +407,13 @@ void screen_sprite_render(int x, int y, const sprite_t sprite)
 		bottom = min(y + sprite->height, TARGET_HEIGHT);
 	int left = max(x, 0),
 		right = min(x + sprite->width, TARGET_WIDTH);
-	if (right < left || bottom < top)
+	if (right <= left || bottom <= top)
 	{
 		return;
 	}
 	for (int cy = top; cy < bottom; cy++)
 	{
-		memcpy(target + (left + cy * TARGET_WIDTH), sprite->data + (cy - y) * sprite->width, (right - left) * sizeof * sprite->data);
+		memcpy(target + (left + cy * TARGET_WIDTH), sprite->data + (cy - y) * sprite->width - (x - left), (right - left) * sizeof * sprite->data);
 	}
 }
 

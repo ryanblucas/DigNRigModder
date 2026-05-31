@@ -28,6 +28,8 @@ static asset_block_t* clipboard_data;
 
 static editor_state_t* editor_state;
 
+static int scroll_x, scroll_y;
+
 static void asset_invalidate(void)
 {
 	screen_sprite_destroy(cache);
@@ -58,6 +60,9 @@ static void asset_handle_file_change(const char* _directory)
 	tool_eraser = tool_brush_create(asset_erase, BRUSH_TYPE_ASSET_BLOCK, asset.width, asset.height);
 	tool_brush = tool_brush_create(asset_brush, BRUSH_TYPE_ASSET_BLOCK, asset.width, asset.height);
 	tool_select = tool_select_create(asset.width, asset.height);
+
+	scroll_x = TARGET_WIDTH / 2 - asset.width / 2;
+	scroll_y = TARGET_HEIGHT / 2 - asset.height / 2;
 }
 
 static void asset_handle_block_change(region_t region)
@@ -122,7 +127,7 @@ static void asset_brush(tool_brush_t brush, region_t region)
 	free(temp);
 }
 
-static inline void asset_render_tile_type_as(asset_tile_type_t type, char ch, attribute_t attrib)
+static void asset_render_tile_type_as(asset_tile_type_t type, char ch, attribute_t attrib)
 {
 	for (int y = 0; y < asset.height; y++)
 	{
@@ -131,8 +136,8 @@ static inline void asset_render_tile_type_as(asset_tile_type_t type, char ch, at
 			asset_block_t* block = &asset.blocks[y * asset.width + x];
 			if (block->tile_type == type && block->transparency)
 			{
-				screen_set_attrib_region(&attrib, (region_t) { x, y, x, y });
-				screen_set_char_region(&ch, (region_t) { x, y, x, y });
+				screen_set_attrib_region(&attrib, (region_t) { scroll_x + x, scroll_y + y, scroll_x + x, scroll_y + y });
+				screen_set_char_region(&ch, (region_t) { scroll_x + x, scroll_y + y, scroll_x + x, scroll_y + y });
 			}
 		}
 	}
@@ -146,35 +151,25 @@ static void asset_handle_repaint(void)
 	}
 
 	screen_change_dirt_color(screen_sprite_dirt_color(cache));
-	screen_sprite_render(0, 0, cache);
+	screen_sprite_render(scroll_x, scroll_y, cache);
 
 	asset_render_tile_type_as(TILE_TYPE_ENEMY_SPAWN, 'X', CREATE_ATTRIBUTE(LIGHT_RED, DARK_BLACK));
 	asset_render_tile_type_as(TILE_TYPE_LAVA, 'X', CREATE_ATTRIBUTE(DARK_RED, DARK_BLACK));
 	asset_render_tile_type_as(TILE_TYPE_WATER, 'X', CREATE_ATTRIBUTE(DARK_BLUE, DARK_BLACK));
 	asset_render_tile_type_as(TILE_TYPE_STALACTITE, 0x1F, CREATE_ATTRIBUTE(DARK_YELLOW, DARK_BLACK));
 
-	/* This will draw outside of the bounds if a sprite is being moved outside the bounds.
-	   On layers, this is fine because it automatically gets clipped. But, on sprites,
-	   they are usually less than the dimensions of the screen and therefore need to get
-	   clipped here, too. TO DO b/c I want to have the sprite centered */
-
-	tool_select_render(tool_select, 0);
+	tool_select_render(tool_select, scroll_x, scroll_y);
 	char ch = ' ';
 	attribute_t attrib = 0;
-	for (int y = asset.height; y < TARGET_HEIGHT; y++)
+	for (int y = 0; y < TARGET_HEIGHT; y++)
 	{
 		for (int x = 0; x < TARGET_WIDTH; x++)
 		{
-			screen_set_attrib_region(&attrib, (region_t) { x, y, x, y });
-			screen_set_char_region(&ch, (region_t) { x, y, x, y });
-		}
-	}
-	for (int y = 0; y < asset.height; y++)
-	{
-		for (int x = asset.width; x < TARGET_WIDTH; x++)
-		{
-			screen_set_attrib_region(&attrib, (region_t) { x, y, x, y });
-			screen_set_char_region(&ch, (region_t) { x, y, x, y });
+			if (x < scroll_x || x >= scroll_x + asset.width || y < scroll_y || y >= scroll_y + asset.height)
+			{
+				screen_set_attrib_region(&attrib, (region_t) { x, y, x, y });
+				screen_set_char_region(&ch, (region_t) { x, y, x, y });
+			}
 		}
 	}
 }
@@ -240,6 +235,12 @@ static void asset_brush_handle_mouse_move(tool_brush_t brush, bool m1_down, int 
 
 static void asset_handle_mouse_button(bool m1_down, int x, int y)
 {
+	x -= scroll_x;
+	y -= scroll_y;
+	if (x >= asset.width || y >= asset.height || x < 0 || y < 0)
+	{
+		return;
+	}
 	info_tool_t current = asset_info_get_current_tool();
 	if (current == TOOL_SELECT)
 	{
@@ -257,6 +258,12 @@ static void asset_handle_mouse_button(bool m1_down, int x, int y)
 
 static void asset_handle_mouse_move(bool m1_down, int x, int y)
 {
+	x -= scroll_x;
+	y -= scroll_y;
+	if (x >= asset.width || y >= asset.height || x < 0 || y < 0)
+	{
+		return;
+	}
 	info_tool_t current = asset_info_get_current_tool();
 	if (current == TOOL_SELECT)
 	{

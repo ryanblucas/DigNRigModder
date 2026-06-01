@@ -74,7 +74,24 @@ static void screen_initialize_cursor(void)
 
 void screen_set_event_handlers(const screen_events_t* _events)
 {
+	static screen_simulator_t empty_simulators[] = { NULL };
+	if (events.simulators && events.simulators != empty_simulators)
+	{
+		free(events.simulators);
+	}
 	events = *_events;
+	if (!events.simulators || !*events.simulators)
+	{
+		events.simulators = empty_simulators;
+		return;
+	}
+	int count = 0;
+	for (screen_simulator_t* sim = events.simulators; sim && *sim; sim++)
+	{
+		count++;
+	}
+	events.simulators = dig_malloc((count + 1) * sizeof * events.simulators);
+	memcpy(events.simulators, _events->simulators, (count + 1) * sizeof * events.simulators);
 }
 
 void screen_initialize(void)
@@ -115,80 +132,128 @@ void screen_initialize(void)
 void screen_destroy(void)
 {
 	CloseHandle(out);
+	free(events.simulators);
+}
+
+/* that last condition is scary b/c it works on my machine, but it isn't guaranteed.
+   Hence, why this is a macro cause I wanna be able to fix this condition */
+#define IS_FOCUS_RECORD(ir) ((ir).EventType == FOCUS_EVENT && (ir).Event.FocusEvent.bSetFocus)
+
+static void screen_handle_input(const INPUT_RECORD* ir, DWORD* prev_button_state)
+{
+	if (ir->EventType == KEY_EVENT)
+	{
+		KEY_EVENT_RECORD ker = ir->Event.KeyEvent;
+		if (!ker.bKeyDown)
+		{
+			return;
+		}
+		RAISE_EVENT(events.keyboard, ker.wVirtualKeyCode, ker.dwControlKeyState);
+	}
+	else if (ir->EventType == MOUSE_EVENT)
+	{
+		MOUSE_EVENT_RECORD mer = ir->Event.MouseEvent;
+		if (mer.dwEventFlags == MOUSE_WHEELED)
+		{
+			WORD scroll = HIWORD(mer.dwButtonState);
+			RAISE_EVENT(events.mouse_wheel, (signed short)scroll / WHEEL_DELTA);
+		}
+		else if (mer.dwEventFlags == 0 && (mer.dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED || *prev_button_state & FROM_LEFT_1ST_BUTTON_PRESSED))
+		{
+			RAISE_EVENT(events.mouse_button, mer.dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED, mer.dwMousePosition.X, mer.dwMousePosition.Y);
+		}
+		else if (mer.dwEventFlags == MOUSE_MOVED)
+		{
+			RAISE_EVENT(events.mouse_move, mer.dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED, mer.dwMousePosition.X, mer.dwMousePosition.Y);
+		}
+		*prev_button_state = mer.dwButtonState;
+	}
+	else if (IS_FOCUS_RECORD(*ir))
+	{
+		POINT pt;
+		RUNTIME_ASSERT(GetCursorPos(&pt));
+		RUNTIME_ASSERT(ScreenToClient(GetConsoleWindow(), &pt));
+		pt.x /= TARGET_CELL_SIZE;
+		pt.y /= TARGET_CELL_SIZE;
+		RAISE_EVENT(events.mouse_button, true, pt.x, pt.y);
+		*prev_button_state = FROM_LEFT_1ST_BUTTON_PRESSED;
+	}
+	else if (ir->EventType == WINDOW_BUFFER_SIZE_EVENT)
+	{
+		HWND console_window = GetConsoleWindow();
+
+		RECT to_compare;
+		GetWindowRect(console_window, &to_compare);
+
+		RECT fitted = (RECT){ .right = TARGET_WIDTH * TARGET_CELL_SIZE, .bottom = TARGET_HEIGHT * TARGET_CELL_SIZE };
+		RUNTIME_ASSERT(AdjustWindowRectEx(&fitted, GetWindowLongW(console_window, GWL_STYLE), FALSE, GetWindowLongW(console_window, GWL_EXSTYLE)));
+
+		RUNTIME_ASSERT(SetWindowPos(console_window, NULL, 0, 0, fitted.right - fitted.left, fitted.bottom - fitted.top, SWP_NOMOVE));
+		screen_initialize_cursor();
+		RAISE_EVENT(events.repaint);
+
+		CONSOLE_SCREEN_BUFFER_INFOEX csbi = { .cbSize = sizeof csbi };
+		RUNTIME_ASSERT(GetConsoleScreenBufferInfoEx(out, &csbi));
+		if (csbi.dwSize.X != TARGET_WIDTH || csbi.dwSize.Y != TARGET_HEIGHT)
+		{
+			screen_initialize_output();
+		}
+		screen_invalidate();
+	}
 }
 
 void screen_loop(void)
 {
+	bool used_period = timeBeginPeriod(1) == TIMERR_NOERROR;
+	if (!used_period)
+	{
+		debug_format("Failed to set timer resolution, simulators may not run at specified rate.\n");
+	}
+
+	LARGE_INTEGER frequency, last;
+	QueryPerformanceFrequency(&frequency);
+	QueryPerformanceCounter(&last);
+
 	INPUT_RECORD ir;
 	DWORD read;
 	bool consumed_first_focus = false;
 	DWORD prev_button_state = 0;
-	while (ReadConsoleInputW(in, &ir, 1, &read) && read == 1)
+	while (true)
 	{
-		if (ir.EventType == KEY_EVENT)
+		LARGE_INTEGER start, end;
+		QueryPerformanceCounter(&start);
+
+		while (PeekConsoleInputW(in, &ir, 1, &read) && read == 1)
 		{
-			KEY_EVENT_RECORD ker = ir.Event.KeyEvent;
-			if (!ker.bKeyDown)
-			{
-				continue;
-			}
-			RAISE_EVENT(events.keyboard, ker.wVirtualKeyCode, ker.dwControlKeyState);
-		}
-		else if (ir.EventType == MOUSE_EVENT)
-		{
-			MOUSE_EVENT_RECORD mer = ir.Event.MouseEvent;
-			if (mer.dwEventFlags == MOUSE_WHEELED)
-			{
-				WORD scroll = HIWORD(mer.dwButtonState);
-				RAISE_EVENT(events.mouse_wheel, (signed short)scroll / WHEEL_DELTA);
-			}
-			else if (mer.dwEventFlags == 0 && (mer.dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED || prev_button_state & FROM_LEFT_1ST_BUTTON_PRESSED))
-			{
-				RAISE_EVENT(events.mouse_button, mer.dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED, mer.dwMousePosition.X, mer.dwMousePosition.Y);
-			}
-			else if (mer.dwEventFlags == MOUSE_MOVED)
-			{
-				RAISE_EVENT(events.mouse_move, mer.dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED, mer.dwMousePosition.X, mer.dwMousePosition.Y);
-			}
-			prev_button_state = mer.dwButtonState;
-		}
-		else if (ir.EventType == FOCUS_EVENT && ir.Event.FocusEvent.bSetFocus)
-		{
-			if (!consumed_first_focus)
+			ReadConsoleInputW(in, &ir, 1, &read);
+			if (IS_FOCUS_RECORD(ir) && !consumed_first_focus)
 			{
 				consumed_first_focus = true;
 				continue;
 			}
-			POINT pt;
-			RUNTIME_ASSERT(GetCursorPos(&pt));
-			RUNTIME_ASSERT(ScreenToClient(GetConsoleWindow(), &pt));
-			pt.x /= TARGET_CELL_SIZE;
-			pt.y /= TARGET_CELL_SIZE;
-			RAISE_EVENT(events.mouse_button, true, pt.x, pt.y);
-			prev_button_state = FROM_LEFT_1ST_BUTTON_PRESSED;
+			screen_handle_input(&ir, &prev_button_state);
 		}
-		else if (ir.EventType == WINDOW_BUFFER_SIZE_EVENT)
+		
+		screen_simulator_t* sim = events.simulators;
+		float delta = (float)(start.QuadPart - last.QuadPart) / frequency.QuadPart;
+		while (*sim)
 		{
-			HWND console_window = GetConsoleWindow();
-
-			RECT to_compare;
-			GetWindowRect(console_window, &to_compare);
-
-			RECT fitted = (RECT){ .right = TARGET_WIDTH * TARGET_CELL_SIZE, .bottom = TARGET_HEIGHT * TARGET_CELL_SIZE };
-			RUNTIME_ASSERT(AdjustWindowRectEx(&fitted, GetWindowLongW(console_window, GWL_STYLE), FALSE, GetWindowLongW(console_window, GWL_EXSTYLE)));
-
-			RUNTIME_ASSERT(SetWindowPos(console_window, NULL, 0, 0, fitted.right - fitted.left, fitted.bottom - fitted.top, SWP_NOMOVE));
-			screen_initialize_cursor();
-			RAISE_EVENT(events.repaint);
-
-			CONSOLE_SCREEN_BUFFER_INFOEX csbi = { .cbSize = sizeof csbi };
-			RUNTIME_ASSERT(GetConsoleScreenBufferInfoEx(out, &csbi));
-			if (csbi.dwSize.X != TARGET_WIDTH || csbi.dwSize.Y != TARGET_HEIGHT)
-			{
-				screen_initialize_output();
-			}
-			screen_invalidate();
+			(*sim)(delta);
+			sim++;
 		}
+
+		QueryPerformanceCounter(&end);
+		DWORD ms = (DWORD)((end.QuadPart - start.QuadPart) * 1000 / frequency.QuadPart);
+		if (ms < 16)
+		{
+			Sleep(16 - ms);
+		}
+		last = start;
+	}
+
+	if (used_period)
+	{
+		timeEndPeriod(1);
 	}
 }
 

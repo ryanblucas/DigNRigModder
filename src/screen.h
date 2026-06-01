@@ -23,6 +23,9 @@ typedef void (*screen_handle_mouse_button_t)(bool m1_down, int x, int y);
 typedef void (*screen_handle_mouse_move_t)(bool m1_down, int x, int y);
 typedef void (*screen_handle_mouse_wheel_t)(int delta);
 
+/* Simulators are functions that run a specified amount of times a second on the console thread */
+typedef void (*screen_simulator_t)(float delta_time);
+
 typedef struct screen_events
 {
 	screen_handle_repaint_t repaint;
@@ -30,6 +33,8 @@ typedef struct screen_events
 	screen_handle_mouse_button_t mouse_button;
 	screen_handle_mouse_move_t mouse_move;
 	screen_handle_mouse_wheel_t mouse_wheel;
+	/* zero-terminated array of simulators */
+	screen_simulator_t* simulators;
 } screen_events_t;
 
 void screen_set_event_handlers(const screen_events_t* events);

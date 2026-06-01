@@ -8,7 +8,6 @@
 #include "debug.h"
 #include "file.h"
 #include "types.h"
-#include <stdalign.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,7 +22,8 @@ struct sprite
 
 static HANDLE in, out;
 static screen_events_t events;
-static CHAR_INFO target[TARGET_WIDTH * TARGET_HEIGHT];
+static CHAR_INFO buffer[3 * TARGET_WIDTH * TARGET_HEIGHT];
+static CHAR_INFO* target = buffer;
 
 const rgb_color_t palette[16] =
 {
@@ -202,6 +202,18 @@ static void screen_handle_input(const INPUT_RECORD* ir, DWORD* prev_button_state
 	}
 }
 
+static void screen_simulator_start(void)
+{
+	target = buffer + TARGET_WIDTH * TARGET_HEIGHT;
+	memset(target, 0, TARGET_WIDTH * TARGET_HEIGHT * sizeof(CHAR_INFO));
+}
+
+static void screen_simulator_end(void)
+{
+	target = buffer;
+	screen_invalidate();
+}
+
 void screen_loop(void)
 {
 	bool used_period = timeBeginPeriod(1) == TIMERR_NOERROR;
@@ -223,7 +235,8 @@ void screen_loop(void)
 		LARGE_INTEGER start, end;
 		QueryPerformanceCounter(&start);
 
-		while (PeekConsoleInputW(in, &ir, 1, &read) && read == 1)
+		/* a while statement here, sure, would process all events, but it would leave the simulators dead and flickering */
+		if (PeekConsoleInputW(in, &ir, 1, &read) && read == 1)
 		{
 			ReadConsoleInputW(in, &ir, 1, &read);
 			if (IS_FOCUS_RECORD(ir) && !consumed_first_focus)
@@ -233,14 +246,16 @@ void screen_loop(void)
 			}
 			screen_handle_input(&ir, &prev_button_state);
 		}
-		
-		screen_simulator_t* sim = events.simulators;
+
+		screen_simulator_start();
 		float delta = (float)(start.QuadPart - last.QuadPart) / frequency.QuadPart;
+		screen_simulator_t* sim = events.simulators;
 		while (*sim)
 		{
 			(*sim)(delta);
 			sim++;
 		}
+		screen_simulator_end();
 
 		QueryPerformanceCounter(&end);
 		DWORD ms = (DWORD)((end.QuadPart - start.QuadPart) * 1000 / frequency.QuadPart);
@@ -265,13 +280,20 @@ void screen_repaint(void)
 
 void screen_invalidate(void)
 {
+	CHAR_INFO* cache_layer = buffer;
+	CHAR_INFO* sim_layer = buffer + TARGET_WIDTH * TARGET_HEIGHT;
+	CHAR_INFO* combined_layer = buffer + TARGET_WIDTH * TARGET_HEIGHT * 2;
+	for (int i = 0; i < TARGET_WIDTH * TARGET_HEIGHT; i++)
+	{
+		combined_layer[i] = sim_layer[i].Char.AsciiChar == 0 && sim_layer[i].Attributes == 0 ? cache_layer[i] : sim_layer[i];
+	}
 	SMALL_RECT window_size = { .Top = 0, .Left = 0, .Right = TARGET_WIDTH, .Bottom = TARGET_HEIGHT };
-	WriteConsoleOutputA(out, target, (COORD) { TARGET_WIDTH, TARGET_HEIGHT }, (COORD) { 0, 0 }, & window_size);
+	WriteConsoleOutputA(out, combined_layer, (COORD) { TARGET_WIDTH, TARGET_HEIGHT }, (COORD) { 0, 0 }, & window_size);
 }
 
 void screen_clear(void)
 {
-	memset(target, 0, sizeof target);
+	memset(target, 0, TARGET_WIDTH * TARGET_HEIGHT * sizeof(CHAR_INFO));
 }
 
 rgb_color_t screen_dirt_color(void)

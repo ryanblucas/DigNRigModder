@@ -8,6 +8,7 @@
 #include "../info_box.h"
 #include "../screen.h"
 #include "../tool.h"
+#include "../weather.h"
 #include <stdio.h>
 
 static void asset_brush(tool_brush_t brush, region_t region);
@@ -73,6 +74,8 @@ static void asset_handle_file_change(const char* _directory)
 	tool_eraser = tool_brush_create(asset_erase, BRUSH_TYPE_ASSET_BLOCK, asset.width, asset.height);
 	tool_brush = tool_brush_create(asset_brush, BRUSH_TYPE_ASSET_BLOCK, asset.width, asset.height);
 	tool_select = tool_select_create(asset.width, asset.height);
+
+	weather_start(asset.weather_type, asset.weather_particle_rate, asset.weather_speed);
 }
 
 static void asset_handle_block_change(region_t region)
@@ -422,12 +425,14 @@ void asset_start(void)
 		.global_field_handler = asset_handle_global_field_change
 	};
 	info_set_event_handlers(&info_events);
+	screen_simulator_t simulators[] = { weather_simulate, NULL };
 	screen_events_t screen_events =
 	{
 		.repaint = asset_handle_repaint,
 		.mouse_button = asset_handle_mouse_button,
 		.mouse_move = asset_handle_mouse_move,
 		.keyboard = asset_handle_keyboard,
+		.simulators = simulators
 	};
 	screen_set_event_handlers(&screen_events);
 	if (*editor_state->current_asset_directory)
@@ -440,6 +445,7 @@ void asset_start(void)
 
 void asset_end(void)
 {
+	weather_end();
 	tool_select_reset(tool_select);
 	asset_info_palette_save(editor_state->asset_palette, sizeof editor_state->asset_palette / sizeof * editor_state->asset_palette);
 }

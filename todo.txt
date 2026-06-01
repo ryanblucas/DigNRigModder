@@ -1,5 +1,4 @@
-Save viewer
-	Determine how liquids are stored in save files
+NEED: Raising events from the window thread need to be queued to be processed on the main thread, and vice versa
 
 Tools
 	When pasting something, the result of that is immediately selected and allowed to be moved.
@@ -12,10 +11,6 @@ Tools
 		something akin to the selection tool, where no changes are actually committed until the mouse is let go. What the user sees
 		between mouse down and mouse up is just a sprite being rendered over the screen. That's another promising solution to this.
 	Text tool
-
-Screen
-	Maybe move scrolling logic to here?
-	Determine how weather works and implement it
 
 Asset creator
 	UI needs to be improved

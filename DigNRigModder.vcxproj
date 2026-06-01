@@ -109,7 +109,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>Comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Comctl32.lib;Winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -147,6 +147,7 @@
     <ClCompile Include="src\screen.c" />
     <ClCompile Include="src\serialize.c" />
     <ClCompile Include="src\tool.c" />
+    <ClCompile Include="src\weather.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\action_buffer.h" />
@@ -168,6 +169,7 @@
     <ClInclude Include="src\serialize.h" />
     <ClInclude Include="src\tool.h" />
     <ClInclude Include="src\types.h" />
+    <ClInclude Include="src\weather.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />

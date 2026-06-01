@@ -84,7 +84,7 @@ typedef struct dnr_layer_header
 {
 #define SERIALIZABLE_DNR_LAYER_HEADER \
 	ADD_SERIALIZABLE(dnr_weather_type_t, weather_type) \
-	ADD_SERIALIZABLE(boolean32_t, weather_active) \
+	ADD_SERIALIZABLE(int32_t, weather_particle_rate) \
 	ADD_SERIALIZABLE(float, weather_speed) \
 	ADD_SERIALIZABLE(int32_t, total_block_count) \
 	ADD_SERIALIZABLE(int32_t, current_block_count) \
@@ -388,7 +388,7 @@ typedef struct asset
 	ADD_SERIALIZABLE(int32_t, height) \
 	ADD_SERIALIZABLE(rgb_color_t, dirt_color) \
 	ADD_SERIALIZABLE(dnr_weather_type_t, weather_type) \
-	ADD_SERIALIZABLE(boolean32_t, weather_active) \
+	ADD_SERIALIZABLE(int32_t, weather_particle_rate) \
 	ADD_SERIALIZABLE(float, weather_speed)
 SERIALIZABLE_ASSET
 

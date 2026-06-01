@@ -444,7 +444,7 @@ asset_t file_asset_load(const char* directory)
 		{
 			ENSURE_CONDITION(pfile, file_asset_parse_attribute_single(directory, pfile, &curr, (int*)&res.weather_type));
 			MATCH_TOKEN(pfile, curr, TOKEN_INTEGER);
-			res.weather_active = curr.data.integer;
+			res.weather_particle_rate = curr.data.integer;
 			file_next(pfile, &curr);
 			MATCH_TOKEN(pfile, curr, TOKEN_DECIMAL);
 			res.weather_speed = curr.data.decimal;
@@ -523,7 +523,7 @@ bool file_asset_save(const char* directory, const asset_t* asset)
 		ENSURE_CONDITION(file, file_fprintf(file, "\n") > 0);
 	}
 	ENSURE_CONDITION(file, file_fprintf(file, "#PaletteColor\n%u\n", asset->dirt_color) > 0);
-	ENSURE_CONDITION(file, file_fprintf(file, "#X weather\n%i %i %f\n", asset->weather_type, asset->weather_active, asset->weather_speed) > 0);
+	ENSURE_CONDITION(file, file_fprintf(file, "#X weather\n%i %i %f\n", asset->weather_type, asset->weather_particle_rate, asset->weather_speed) > 0);
 
 	result = true;
 cleanup:

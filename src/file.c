@@ -227,18 +227,18 @@ bool file_editor_load(editor_state_t* state)
 			{
 				state->current_mode = MODE_SAVE;
 			}
-			else if (strncmp(curr.data.str, "Layer", DATA_STRING_MAX_SIZE) == 0)
+			else if (strncmp(curr.data.str, "Asset", DATA_STRING_MAX_SIZE) == 0)
 			{
 				state->current_mode = MODE_ASSET;
 			}
 			file_next(&file, &curr);
 		}
-		else if (strncmp(curr.data.str, "CurrentLayerDirectory", DATA_STRING_MAX_SIZE) == 0)
+		else if (strncmp(curr.data.str, "CurrentAssetDirectory", DATA_STRING_MAX_SIZE) == 0)
 		{
 			file_next(&file, &curr);
 			MATCH_AND_ADVANCE_TOKEN(&file, curr, TOKEN_NEWLINE);
 			MATCH_TOKEN(&file, curr, TOKEN_STRING);
-			snprintf(state->current_layer_directory, MAX_PATH, "%s", curr.data.str);
+			snprintf(state->current_asset_directory, MAX_PATH, "%s", curr.data.str);
 			file_next(&file, &curr);
 		}
 		else if (strncmp(curr.data.str, "AssetPalette", DATA_STRING_MAX_SIZE) == 0)
@@ -298,11 +298,11 @@ bool file_editor_save(const editor_state_t* state)
 		mode_descriptor = "Save";
 		break;
 	case MODE_ASSET:
-		mode_descriptor = "Layer";
+		mode_descriptor = "Asset";
 		break;
 	}
 	fprintf(file, "#CurrentMode\n%s\n", mode_descriptor);
-	fprintf(file, "#CurrentLayerDirectory\n%s\n", state->current_layer_directory);
+	fprintf(file, "#CurrentAssetDirectory\n%s\n", state->current_asset_directory);
 	fprintf(file, "#AssetPalette\n");
 	for (int i = 0; i < sizeof state->asset_palette / sizeof * state->asset_palette; i++)
 	{

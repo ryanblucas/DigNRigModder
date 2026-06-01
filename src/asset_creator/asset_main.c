@@ -48,7 +48,7 @@ static void asset_handle_file_change(const char* _directory)
 	file_asset_unload(&asset);
 
 	snprintf(directory, sizeof directory, "%s", _directory);
-	snprintf(editor_state->current_layer_directory, sizeof editor_state->current_layer_directory, "%s", _directory);
+	snprintf(editor_state->current_asset_directory, sizeof editor_state->current_asset_directory, "%s", _directory);
 	asset = file_asset_load(directory);
 
 	is_layer = false;
@@ -430,10 +430,10 @@ void asset_start(void)
 		.keyboard = asset_handle_keyboard,
 	};
 	screen_set_event_handlers(&screen_events);
-	if (*editor_state->current_layer_directory)
+	if (*editor_state->current_asset_directory)
 	{
-		asset_info_directory_set(editor_state->current_layer_directory);
-		asset_handle_file_change(editor_state->current_layer_directory);
+		asset_info_directory_set(editor_state->current_asset_directory);
+		asset_handle_file_change(editor_state->current_asset_directory);
 	}
 	asset_info_palette_copy(editor_state->asset_palette, sizeof editor_state->asset_palette / sizeof * editor_state->asset_palette);
 }

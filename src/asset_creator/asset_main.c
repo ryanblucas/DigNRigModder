@@ -15,6 +15,7 @@ static void asset_erase(tool_brush_t brush, region_t region);
 
 static char directory[MAX_PATH];
 static asset_t asset;
+static bool is_layer;
 static sprite_t cache;
 
 static tool_brush_t tool_eraser;
@@ -49,8 +50,20 @@ static void asset_handle_file_change(const char* _directory)
 	snprintf(directory, sizeof directory, "%s", _directory);
 	snprintf(editor_state->current_layer_directory, sizeof editor_state->current_layer_directory, "%s", _directory);
 	asset = file_asset_load(directory);
+
+	is_layer = false;
+	char* end = strrchr(directory, '.');
+	if (end && strncmp(end, ".layer", 6) == 0)
+	{
+		is_layer = true;
+	}
+
 	RUNTIME_ASSERT(asset.blocks);
 	asset_info_set(&asset);
+
+	scroll_x = TARGET_WIDTH / 2 - asset.width / 2;
+	scroll_y = TARGET_HEIGHT / 2 - asset.height / 2;
+
 	asset_invalidate();
 
 	tool_brush_destroy(tool_eraser);
@@ -60,9 +73,6 @@ static void asset_handle_file_change(const char* _directory)
 	tool_eraser = tool_brush_create(asset_erase, BRUSH_TYPE_ASSET_BLOCK, asset.width, asset.height);
 	tool_brush = tool_brush_create(asset_brush, BRUSH_TYPE_ASSET_BLOCK, asset.width, asset.height);
 	tool_select = tool_select_create(asset.width, asset.height);
-
-	scroll_x = TARGET_WIDTH / 2 - asset.width / 2;
-	scroll_y = TARGET_HEIGHT / 2 - asset.height / 2;
 }
 
 static void asset_handle_block_change(region_t region)
@@ -134,7 +144,7 @@ static void asset_render_tile_type_as(asset_tile_type_t type, char ch, attribute
 		for (int x = 0; x < asset.width; x++)
 		{
 			asset_block_t* block = &asset.blocks[y * asset.width + x];
-			if (block->tile_type == type && block->transparency)
+			if (block->tile_type == type && (is_layer || block->transparency))
 			{
 				screen_set_attrib_region(&attrib, (region_t) { scroll_x + x, scroll_y + y, scroll_x + x, scroll_y + y });
 				screen_set_char_region(&ch, (region_t) { scroll_x + x, scroll_y + y, scroll_x + x, scroll_y + y });

@@ -70,12 +70,22 @@ typedef struct dnr_save_header
 SERIALIZABLE_DNR_SAVE_HEADER
 } dnr_save_header_t;
 
+typedef enum dnr_weather_type
+{
+#define SERIALIZABLE_DNR_WEATHER_TYPE \
+	ADD_SERIALIZABLE_ENUM(WEATHER_NONE, 0x00) \
+	ADD_SERIALIZABLE_ENUM(WEATHER_RAIN, 0x01) \
+	ADD_SERIALIZABLE_ENUM(WEATHER_LAVA, 0x02) \
+	ADD_SERIALIZABLE_ENUM(WEATHER_RAIN_AND_LAVA, 0x03)
+SERIALIZABLE_DNR_WEATHER_TYPE
+} dnr_weather_type_t;
+
 typedef struct dnr_layer_header
 {
 #define SERIALIZABLE_DNR_LAYER_HEADER \
-	ADD_SERIALIZABLE(int32_t, weather1) \
-	ADD_SERIALIZABLE(int32_t, weather2) \
-	ADD_SERIALIZABLE(float, weather3) \
+	ADD_SERIALIZABLE(dnr_weather_type_t, weather_type) \
+	ADD_SERIALIZABLE(boolean32_t, weather_active) \
+	ADD_SERIALIZABLE(float, weather_speed) \
 	ADD_SERIALIZABLE(int32_t, total_block_count) \
 	ADD_SERIALIZABLE(int32_t, current_block_count) \
 	ADD_SERIALIZABLE(rgb_color_t, dirt_color)
@@ -377,9 +387,9 @@ typedef struct asset
 	ADD_SERIALIZABLE(int32_t, width) \
 	ADD_SERIALIZABLE(int32_t, height) \
 	ADD_SERIALIZABLE(rgb_color_t, dirt_color) \
-	ADD_SERIALIZABLE(int32_t, weather1) \
-	ADD_SERIALIZABLE(int32_t, weather2) \
-	ADD_SERIALIZABLE(float, weather3)
+	ADD_SERIALIZABLE(dnr_weather_type_t, weather_type) \
+	ADD_SERIALIZABLE(boolean32_t, weather_active) \
+	ADD_SERIALIZABLE(float, weather_speed)
 SERIALIZABLE_ASSET
 
 	asset_block_t* blocks;

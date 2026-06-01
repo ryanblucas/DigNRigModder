@@ -286,6 +286,15 @@ static bool serialize_stringify_elementary(uint64_t type_hash, WCHAR* name, void
 			break;
 		}
 		break;
+	case TYPE_DNR_WEATHER_TYPE_T:
+		switch (*(dnr_weather_type_t*)value)
+		{
+			SERIALIZABLE_DNR_WEATHER_TYPE
+		default:
+			StringCchPrintfW(buf, buf_len, L"%s - %#010x", name, *(dnr_weather_type_t*)value);
+			break;
+		}
+		break;
 
 #undef ADD_SERIALIZABLE_ENUM
 	default:

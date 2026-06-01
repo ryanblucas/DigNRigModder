@@ -144,6 +144,21 @@ static void save_viewer_handle_repaint()
 		screen_sprite_render((int)save->player.x_spawn, (int)save->player.y_spawn - y_pos, flag);
 	}
 
+	attribute_t attrib = CREATE_ATTRIBUTE(LIGHT_RED, DARK_BLACK);
+	char ch = 'X';
+	for (int y = 0; y < TARGET_HEIGHT; y++)
+	{
+		for (int x = 0; x < TARGET_WIDTH; x++)
+		{
+			dnr_block_t* block = &save->blocks[x * WORLD_HEIGHT + y + y_pos];
+			if (block->enemy_exists)
+			{
+				screen_set_attrib_region(&attrib, (region_t) { x, y, x, y });
+				screen_set_char_region(&ch, (region_t) { x, y, x, y });
+			}
+		}
+	}
+
 	tool_select_render(select_tool, 0, y_pos);
 }
 

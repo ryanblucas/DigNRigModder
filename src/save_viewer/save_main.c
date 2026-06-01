@@ -12,6 +12,7 @@
 #include "../path.h"
 #include "../screen.h"
 #include "../tool.h"
+#include "../weather.h"
 #include <stdio.h>
 
 #define MAX_SELECTION_WIDTH 120
@@ -123,10 +124,12 @@ static void save_viewer_move_window(int addend)
 	y_pos -= addend;
 	y_pos = min(y_pos, TARGET_HEIGHT * 13 - 1);
 	y_pos = max(y_pos, 0);
+	weather_set_scroll(y_pos);
 	int mid = (y_pos + TARGET_HEIGHT / 2) / TARGET_HEIGHT;
 	if (prev_mid != mid)
 	{
 		screen_change_dirt_color(screen_sprite_dirt_color(cache[mid]));
+		weather_start(save->layer_headers[mid].weather_type, save->layer_headers[mid].weather_particle_rate, save->layer_headers[mid].weather_speed);
 	}
 	prev_mid = mid;
 	screen_repaint();
@@ -529,13 +532,15 @@ static bool save_try_load_save(void)
 
 void save_start(void)
 {
+	screen_simulator_t simulators[] = { weather_simulate, NULL };
 	screen_events_t screen_events =
 	{
 		.repaint = save_viewer_handle_repaint,
 		.keyboard = save_viewer_handle_keyboard,
 		.mouse_button = save_viewer_handle_mouse_button,
 		.mouse_move = save_viewer_handle_mouse_move,
-		.mouse_wheel = save_viewer_handle_mouse_wheel
+		.mouse_wheel = save_viewer_handle_mouse_wheel,
+		.simulators = simulators
 	};
 	screen_set_event_handlers(&screen_events);
 
@@ -570,4 +575,5 @@ void save_end(void)
 	tool_brush_reset(eraser_tool);
 	tool_select_reset(select_tool);
 	save_viewer_move_window(y_pos);
+	weather_end();
 }

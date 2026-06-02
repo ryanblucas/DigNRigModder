@@ -143,7 +143,7 @@ void asset_info_show(bool is_visible)
 		FindClose(handle);
 
 		snprintf(directory, sizeof directory, "%s\\%s", buf, wfd.cFileName);
-		RAISE_EVENT(internal.events->file_handler, directory);
+		queue_add(internal.events->file_handler, directory);
 	}
 
 	for (int i = 0; i < CWI_COUNT; i++)
@@ -192,7 +192,7 @@ static void asset_info_handle_command(HWND window, WPARAM wparam)
 			.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST
 		};
 		GetOpenFileNameA(&ofn);
-		RAISE_EVENT(internal.events->file_handler, directory);
+		queue_add(internal.events->file_handler, directory);
 	}
 	else if (window == child_windows[CWI_ASSET_PALETTE] && HIWORD(wparam) == MINERAL_PALETTE_CONTROL_SET_SELECTED_CELL)
 	{
@@ -218,7 +218,7 @@ static void asset_info_handle_command(HWND window, WPARAM wparam)
 		{
 			asset_info_asset_set_treeview(0);
 		}
-		RAISE_EVENT(internal.events->tool_handler, current_tool);
+		queue_add(internal.events->tool_handler, &current_tool);
 		EnableWindow(child_windows[CWI_ASSET_ERASER_BUTTON + current_tool], FALSE);
 	}
 	else if (index == CWI_ASSET_COPY_SELECTED_BUTTON)
@@ -249,7 +249,7 @@ bool asset_info_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESULT*
 			return true;
 		}
 		brush_size = (int)SendMessageW(child_windows[CWI_ASSET_BRUSH_SIZE_THUMB], TBM_GETPOS, 0, 0);
-		RAISE_EVENT(internal.events->brush_size_handler, brush_size);
+		queue_add(internal.events->brush_size_handler, &brush_size);
 		return true;
 	}
 	case INFO_BOX_MSG_STATE_READY:
@@ -278,7 +278,7 @@ void asset_info_handle_interact_tree_item(bool is_global, element_t element)
 		{
 			return;
 		}
-		RAISE_EVENT(internal.events->global_field_handler, serialize_element_get_value(element));
+		queue_add(internal.events->global_field_handler, serialize_element_get_value(element));
 		action_buffer_add_field(action_buffer, element, begin_copy);
 		return;
 	}
@@ -306,7 +306,7 @@ void asset_info_handle_interact_tree_item(bool is_global, element_t element)
 			memcpy((uint8_t*)&asset->blocks[x + y * asset->width] + (current - (uint8_t*)&blocks[current_tool]), current, serialize_element_get_size(element));
 		}
 	}
-	RAISE_EVENT(internal.events->block_handler, region);
+	queue_add(internal.events->block_handler, &region);
 	action_buffer_post_add_asset_block(action_buffer, asset);
 }
 

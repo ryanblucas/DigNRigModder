@@ -147,6 +147,7 @@ static void info_window_initialize(void)
 
 static DWORD info_thread_proc(LPVOID param)
 {
+	queue_set_window_thread_id(GetCurrentThreadId());
 	info_window_initialize();
 	ShowWindow(window, SHOW_OPENWINDOW);
 	SetForegroundWindow(GetConsoleWindow());

@@ -6,6 +6,7 @@
 #include "screen.h"
 
 #include "debug.h"
+#include "event_queue.h"
 #include "file.h"
 #include "types.h"
 #include <stdbool.h>
@@ -237,6 +238,7 @@ static void screen_loop_no_simulation(void)
 	DWORD prev_button_state = 0;
 	while (ReadConsoleInputW(in, &ir, 1, &read) && read == 1)
 	{
+		queue_run();
 		if (IS_FOCUS_RECORD(ir) && !consumed_first_focus)
 		{
 			consumed_first_focus = true;
@@ -286,6 +288,7 @@ void screen_loop(int events_per_frame, int simulation_framerate)
 		}
 
 		screen_simulator_run(start, last, frequency);
+		queue_run();
 
 		QueryPerformanceCounter(&end);
 		DWORD ms = (DWORD)((end.QuadPart - start.QuadPart) * 1000 / frequency.QuadPart);

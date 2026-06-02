@@ -1,5 +1,3 @@
-NEED: Raising events from the window thread need to be queued to be processed on the main thread, and vice versa
-
 Tools
 	When pasting something, the result of that is immediately selected and allowed to be moved.
 		If the user chooses to move that object, it should be on a seperate layer

@@ -72,6 +72,7 @@ static BOOL WINAPI ctrl_handler(DWORD ctrl_type)
 
 int main()
 {
+	queue_set_main_thread_id(GetCurrentThreadId());
 	SetConsoleCtrlHandler(ctrl_handler, TRUE);
 
 	if (!file_editor_load(&editor))

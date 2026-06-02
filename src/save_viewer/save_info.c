@@ -79,7 +79,7 @@ void save_info_initialize(info_internal_t* _internal)
 	}
 	current_tool = TOOL_SELECT;
 	EnableWindow(child_windows[CWI_SAVE_SELECT_BUTTON], FALSE);
-	RAISE_EVENT(internal.events->tool_handler, current_tool);
+	queue_add(internal.events->tool_handler, &current_tool);
 
 	if (GetWindowLongPtr(internal.window, GWLP_USERDATA) == 1)
 	{
@@ -118,9 +118,8 @@ static void save_info_window_change_current(element_t element)
 		{
 			return;
 		}
-		complete_block_t copy = brush;
-		CHAR_INFO cell = game_spritify_cell(&copy);
-		RAISE_EVENT(internal.events->brush_block_handler, &copy);
+		queue_add(internal.events->brush_block_handler, &brush);
+		CHAR_INFO cell = game_spritify_cell(&brush);
 		MINERAL_CONTROL_SET_CELL(child_windows[CWI_SAVE_BRUSH_CELL], cell.Char.AsciiChar, cell.Attributes, DNR_DEFAULT_DIRT_COLOR);
 		return;
 	}
@@ -146,7 +145,7 @@ static void save_info_window_change_current(element_t element)
 			return;
 		}
 
-		RAISE_EVENT(internal.events->block_handler, region);
+		queue_add(internal.events->block_handler, queue_copy_data(&region, sizeof region));
 		save_info_state_update_current_cell_image(x, y);
 		action_buffer_post_add_block(action_buffer, state);
 		return;
@@ -175,7 +174,7 @@ static void save_info_window_change_current(element_t element)
 			memcpy((uint8_t*)&state->blocks[x * WORLD_HEIGHT + y] + (current - (uint8_t*)&current_block), current, serialize_element_get_size(element));
 		}
 	}
-	RAISE_EVENT(internal.events->block_handler, current_selection_region);
+	queue_add(internal.events->block_handler, &current_selection_region);
 	action_buffer_post_add_block(action_buffer, state);
 }
 
@@ -197,7 +196,7 @@ void save_info_handle_interact_tree_item(bool is_global, element_t element)
 	{
 		return;
 	}
-	RAISE_EVENT(internal.events->global_field_handler, serialize_element_get_value(element));
+	queue_add(internal.events->global_field_handler, serialize_element_get_value(element));
 	action_buffer_add_field(action_buffer, element, begin_copy);
 }
 
@@ -230,7 +229,7 @@ bool save_info_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESULT* 
 			current_tool = TOOL_BRUSH;
 			save_info_state_brush_set_tree_view();
 		}
-		RAISE_EVENT(internal.events->tool_handler, current_tool);
+		queue_add(internal.events->tool_handler, &current_tool);
 		return true;
 	}
 	case WM_HSCROLL:
@@ -240,7 +239,7 @@ bool save_info_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESULT* 
 			return true;
 		}
 		brush_size = (int)SendMessageW(child_windows[CWI_SAVE_BRUSH_SIZE_THUMB], TBM_GETPOS, 0, 0);
-		RAISE_EVENT(internal.events->brush_size_handler, brush_size);
+		queue_add(internal.events->brush_size_handler, &brush_size);
 		return true;
 	}
 	case INFO_BOX_MSG_STATE_READY:

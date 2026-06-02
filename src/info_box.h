@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "event_queue.h"
 #include "file.h"
 #include "game.h"
 #include "serialize.h"
@@ -21,14 +22,12 @@ typedef enum info_tool
 	TOOL_BRUSH,
 } info_tool_t;
 
-typedef void (*info_handle_change_mode_t)(info_mode_t old_mode);
-
-typedef void (*info_handle_change_tool_t)(info_tool_t new_tool);
-typedef void (*info_handle_change_brush_size_t)(int size);
+/* Every event must return void and take a single const pointer parameter, see handle_generic_t */
+typedef void (*info_handle_change_tool_t)(const info_tool_t* new_tool);
+typedef void (*info_handle_change_brush_size_t)(const int* size);
 typedef void (*info_handle_change_brush_block_t)(const complete_block_t* brush);
-typedef void (*info_handle_change_block_t)(region_t region);
+typedef void (*info_handle_change_block_t)(const region_t* region);
 typedef void (*info_handle_change_global_field_t)(const void* field);
-
 typedef void (*info_handle_change_file_t)(const char* directory);
 
 typedef struct info_events
@@ -66,6 +65,8 @@ typedef struct info_mode_class
 	info_mode_destroy_t destroy;
 	info_mode_handle_interact_tree_item_t interact_tree_item;
 } info_mode_class_t;
+
+typedef void (*info_handle_change_mode_t)(info_mode_t old_mode);
 
 void info_add_class(const info_mode_class_t* class);
 void info_set_event_handlers(const info_events_t* events);

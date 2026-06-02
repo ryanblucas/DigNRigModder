@@ -137,7 +137,7 @@ static void save_viewer_move_window(int addend)
 	screen_repaint();
 }
 
-static void save_viewer_handle_repaint()
+static void save_viewer_handle_repaint(void)
 {
 	int top = y_pos / TARGET_HEIGHT;
 	int bottom = y_pos / TARGET_HEIGHT + 1;
@@ -428,10 +428,10 @@ static void save_viewer_handle_mouse_wheel(int delta)
 	save_viewer_move_window(delta * 10);
 }
 
-static void save_viewer_handle_block_change(region_t region)
+static void save_viewer_handle_block_change(const region_t* region)
 {
-	region = region_validate(region);
-	save_viewer_invalidate_region(region);
+	region_t reg = region_validate(*region);
+	save_viewer_invalidate_region(reg);
 	screen_repaint();
 }
 
@@ -470,7 +470,7 @@ static void save_viewer_handle_global_field_change(const void* field)
 	save_viewer_global_field_try_dirt_change(field);
 }
 
-static void save_viewer_handle_tool_change(info_tool_t next_tool)
+static void save_viewer_handle_tool_change(const info_tool_t* next_tool)
 {
 	tool_select_reset(select_tool);
 	if (cache[0])
@@ -479,10 +479,10 @@ static void save_viewer_handle_tool_change(info_tool_t next_tool)
 	}
 }
 
-static void save_viewer_handle_brush_size_change(int size)
+static void save_viewer_handle_brush_size_change(const int* size)
 {
-	tool_brush_set_size(brush_tool, size);
-	tool_brush_set_size(eraser_tool, size);
+	tool_brush_set_size(brush_tool, *size);
+	tool_brush_set_size(eraser_tool, *size);
 }
 
 void save_initialize(editor_state_t* state)

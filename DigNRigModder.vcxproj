@@ -129,6 +129,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\event_queue.c" />
     <ClCompile Include="src\action_buffer.c" />
     <ClCompile Include="src\interface\change_field_modal.c" />
     <ClCompile Include="src\interface\charmap_control.c" />
@@ -151,6 +152,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\action_buffer.h" />
+    <ClInclude Include="src\event_queue.h" />
     <ClInclude Include="src\interface\change_field_modal.h" />
     <ClInclude Include="src\interface\charmap_control.h" />
     <ClInclude Include="src\debug.h" />

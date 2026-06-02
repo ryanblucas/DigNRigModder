@@ -93,15 +93,16 @@ static void save_viewer_paste(void)
 	screen_repaint();
 }
 
-static void save_viewer_prompt_which_save(void)
+static int save_viewer_prompt_which_save(int start)
 {
+	int res = start;
 	bool valid_save = false;
-	while (editor->current_save <= 0 || editor->current_save >= 4 || !valid_save)
+	while (res <= 0 || res >= 4 || !valid_save)
 	{
 		/* temporary use of change field modal function */
-		change_field_modal_integer(NULL, &editor->current_save, sizeof editor->current_save | SIZE_IS_SIGNED);
+		change_field_modal_integer(NULL, &res, sizeof res | SIZE_IS_SIGNED);
 		char directory[MAX_PATH];
-		path_find_dnr_save(directory, sizeof directory, editor->current_save);
+		path_find_dnr_save(directory, sizeof directory, res);
 		FILE* file = fopen(directory, "rb");
 		if (!file)
 		{
@@ -116,6 +117,7 @@ static void save_viewer_prompt_which_save(void)
 		}
 		valid_save = true;
 	}
+	return res;
 }
 
 static void save_viewer_move_window(int addend)
@@ -233,7 +235,7 @@ static void save_viewer_handle_keyboard(virtual_key_t vk, keyboard_control_t ctr
 	{
 		if (ctrl & CTRL_SHIFT_PRESSED)
 		{
-			save_viewer_prompt_which_save();
+			editor->current_save = save_viewer_prompt_which_save(editor->current_save);
 			path_find_dnr_save(save_directory, sizeof save_directory, editor->current_save);
 		}
 		debug_format("Reloading save...\n");
@@ -532,7 +534,7 @@ static bool save_try_load_save(void)
 	save = file_state_load(path_find_dnr_save(save_directory, sizeof save_directory, editor->current_save));
 	if (!save)
 	{
-		save_viewer_prompt_which_save();
+		editor->current_save = save_viewer_prompt_which_save(editor->current_save);
 		file_editor_save(editor);
 		save = file_state_load(path_find_dnr_save(save_directory, sizeof save_directory, editor->current_save));
 		if (!save)

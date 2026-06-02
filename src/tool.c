@@ -406,9 +406,9 @@ tool_event_t tool_brush_handle_mouse_click(tool_brush_t tool, bool m1_down, int 
 	}
 	if (m1_down)
 	{
+		y += scroll_y;
 		tool->prev_selected_x = x;
 		tool->prev_selected_y = y;
-		y += scroll_y;
 		int radius = tool->size - 1;
 		tool->region = region_keep_inside(
 			(region_t) { x - radius, y - radius, x + radius, y + radius},

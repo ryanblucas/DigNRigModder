@@ -257,6 +257,14 @@ void change_field_modal_mineral_spawn_rule(HWND owner, dnr_mineral_spawn_rule_t*
 	cfm_enum_internal(owner, L"Change mineral spawn rule", (int*)value, array, 10, NULL, NULL);
 }
 
+void change_field_modal_weather_type(HWND owner, dnr_weather_type_t* value)
+{
+#define ADD_SERIALIZABLE_ENUM(name, value) #name L"\0"
+	WCHAR* array = SERIALIZABLE_DNR_WEATHER_TYPE;
+#undef ADD_SERIALIZABLE_ENUM
+	cfm_enum_internal(owner, L"Change weather type", (int*)value, array, 4, NULL, NULL);
+}
+
 void change_field_modal_asset_tile_type(HWND owner, asset_tile_type_t* value)
 {
 #define ADD_SERIALIZABLE_ENUM(name, value) #name L"\0"

@@ -85,6 +85,30 @@ static inline int weather_random(int min, int max)
 	return min + rand() % (max - min + 1);
 }
 
+static bool weather_has_collision(int x, int y)
+{
+	if (asset)
+	{
+		if (x < 0 || x >= asset->width || y < 0 || y >= asset->height)
+		{
+			return false;
+		}
+		asset_block_t* block = &asset->blocks[y * asset->width + x];
+		return block->visual.Char.AsciiChar != ' ' && block->visual.Char.AsciiChar != 0;
+	}
+	else if (state)
+	{
+		/* only check what can be seen, like Dig-N-Rig! */
+		if (x < 0 || x >= WORLD_WIDTH || y < scroll || y >= scroll + TARGET_HEIGHT)
+		{
+			return false;
+		}
+		dnr_block_t* block = &state->blocks[x * WORLD_HEIGHT + y];
+		return block->block_exists;
+	}
+	return false;
+}
+
 static void weather_create_particle(int x, int y, dnr_weather_type_t type)
 {
 	for (int i = 0; i < WEATHER_PARTICLE_COUNT; i++)
@@ -149,9 +173,10 @@ static void weather_update_and_render_particles(float delta_time)
 		}
 		particles[i].x += particles[i].x_vel * delta_time;
 		particles[i].y += particles[i].y_vel * delta_time;
-		if (particles[i].y >= height || particles[i].x >= WORLD_WIDTH)
+		if (weather_has_collision((int)particles[i].x, (int)particles[i].y) || particles[i].y >= height || particles[i].x >= WORLD_WIDTH)
 		{
 			particles[i].exists = false;
+			continue;
 		}
 		int px = (int)particles[i].x;
 		int py = (int)particles[i].y - scroll;

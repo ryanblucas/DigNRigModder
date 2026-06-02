@@ -250,6 +250,7 @@ static void save_viewer_handle_keyboard(virtual_key_t vk, keyboard_control_t ctr
 
 		weather_force_end();
 		save_info_state_set(save);
+		weather_set_state(save);
 		screen_repaint();
 		break;
 	}
@@ -579,6 +580,7 @@ void save_start(void)
 	}
 
 	save_viewer_move_window(TARGET_HEIGHT / 2 - save->spawn_y);
+	weather_set_state(save);
 	save_info_state_set(save); /* wait till last second to call so that there's not much waiting if any on this thread */
 }
 

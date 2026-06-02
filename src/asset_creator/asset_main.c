@@ -61,6 +61,7 @@ static void asset_handle_file_change(const char* _directory)
 
 	RUNTIME_ASSERT(asset.blocks);
 	asset_info_set(&asset);
+	weather_set_asset(&asset);
 
 	scroll_x = TARGET_WIDTH / 2 - asset.width / 2;
 	scroll_y = TARGET_HEIGHT / 2 - asset.height / 2;

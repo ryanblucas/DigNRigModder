@@ -75,6 +75,7 @@ static void asset_handle_file_change(const char* _directory)
 	tool_brush = tool_brush_create(asset_brush, BRUSH_TYPE_ASSET_BLOCK, asset.width, asset.height);
 	tool_select = tool_select_create(asset.width, asset.height);
 
+	weather_force_end();
 	weather_start(asset.weather_type, asset.weather_particle_rate, asset.weather_speed);
 }
 
@@ -100,6 +101,11 @@ static void asset_handle_brush_size_change(int new_size)
 
 static void asset_handle_global_field_change(const void* field)
 {
+	if (field == &asset.weather_type || field == &asset.weather_particle_rate || field == &asset.weather_speed)
+	{
+		weather_force_end();
+		weather_start(asset.weather_type, asset.weather_particle_rate, asset.weather_speed);
+	}
 	asset_invalidate();
 }
 
@@ -445,7 +451,7 @@ void asset_start(void)
 
 void asset_end(void)
 {
-	weather_end();
+	weather_force_end();
 	tool_select_reset(tool_select);
 	asset_info_palette_save(editor_state->asset_palette, sizeof editor_state->asset_palette / sizeof * editor_state->asset_palette);
 }

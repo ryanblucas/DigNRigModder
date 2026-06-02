@@ -248,6 +248,7 @@ static void save_viewer_handle_keyboard(virtual_key_t vk, keyboard_control_t ctr
 
 		save_viewer_invalidate_region((region_t) { 0, 0, WORLD_WIDTH - 1, WORLD_HEIGHT - 1 });
 
+		weather_force_end();
 		save_info_state_set(save);
 		screen_repaint();
 		break;
@@ -431,27 +432,39 @@ static void save_viewer_handle_block_change(region_t region)
 	screen_repaint();
 }
 
-static void save_viewer_handle_global_field_change(const void* field)
+static void save_viewer_global_field_try_dirt_change(const void* field)
 {
-	int layer_index;
-	for (layer_index = 0; layer_index < LAYER_COUNT; layer_index++)
+	for (int layer_index = 0; layer_index < LAYER_COUNT; layer_index++)
 	{
 		if (field == &save->layer_headers[layer_index].dirt_color)
 		{
-			break;
+			screen_sprite_set_dirt_color(cache[layer_index], *(rgb_color_t*)field);
+			int mid = (y_pos + TARGET_HEIGHT / 2) / TARGET_HEIGHT;
+			if (mid == layer_index)
+			{
+				screen_change_dirt_color(screen_sprite_dirt_color(cache[layer_index]));
+			}
+			screen_repaint();
 		}
 	}
-	if (layer_index < 0 || layer_index >= LAYER_COUNT)
-	{
-		return;
-	}
-	screen_sprite_set_dirt_color(cache[layer_index], *(rgb_color_t*)field);
+}
+
+static void save_viewer_global_field_try_weather_change(const void* field)
+{
 	int mid = (y_pos + TARGET_HEIGHT / 2) / TARGET_HEIGHT;
-	if (mid == layer_index)
+	dnr_layer_header_t* header = &save->layer_headers[mid];
+	if (field == &header->weather_type || field == &header->weather_particle_rate || field == &header->weather_speed)
 	{
-		screen_change_dirt_color(screen_sprite_dirt_color(cache[layer_index]));
+		weather_force_end();
+		weather_start(header->weather_type, header->weather_particle_rate, header->weather_speed);
+		screen_repaint();
 	}
-	screen_repaint();
+}
+
+static void save_viewer_handle_global_field_change(const void* field)
+{
+	save_viewer_global_field_try_weather_change(field);
+	save_viewer_global_field_try_dirt_change(field);
 }
 
 static void save_viewer_handle_tool_change(info_tool_t next_tool)
@@ -575,5 +588,5 @@ void save_end(void)
 	tool_brush_reset(eraser_tool);
 	tool_select_reset(select_tool);
 	save_viewer_move_window(y_pos);
-	weather_end();
+	weather_force_end();
 }

@@ -51,6 +51,12 @@ void weather_end(void)
 	weather_state = STATE_START_STOP;
 }
 
+void weather_force_end(void)
+{
+	weather_state = STATE_STOPPED;
+	memset(particles, 0, sizeof particles);
+}
+
 void weather_set_scroll(int _scroll)
 {
 	scroll = _scroll;

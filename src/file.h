@@ -399,10 +399,11 @@ SERIALIZABLE_ASSET
 #undef ADD_SERIALIZABLE_ARRAY
 #undef ADD_SERIALIZABLE_ENUM
 
-/* I think this would be very overkill if I used the serialize module, but we'll see */
-
 typedef struct editor_state
 {
+	int max_events_per_frame;
+	int simulation_framerate;
+	bool is_small_console;
 	int current_save;
 	char current_asset_directory[MAX_PATH];
 	info_mode_t current_mode;

@@ -14,6 +14,7 @@
 #define TARGET_WIDTH	150
 #define TARGET_HEIGHT	100
 #define TARGET_CELL_SIZE 8
+#define TARGET_CELL_SIZE_SMALL 6
 
 #define LAYER_COUNT 14
 
@@ -24,6 +25,8 @@
 #define DNR_DEFAULT_DIRT_COLOR 0x4175A4
 #define DNR_FONT L"digfont9"
 #define DNR_FONT_A "digfont9"
+#define DNR_FONT_SMALL L"digfont9small"
+#define DNR_FONT_SMALL_A "digfont9small"
 
 #define CREATE_ATTRIBUTE(fg, bg) ((fg) | (bg) << 4)
 #define ATTRIBUTE_FOREGROUND(attrib) ((attrib) & 0x0F)

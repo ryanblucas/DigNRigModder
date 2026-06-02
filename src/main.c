@@ -78,19 +78,26 @@ int main()
 	{
 		debug_format("No editor config found, making new one\n");
 		editor.current_save = 1;
+		editor.max_events_per_frame = 5;
+		editor.simulation_framerate = 30;
+	}
+
+	if (editor.simulation_framerate >= 0 && editor.max_events_per_frame <= 0)
+	{
+		editor.max_events_per_frame = 1;
 	}
 
 	save_initialize(&editor);
 	asset_initialize(&editor);
 
-	screen_initialize();
+	screen_initialize(editor.is_small_console);
 	screen_change_title("Dig-N-Rig Display");
 	/* initialize info after screen so that the window is placed adjacent to the console as opposed to under it */
 	info_initialize(change_mode_handler);
 	info_set_current_mode(editor.current_mode);
 
 	call_respective_start(info_get_current_mode());
-	screen_loop();
+	screen_loop(editor.max_events_per_frame, editor.simulation_framerate);
 	/* Actually, don't call the respective end. That's really just cleaning up for the next mode, which can cause problems at this point in execution.
 	   For example, if the user stops the application from the info box in the save mode, the console is freed then screen_loop returns for this
 	   function to call save_end. save_end will try to move the console up to the top, which it obviously cannot do because the console was freed earlier. */

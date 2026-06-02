@@ -25,6 +25,8 @@ static screen_events_t events;
 static CHAR_INFO buffer[3 * TARGET_WIDTH * TARGET_HEIGHT];
 static CHAR_INFO* target = buffer;
 
+static int cell_size = TARGET_CELL_SIZE;
+
 const rgb_color_t palette[16] =
 {
 	RGB(0, 0, 0),
@@ -44,33 +46,6 @@ const rgb_color_t palette[16] =
 	RGB(252, 236, 84),
 	RGB(232, 232, 238),
 };
-
-static void screen_initialize_output()
-{
-	CONSOLE_SCREEN_BUFFER_INFOEX csbi = { .cbSize = sizeof csbi };
-	RUNTIME_ASSERT(GetConsoleScreenBufferInfoEx(out, &csbi));
-
-	csbi.dwMaximumWindowSize.X = TARGET_WIDTH;
-	csbi.dwMaximumWindowSize.Y = TARGET_HEIGHT;
-	csbi.dwSize = csbi.dwMaximumWindowSize;
-
-	csbi.srWindow.Left = 0;
-	csbi.srWindow.Top = 0;
-	csbi.srWindow.Right = csbi.dwSize.X;
-	csbi.srWindow.Bottom = csbi.dwSize.Y;
-
-	RUNTIME_ASSERT(SetConsoleScreenBufferInfoEx(out, &csbi));
-
-	screen_change_dirt_color(1);
-}
-
-static void screen_initialize_cursor(void)
-{
-	CONSOLE_CURSOR_INFO cci;
-	RUNTIME_ASSERT(GetConsoleCursorInfo(out, &cci));
-	cci.bVisible = FALSE;
-	RUNTIME_ASSERT(SetConsoleCursorInfo(out, &cci));
-}
 
 void screen_set_event_handlers(const screen_events_t* _events)
 {
@@ -94,45 +69,79 @@ void screen_set_event_handlers(const screen_events_t* _events)
 	memcpy(events.simulators, _events->simulators, (count + 1) * sizeof * events.simulators);
 }
 
-void screen_initialize(void)
+static void screen_initialize_input(void)
 {
 	in = GetStdHandle(STD_INPUT_HANDLE);
 	RUNTIME_ASSERT(in != INVALID_HANDLE_VALUE && in);
+	RUNTIME_ASSERT(SetConsoleMode(in, ENABLE_EXTENDED_FLAGS | ENABLE_WINDOW_INPUT | ENABLE_MOUSE_INPUT));
+}
 
+static void screen_initialize_output(void)
+{
 	out = CreateConsoleScreenBuffer(GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, CONSOLE_TEXTMODE_BUFFER, NULL);
 	RUNTIME_ASSERT(out != INVALID_HANDLE_VALUE);
 
-	screen_initialize_output();
+	CONSOLE_SCREEN_BUFFER_INFOEX csbi = { .cbSize = sizeof csbi };
+	RUNTIME_ASSERT(GetConsoleScreenBufferInfoEx(out, &csbi));
+
+	csbi.dwMaximumWindowSize.X = TARGET_WIDTH;
+	csbi.dwMaximumWindowSize.Y = TARGET_HEIGHT;
+	csbi.dwSize = csbi.dwMaximumWindowSize;
+
+	csbi.srWindow.Left = 0;
+	csbi.srWindow.Top = 0;
+	csbi.srWindow.Right = csbi.dwSize.X;
+	csbi.srWindow.Bottom = csbi.dwSize.Y;
+
+	RUNTIME_ASSERT(SetConsoleScreenBufferInfoEx(out, &csbi));
+
+	screen_change_dirt_color(1);
+
+	RUNTIME_ASSERT(SetConsoleMode(out, 0));
+}
+
+static void screen_initialize_font(bool is_small_console)
+{
+	WCHAR* font_name = is_small_console ? DNR_FONT_SMALL : DNR_FONT;
 
 	CONSOLE_FONT_INFOEX cfi = { .cbSize = sizeof cfi };
 	RUNTIME_ASSERT(GetCurrentConsoleFontEx(out, FALSE, &cfi));
-
-	cfi.dwFontSize = (COORD){ TARGET_CELL_SIZE - 1, TARGET_CELL_SIZE };
+	cell_size = is_small_console ? TARGET_CELL_SIZE_SMALL : TARGET_CELL_SIZE;
+	cfi.dwFontSize = (COORD){ cell_size - 1, cell_size };
 	cfi.FontFamily = FF_DONTCARE;
 	cfi.nFont = 0;
-	swprintf(cfi.FaceName, sizeof cfi.FaceName / sizeof * cfi.FaceName, DNR_FONT);
-
+	swprintf(cfi.FaceName, sizeof cfi.FaceName / sizeof * cfi.FaceName, font_name);
 	RUNTIME_ASSERT(SetCurrentConsoleFontEx(out, FALSE, &cfi));
 
-	RUNTIME_ASSERT(SetConsoleActiveScreenBuffer(out));
-
-	RUNTIME_ASSERT(SetConsoleMode(in, ENABLE_EXTENDED_FLAGS | ENABLE_WINDOW_INPUT | ENABLE_MOUSE_INPUT));
-	RUNTIME_ASSERT(SetConsoleMode(out, 0));
-	
-	screen_initialize_cursor();
-
 	RUNTIME_ASSERT(GetCurrentConsoleFontEx(out, FALSE, &cfi));
-
-	if (wcsncmp(cfi.FaceName, DNR_FONT, sizeof cfi.FaceName / sizeof * cfi.FaceName) != 0)
+	if (wcsncmp(cfi.FaceName, font_name, sizeof cfi.FaceName / sizeof * cfi.FaceName) != 0)
 	{
 		debug_format("Failed to locate Dig-N-Rig's font!\n");
 	}
+}
+
+static void screen_initialize_cursor(void)
+{
+	CONSOLE_CURSOR_INFO cci;
+	RUNTIME_ASSERT(GetConsoleCursorInfo(out, &cci));
+	cci.bVisible = FALSE;
+	RUNTIME_ASSERT(SetConsoleCursorInfo(out, &cci));
+}
+
+void screen_initialize(bool is_small_console)
+{
+	screen_initialize_input();
+	screen_initialize_output();
+	screen_initialize_font(is_small_console);
+	RUNTIME_ASSERT(SetConsoleActiveScreenBuffer(out));
+	screen_initialize_cursor();
 }
 
 void screen_destroy(void)
 {
 	CloseHandle(out);
 	free(events.simulators);
+	out = NULL;
 }
 
 /* that last condition is scary b/c it works on my machine, but it isn't guaranteed.
@@ -173,8 +182,8 @@ static void screen_handle_input(const INPUT_RECORD* ir, DWORD* prev_button_state
 		POINT pt;
 		RUNTIME_ASSERT(GetCursorPos(&pt));
 		RUNTIME_ASSERT(ScreenToClient(GetConsoleWindow(), &pt));
-		pt.x /= TARGET_CELL_SIZE;
-		pt.y /= TARGET_CELL_SIZE;
+		pt.x /= cell_size;
+		pt.y /= cell_size;
 		RAISE_EVENT(events.mouse_button, true, pt.x, pt.y);
 		*prev_button_state = FROM_LEFT_1ST_BUTTON_PRESSED;
 	}
@@ -185,7 +194,7 @@ static void screen_handle_input(const INPUT_RECORD* ir, DWORD* prev_button_state
 		RECT to_compare;
 		GetWindowRect(console_window, &to_compare);
 
-		RECT fitted = (RECT){ .right = TARGET_WIDTH * TARGET_CELL_SIZE, .bottom = TARGET_HEIGHT * TARGET_CELL_SIZE };
+		RECT fitted = (RECT){ .right = TARGET_WIDTH * cell_size, .bottom = TARGET_HEIGHT * cell_size };
 		RUNTIME_ASSERT(AdjustWindowRectEx(&fitted, GetWindowLongW(console_window, GWL_STYLE), FALSE, GetWindowLongW(console_window, GWL_EXSTYLE)));
 
 		RUNTIME_ASSERT(SetWindowPos(console_window, NULL, 0, 0, fitted.right - fitted.left, fitted.bottom - fitted.top, SWP_NOMOVE));
@@ -202,20 +211,49 @@ static void screen_handle_input(const INPUT_RECORD* ir, DWORD* prev_button_state
 	}
 }
 
-static void screen_simulator_start(void)
+static void screen_simulator_run(LARGE_INTEGER start, LARGE_INTEGER last, LARGE_INTEGER frequency)
 {
 	target = buffer + TARGET_WIDTH * TARGET_HEIGHT;
 	memset(target, 0, TARGET_WIDTH * TARGET_HEIGHT * sizeof(CHAR_INFO));
-}
 
-static void screen_simulator_end(void)
-{
+	float delta = (float)(start.QuadPart - last.QuadPart) / frequency.QuadPart;
+	screen_simulator_t* sim = events.simulators;
+	while (*sim)
+	{
+		(*sim)(delta);
+		sim++;
+	}
+
 	target = buffer;
 	screen_invalidate();
 }
 
-void screen_loop(void)
+static void screen_loop_no_simulation(void)
 {
+	debug_format("Running screen loop with no simulators\n");
+	INPUT_RECORD ir;
+	DWORD read;
+	bool consumed_first_focus = false;
+	DWORD prev_button_state = 0;
+	while (ReadConsoleInputW(in, &ir, 1, &read) && read == 1)
+	{
+		if (IS_FOCUS_RECORD(ir) && !consumed_first_focus)
+		{
+			consumed_first_focus = true;
+			continue;
+		}
+		screen_handle_input(&ir, &prev_button_state);
+	}
+}
+
+void screen_loop(int events_per_frame, int simulation_framerate)
+{
+	if (simulation_framerate <= 0)
+	{
+		screen_loop_no_simulation();
+		return;
+	}
+
 	bool used_period = timeBeginPeriod(1) == TIMERR_NOERROR;
 	if (!used_period)
 	{
@@ -230,13 +268,13 @@ void screen_loop(void)
 	DWORD read;
 	bool consumed_first_focus = false;
 	DWORD prev_button_state = 0;
-	while (true)
+	while (out)
 	{
 		LARGE_INTEGER start, end;
 		QueryPerformanceCounter(&start);
 
-		/* a while statement here, sure, would process all events, but it would leave the simulators dead and flickering */
-		if (PeekConsoleInputW(in, &ir, 1, &read) && read == 1)
+		/* != so that if events_per_frame is negative, it means it will process every event adding more functionality to the property */
+		for (int i = 0; i != events_per_frame && PeekConsoleInputW(in, &ir, 1, &read) && read == 1; i++)
 		{
 			ReadConsoleInputW(in, &ir, 1, &read);
 			if (IS_FOCUS_RECORD(ir) && !consumed_first_focus)
@@ -247,21 +285,14 @@ void screen_loop(void)
 			screen_handle_input(&ir, &prev_button_state);
 		}
 
-		screen_simulator_start();
-		float delta = (float)(start.QuadPart - last.QuadPart) / frequency.QuadPart;
-		screen_simulator_t* sim = events.simulators;
-		while (*sim)
-		{
-			(*sim)(delta);
-			sim++;
-		}
-		screen_simulator_end();
+		screen_simulator_run(start, last, frequency);
 
 		QueryPerformanceCounter(&end);
 		DWORD ms = (DWORD)((end.QuadPart - start.QuadPart) * 1000 / frequency.QuadPart);
-		if (ms < 16)
+		int desired_frame_time = 1000 / simulation_framerate;
+		if ((int)ms < desired_frame_time)
 		{
-			Sleep(16 - ms);
+			Sleep(desired_frame_time - ms);
 		}
 		last = start;
 	}

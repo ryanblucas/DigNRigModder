@@ -218,6 +218,30 @@ bool file_editor_load(editor_state_t* state)
 			state->current_save = curr.data.integer;
 			file_next(&file, &curr);
 		}
+		else if (strncmp(curr.data.str, "MaxEventsPerFrame", DATA_STRING_MAX_SIZE) == 0)
+		{
+			file_next(&file, &curr);
+			MATCH_AND_ADVANCE_TOKEN(&file, curr, TOKEN_NEWLINE);
+			MATCH_TOKEN(&file, curr, TOKEN_INTEGER);
+			state->max_events_per_frame = curr.data.integer;
+			file_next(&file, &curr);
+		}
+		else if (strncmp(curr.data.str, "SimulationFramerate", DATA_STRING_MAX_SIZE) == 0)
+		{
+			file_next(&file, &curr);
+			MATCH_AND_ADVANCE_TOKEN(&file, curr, TOKEN_NEWLINE);
+			MATCH_TOKEN(&file, curr, TOKEN_INTEGER);
+			state->simulation_framerate = curr.data.integer;
+			file_next(&file, &curr);
+		}
+		else if (strncmp(curr.data.str, "IsSmallConsole", DATA_STRING_MAX_SIZE) == 0)
+		{
+			file_next(&file, &curr);
+			MATCH_AND_ADVANCE_TOKEN(&file, curr, TOKEN_NEWLINE);
+			MATCH_TOKEN(&file, curr, TOKEN_INTEGER);
+			state->is_small_console = (boolean32_t)curr.data.integer;
+			file_next(&file, &curr);
+		}
 		else if (strncmp(curr.data.str, "CurrentMode", DATA_STRING_MAX_SIZE) == 0)
 		{
 			file_next(&file, &curr);
@@ -302,6 +326,9 @@ bool file_editor_save(const editor_state_t* state)
 		break;
 	}
 	fprintf(file, "#CurrentMode\n%s\n", mode_descriptor);
+	fprintf(file, "#MaxEventsPerFrame\n%i\n", state->max_events_per_frame);
+	fprintf(file, "#SimulationFramerate\n%i\n", state->simulation_framerate);
+	fprintf(file, "#IsSmallConsole\n%i\n", !!state->is_small_console);
 	fprintf(file, "#CurrentAssetDirectory\n%s\n", state->current_asset_directory);
 	fprintf(file, "#AssetPalette\n");
 	for (int i = 0; i < sizeof state->asset_palette / sizeof * state->asset_palette; i++)

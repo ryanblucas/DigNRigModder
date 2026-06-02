@@ -39,9 +39,9 @@ typedef struct screen_events
 
 void screen_set_event_handlers(const screen_events_t* events);
 
-void screen_initialize(void);
+void screen_initialize(bool is_small_console);
 void screen_destroy(void);
-void screen_loop(void);
+void screen_loop(int events_per_frame, int simulation_framerate);
 void screen_repaint(void);
 void screen_invalidate(void);
 void screen_clear(void);

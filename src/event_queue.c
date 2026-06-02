@@ -22,16 +22,17 @@ static size_t main_arena_top;
 static uint8_t window_arena[0x400];
 static size_t window_arena_top;
 
-static DWORD main_thread_id, window_thread_id;
+static DWORD main_thread_id;
+static HWND window;
 
-void queue_set_main_thread_id(uint32_t id)
+void queue_set_main_thread_id(DWORD id)
 {
 	main_thread_id = id;
 }
 
-void queue_set_window_thread_id(uint32_t id)
+void queue_set_window_handle(HWND wnd)
 {
-	window_thread_id = id;
+	window = wnd;
 }
 
 void* queue_copy_data(const void* data, size_t size)
@@ -67,7 +68,7 @@ void queue_add(handle_generic_t handler, const void* data)
 	if (GetCurrentThreadId() == main_thread_id)
 	{
 		debug_format("Adding event to window\n");
-		/* find and post on message queue */
+		PostMessageW(window, QUEUE_MSG_MAIN_TO_WINDOW, (WPARAM)handler, (LPARAM)data);
 		return;
 	}
 	debug_format("Adding event to main\n");

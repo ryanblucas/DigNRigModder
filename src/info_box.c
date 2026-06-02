@@ -71,6 +71,13 @@ static LRESULT info_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
 {
 	switch (msg)
 	{
+	case QUEUE_MSG_MAIN_TO_WINDOW:
+	{
+		handle_generic_t handler = (handle_generic_t)wparam;
+		const void* data = (const void*)lparam;
+		handler(data);
+		break;
+	}
 	case WM_CREATE:
 	{
 		tab_control = CreateWindowExW(0, WC_TABCONTROLW, NULL, WS_VISIBLE | WS_CHILD | WS_CLIPSIBLINGS, 0, 0, INFO_BOX_CLIENT_WIDTH, INFO_BOX_CLIENT_HEIGHT, hwnd, NULL, NULL, NULL);
@@ -147,8 +154,8 @@ static void info_window_initialize(void)
 
 static DWORD info_thread_proc(LPVOID param)
 {
-	queue_set_window_thread_id(GetCurrentThreadId());
 	info_window_initialize();
+	queue_set_window_handle(window);
 	ShowWindow(window, SHOW_OPENWINDOW);
 	SetForegroundWindow(GetConsoleWindow());
 	

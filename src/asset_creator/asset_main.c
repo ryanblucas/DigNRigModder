@@ -80,12 +80,12 @@ static void asset_handle_file_change(const char* _directory)
 	weather_start(asset.weather_type, asset.weather_particle_rate, asset.weather_speed);
 }
 
-static void asset_handle_block_change(region_t* region)
+static void asset_handle_block_change(const region_t* region)
 {
 	asset_invalidate();
 }
 
-static void asset_handle_tool_change(info_tool_t* new_tool)
+static void asset_handle_tool_change(const info_tool_t* new_tool)
 {
 	tool_select_reset(tool_select);
 	if (cache)
@@ -94,7 +94,7 @@ static void asset_handle_tool_change(info_tool_t* new_tool)
 	}
 }
 
-static void asset_handle_brush_size_change(int* new_size)
+static void asset_handle_brush_size_change(const int* new_size)
 {
 	tool_brush_set_size(tool_brush, *new_size);
 	tool_brush_set_size(tool_eraser, *new_size);

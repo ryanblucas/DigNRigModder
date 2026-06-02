@@ -43,7 +43,7 @@ void weather_start(dnr_weather_type_t _type, int _spawn_rate, float _speed)
 	weather_state = STATE_RUNNING;
 	type = _type;
 	spawn_rate = _spawn_rate;
-	speed = _speed;
+	speed = max(1, _speed);
 }
 
 void weather_end(void)
@@ -103,7 +103,7 @@ static bool weather_has_collision(int x, int y)
 		{
 			return false;
 		}
-		dnr_block_t* block = &state->blocks[x * WORLD_HEIGHT + y];
+		const dnr_block_t* block = &state->blocks[x * WORLD_HEIGHT + y];
 		return block->block_exists;
 	}
 	return false;

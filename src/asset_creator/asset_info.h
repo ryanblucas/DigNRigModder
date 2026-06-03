@@ -11,7 +11,7 @@ void asset_info_destroy(void);
 void asset_info_show(bool is_visible);
 bool asset_info_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESULT* out);
 
-void asset_info_handle_interact_tree_item(bool is_global, element_t element);
+bool asset_info_handle_interact_tree_item(bool is_global, element_t element);
 
 /* The pointer to the asset must remain valid until another call to this function that passes NULL. */
 void asset_info_set(asset_t* asset);

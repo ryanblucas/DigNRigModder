@@ -62,7 +62,11 @@ static void info_window_tree_control_proc(HWND hwnd, WPARAM wparam, LPARAM lpara
 			TreeView_GetItem(nmtv->hdr.hwndFrom, &tvi);
 			element_t element = (element_t)tvi.lParam;
 
-			RAISE_EVENT(classes[current_mode].interact_tree_item, nmtv->hdr.hwndFrom == global_treeviews[current_mode], element);
+			if (classes[current_mode].interact_tree_item 
+				&& !classes[current_mode].interact_tree_item(nmtv->hdr.hwndFrom == global_treeviews[current_mode], element))
+			{
+				MessageBeep(MB_ICONERROR);
+			}
 		}
 	}
 }

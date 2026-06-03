@@ -49,7 +49,7 @@ typedef struct info_internal
 	HWND current_treeview;
 } info_internal_t;
 
-typedef void (*info_mode_handle_interact_tree_item_t)(bool is_global, element_t element);
+typedef bool (*info_mode_handle_interact_tree_item_t)(bool is_global, element_t element);
 typedef bool (*info_mode_proc_t)(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESULT* out);
 typedef void (*info_mode_show_t)(bool is_visible);
 typedef void (*info_mode_initialize_t)(info_internal_t* internal);

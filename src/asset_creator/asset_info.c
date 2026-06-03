@@ -264,44 +264,51 @@ bool asset_info_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESULT*
 	return false;
 }
 
-void asset_info_handle_interact_tree_item(bool is_global, element_t element)
+bool asset_info_handle_interact_tree_item(bool is_global, element_t element)
 {
 	/* only should change elementary fields */
 	if (serialize_element_get_size(element) > 4 || serialize_element_get_count(element) > 1)
 	{
-		return;
+		return true;
 	}
 
 	if (!asset_can_change_field(serialize_element_get_value(element)))
 	{
-		return;
+		return false;
 	}
 
 	if (is_global)
 	{
 		field_t begin_copy = field_create(serialize_element_get_value(element), serialize_element_get_size(element));
-		if (!serialize_on_change_field(element) || begin_copy == field_create(serialize_element_get_value(element), serialize_element_get_size(element)))
+		if (!serialize_on_change_field(element))
 		{
-			return;
+			return false;
 		}
-		queue_add(internal.events->global_field_handler, serialize_element_get_value(element));
-		action_buffer_add_field(action_buffer, element, begin_copy);
-		return;
+		if (begin_copy != field_create(serialize_element_get_value(element), serialize_element_get_size(element)))
+		{
+			queue_add(internal.events->global_field_handler, serialize_element_get_value(element));
+			action_buffer_add_field(action_buffer, element, begin_copy);
+		}
+		return true;
 	}
 
 	field_t previous = field_create(serialize_element_get_value(element), serialize_element_get_size(element));
-	if (!serialize_on_change_field(element) || previous == field_create(serialize_element_get_value(element), serialize_element_get_size(element)))
+	if (!serialize_on_change_field(element))
 	{
-		return;
+		return false;
+	}
+	if (previous == field_create(serialize_element_get_value(element), serialize_element_get_size(element)))
+	{
+		return true;
 	}
 	if (current_tool == TOOL_BRUSH && MINERAL_PALETTE_GET_SELECTED_CELL(child_windows[CWI_ASSET_PALETTE]) != -1)
 	{
 		MINERAL_PALETTE_SET_CELL(child_windows[CWI_ASSET_PALETTE], MINERAL_PALETTE_GET_SELECTED_CELL(child_windows[CWI_ASSET_PALETTE]), &blocks[TOOL_BRUSH]);
-		return;
+		return true;
 	}
 	if (region_is_invalid(region))
 	{
-		return;
+		return true;
 	}
 	action_buffer_pre_add_asset_block(action_buffer, asset, region);
 	for (int y = region.y0; y <= region.y1; y++)
@@ -314,6 +321,7 @@ void asset_info_handle_interact_tree_item(bool is_global, element_t element)
 	}
 	queue_add(internal.events->block_handler, &region);
 	action_buffer_post_add_asset_block(action_buffer, asset);
+	return true;
 }
 
 void asset_info_set(asset_t* _asset)

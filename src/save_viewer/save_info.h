@@ -18,7 +18,7 @@ void save_info_destroy(void);
 void save_info_show(bool is_visible);
 bool save_info_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESULT* out);
 
-void save_info_handle_interact_tree_item(bool is_global, element_t element);
+bool save_info_handle_interact_tree_item(bool is_global, element_t element);
 
 action_buffer_t save_info_action_buffer_get(void);
 void save_info_action_buffer_set(action_buffer_t buffer);

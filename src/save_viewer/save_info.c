@@ -4,6 +4,7 @@
 */
 
 #include "save_info.h"
+#include "save_main.h"
 #include "../action_buffer.h"
 #include "../interface/charmap_control.h"
 #include "../game.h"
@@ -110,63 +111,64 @@ void save_info_show(bool is_visible)
 	}
 }
 
-static void save_info_window_change_current(element_t element)
+static bool save_info_change_brush(element_t element)
 {
-	if (current_tool == TOOL_BRUSH)
+	if (!save_can_change_brush_field((const uint8_t*)serialize_element_get_value(element) - (const uint8_t*)&state->blocks[current_selection_index]) || !serialize_on_change_field(element))
 	{
-		if (!serialize_on_change_field(element))
-		{
-			return;
-		}
-		queue_add(internal.events->brush_block_handler, &brush);
-		CHAR_INFO cell = game_spritify_cell(&brush);
-		MINERAL_CONTROL_SET_CELL(child_windows[CWI_SAVE_BRUSH_CELL], cell.Char.AsciiChar, cell.Attributes, DNR_DEFAULT_DIRT_COLOR);
-		return;
+		return false;
 	}
-	else if (current_selection_index >= 0)
+	queue_add(internal.events->brush_block_handler, &brush);
+	CHAR_INFO cell = game_spritify_cell(&brush);
+	MINERAL_CONTROL_SET_CELL(child_windows[CWI_SAVE_BRUSH_CELL], cell.Char.AsciiChar, cell.Attributes, DNR_DEFAULT_DIRT_COLOR);
+	return true;
+}
+
+static bool save_info_change_current_single(element_t element)
+{
+	int x = current_selection_index / WORLD_HEIGHT;
+	int y = current_selection_index % WORLD_HEIGHT;
+	region_t region = { x, y, x, y };
+
+	if (!save_can_change_local_field(region, (const uint8_t*)serialize_element_get_value(element) - (const uint8_t*)&state->blocks[current_selection_index]))
 	{
-		int x = current_selection_index / WORLD_HEIGHT;
-		int y = current_selection_index % WORLD_HEIGHT;
-		region_t region = { x, y, x, y };
-
-		complete_block_t start;
-		game_copy(state, region, &start);
-		action_buffer_pre_add_block(action_buffer, state, region);
-
-		if (!serialize_on_change_field(element))
-		{
-			return;
-		}
-
-		complete_block_t end;
-		game_copy(state, region, &end);
-		if (memcmp(&start, &end, sizeof start) == 0)
-		{
-			return;
-		}
-
-		queue_add(internal.events->block_handler, queue_copy_data(&region, sizeof region));
-		save_info_state_update_current_cell_image(x, y);
-		action_buffer_post_add_block(action_buffer, state);
-		return;
+		return false;
 	}
 
-	if (serialize_element_get_size(element) > 4)
+	complete_block_t start;
+	game_copy(state, region, &start);
+	action_buffer_pre_add_block(action_buffer, state, region);
+
+	if (!serialize_on_change_field(element))
 	{
-		return;
+		return false;
 	}
 
+	complete_block_t end;
+	game_copy(state, region, &end);
+	if (memcmp(&start, &end, sizeof start) == 0)
+	{
+		return true;
+	}
+
+	queue_add(internal.events->block_handler, queue_copy_data(&region, sizeof region));
+	save_info_state_update_current_cell_image(x, y);
+	action_buffer_post_add_block(action_buffer, state);
+	return true;
+}
+
+static bool save_info_change_current_region(element_t element)
+{
 	field_t previous = field_create(serialize_element_get_value(element), serialize_element_get_size(element));
 	if (!serialize_on_change_field(element))
 	{
-		return;
+		return false;
 	}
 	if (previous == field_create(serialize_element_get_value(element), serialize_element_get_size(element)))
 	{
-		return;
+		return true;
 	}
 	action_buffer_pre_add_block(action_buffer, state, current_selection_region);
- 	for (int y = current_selection_region.y0; y <= current_selection_region.y1; y++)
+	for (int y = current_selection_region.y0; y <= current_selection_region.y1; y++)
 	{
 		for (int x = current_selection_region.x0; x <= current_selection_region.x1; x++)
 		{
@@ -176,28 +178,48 @@ static void save_info_window_change_current(element_t element)
 	}
 	queue_add(internal.events->block_handler, &current_selection_region);
 	action_buffer_post_add_block(action_buffer, state);
+	return true;
 }
 
-void save_info_handle_interact_tree_item(bool is_global, element_t element)
+static bool save_info_window_change_local(element_t element)
+{
+	if (current_tool == TOOL_BRUSH)
+	{
+		return save_info_change_brush(element);
+	}
+	else if (current_selection_index >= 0)
+	{
+		return save_info_change_current_single(element);
+	}
+	else if (serialize_element_get_size(element) <= 4 
+		&& save_can_change_local_field(current_selection_region, (const uint8_t*)serialize_element_get_value(element) - (const uint8_t*)&current_block))
+	{
+		return save_info_change_current_region(element);
+	}
+
+	return true;
+}
+
+bool save_info_handle_interact_tree_item(bool is_global, element_t element)
 {
 	if (!is_global)
 	{
-		save_info_window_change_current(element);
-		return;
+		return save_info_window_change_local(element);
 	}
 	/* only should change elementary fields */
 	if (serialize_element_get_size(element) > 4 || serialize_element_get_count(element) > 1)
 	{
-		return;
+		return true;
 	}
-
+	
 	field_t begin_copy = field_create(serialize_element_get_value(element), serialize_element_get_size(element));
-	if (!serialize_on_change_field(element))
+	if (!save_can_change_global_field(serialize_element_get_value(element)) || !serialize_on_change_field(element))
 	{
-		return;
+		return false;
 	}
 	queue_add(internal.events->global_field_handler, serialize_element_get_value(element));
 	action_buffer_add_field(action_buffer, element, begin_copy);
+	return true;
 }
 
 bool save_info_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESULT* out)

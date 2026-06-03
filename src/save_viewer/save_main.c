@@ -594,3 +594,30 @@ void save_end(void)
 	save_viewer_move_window(y_pos);
 	weather_force_end();
 }
+
+bool save_can_change_local_field(region_t selection, size_t field)
+{
+	return field != offsetof(complete_block_t, block.x)
+		&& field != offsetof(complete_block_t, block.y)
+		&& field != offsetof(complete_block_t, block.layer_index)
+		&& field != offsetof(complete_block_t, block.mineral_index)
+		&& field != offsetof(complete_block_t, block.mineral_exists)
+		&& field != offsetof(complete_block_t, block.enemy_pointer)
+		&& field != offsetof(complete_block_t, block.enemy_exists)
+		&& field != offsetof(complete_block_t, mineral.x)
+		&& field != offsetof(complete_block_t, mineral.y)
+		&& field != offsetof(complete_block_t, mineral.index)
+		&& field != offsetof(complete_block_t, mineral.exists)
+		&& field != offsetof(complete_block_t, stalactite.x)
+		&& field != offsetof(complete_block_t, stalactite.y);
+}
+
+bool save_can_change_brush_field(size_t field)
+{
+	return save_can_change_local_field(INVALID_REGION, field);
+}
+
+bool save_can_change_global_field(const void* field)
+{
+	return true;
+}

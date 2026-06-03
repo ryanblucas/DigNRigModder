@@ -3,6 +3,7 @@
 */
 
 #include "asset_info.h"
+#include "asset_main.h"
 #include "../path.h"
 #include "../interface/mineral_palette.h"
 #include <stdio.h>
@@ -267,6 +268,11 @@ void asset_info_handle_interact_tree_item(bool is_global, element_t element)
 {
 	/* only should change elementary fields */
 	if (serialize_element_get_size(element) > 4 || serialize_element_get_count(element) > 1)
+	{
+		return;
+	}
+
+	if (!asset_can_change_field(serialize_element_get_value(element)))
 	{
 		return;
 	}

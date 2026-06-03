@@ -16,6 +16,7 @@ static void asset_erase(tool_brush_t brush, region_t region);
 
 static char directory[MAX_PATH];
 static asset_t asset;
+static int old_width, old_height;
 static bool is_layer;
 static sprite_t cache;
 
@@ -40,6 +41,26 @@ static void asset_invalidate(void)
 	screen_repaint();
 }
 
+static void asset_refresh(void)
+{
+	old_width = asset.width;
+	old_height = asset.height;
+
+	asset_info_set(&asset);
+	weather_set_asset(&asset);
+
+	scroll_x = TARGET_WIDTH / 2 - asset.width / 2;
+	scroll_y = TARGET_HEIGHT / 2 - asset.height / 2;
+
+	tool_brush_destroy(tool_eraser);
+	tool_brush_destroy(tool_brush);
+	tool_select_destroy(tool_select);
+
+	tool_eraser = tool_brush_create(asset_erase, BRUSH_TYPE_ASSET_BLOCK, asset.width, asset.height);
+	tool_brush = tool_brush_create(asset_brush, BRUSH_TYPE_ASSET_BLOCK, asset.width, asset.height);
+	tool_select = tool_select_create(asset.width, asset.height);
+}
+
 static void asset_handle_file_change(const char* _directory)
 {
 	screen_clear();
@@ -51,6 +72,7 @@ static void asset_handle_file_change(const char* _directory)
 	snprintf(directory, sizeof directory, "%s", _directory);
 	snprintf(editor_state->current_asset_directory, sizeof editor_state->current_asset_directory, "%s", _directory);
 	asset = file_asset_load(directory);
+	RUNTIME_ASSERT(asset.blocks);
 
 	is_layer = false;
 	char* end = strrchr(directory, '.');
@@ -59,22 +81,8 @@ static void asset_handle_file_change(const char* _directory)
 		is_layer = true;
 	}
 
-	RUNTIME_ASSERT(asset.blocks);
-	asset_info_set(&asset);
-	weather_set_asset(&asset);
-
-	scroll_x = TARGET_WIDTH / 2 - asset.width / 2;
-	scroll_y = TARGET_HEIGHT / 2 - asset.height / 2;
-
+	asset_refresh();
 	asset_invalidate();
-
-	tool_brush_destroy(tool_eraser);
-	tool_brush_destroy(tool_brush);
-	tool_select_destroy(tool_select);
-
-	tool_eraser = tool_brush_create(asset_erase, BRUSH_TYPE_ASSET_BLOCK, asset.width, asset.height);
-	tool_brush = tool_brush_create(asset_brush, BRUSH_TYPE_ASSET_BLOCK, asset.width, asset.height);
-	tool_select = tool_select_create(asset.width, asset.height);
 
 	weather_force_end();
 	weather_start(asset.weather_type, asset.weather_particle_rate, asset.weather_speed);
@@ -100,12 +108,44 @@ static void asset_handle_brush_size_change(const int* new_size)
 	tool_brush_set_size(tool_eraser, *new_size);
 }
 
+static bool asset_change_dimensions(asset_t* copy, int* field, int max)
+{
+	if (is_layer)
+	{
+		*field = max;
+		return false;
+	}
+	*field = min(max(1, *field), max);
+	*copy = asset;
+	copy->blocks = dig_malloc(sizeof * copy->blocks * asset.width * asset.height);
+	memset(copy->blocks, 0, sizeof * copy->blocks * asset.width * asset.height);
+	return true;
+}
+
 static void asset_handle_global_field_change(const void* field)
 {
 	if (field == &asset.weather_type || field == &asset.weather_particle_rate || field == &asset.weather_speed)
 	{
 		weather_force_end();
 		weather_start(asset.weather_type, asset.weather_particle_rate, asset.weather_speed);
+	}
+	asset_t copy;
+	if (field == &asset.width && asset_change_dimensions(&copy, &asset.width, TARGET_WIDTH))
+	{
+		for (int i = 0; i < asset.height; i++)
+		{
+			memcpy(copy.blocks + i * asset.width, asset.blocks + i * old_width, sizeof * copy.blocks * min(old_width, asset.width));
+		}
+		file_asset_unload(&asset);
+		asset = copy;
+		asset_refresh();
+	}
+	if (field == &asset.height && asset_change_dimensions(&copy, &asset.height, TARGET_HEIGHT))
+	{
+		memcpy(copy.blocks, asset.blocks, sizeof * copy.blocks * asset.width * min(old_height, asset.height));
+		file_asset_unload(&asset);
+		asset = copy;
+		asset_refresh();
 	}
 	asset_invalidate();
 }
@@ -178,7 +218,7 @@ static void asset_handle_repaint(void)
 	asset_render_tile_type_as(TILE_TYPE_WATER, 'X', CREATE_ATTRIBUTE(DARK_BLUE, DARK_BLACK));
 	asset_render_tile_type_as(TILE_TYPE_STALACTITE, 0x1F, CREATE_ATTRIBUTE(DARK_YELLOW, DARK_BLACK));
 
-	tool_select_render(tool_select, scroll_x, scroll_y);
+	tool_select_render(tool_select, -scroll_x, -scroll_y);
 	char ch = ' ';
 	attribute_t attrib = 0;
 	for (int y = 0; y < TARGET_HEIGHT; y++)
@@ -455,4 +495,9 @@ void asset_end(void)
 	weather_force_end();
 	tool_select_reset(tool_select);
 	asset_info_palette_save(editor_state->asset_palette, sizeof editor_state->asset_palette / sizeof * editor_state->asset_palette);
+}
+
+bool asset_can_change_field(const void* field)
+{
+	return !is_layer || (field != &asset.width && field != &asset.height);
 }

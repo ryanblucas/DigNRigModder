@@ -28,6 +28,8 @@ static CHAR_INFO* target = buffer;
 
 static int cell_size = TARGET_CELL_SIZE;
 
+static bool used_period;
+
 const rgb_color_t palette[16] =
 {
 	RGB(0, 0, 0),
@@ -136,6 +138,12 @@ void screen_initialize(bool is_small_console)
 	screen_initialize_font(is_small_console);
 	RUNTIME_ASSERT(SetConsoleActiveScreenBuffer(out));
 	screen_initialize_cursor();
+
+	used_period = timeBeginPeriod(1) == TIMERR_NOERROR;
+	if (!used_period)
+	{
+		debug_format("Failed to set timer resolution, simulators may not run at specified rate.\n");
+	}
 }
 
 void screen_destroy(void)
@@ -143,6 +151,10 @@ void screen_destroy(void)
 	CloseHandle(out);
 	free(events.simulators);
 	out = NULL;
+	if (used_period)
+	{
+		timeEndPeriod(1);
+	}
 }
 
 /* that last condition is scary b/c it works on my machine, but it isn't guaranteed.
@@ -256,12 +268,6 @@ void screen_loop(int events_per_frame, int simulation_framerate)
 		return;
 	}
 
-	bool used_period = timeBeginPeriod(1) == TIMERR_NOERROR;
-	if (!used_period)
-	{
-		debug_format("Failed to set timer resolution, simulators may not run at specified rate.\n");
-	}
-
 	LARGE_INTEGER frequency, last;
 	QueryPerformanceFrequency(&frequency);
 	QueryPerformanceCounter(&last);
@@ -270,7 +276,7 @@ void screen_loop(int events_per_frame, int simulation_framerate)
 	DWORD read;
 	bool consumed_first_focus = false;
 	DWORD prev_button_state = 0;
-	while (out)
+	while (GetConsoleWindow() != NULL)
 	{
 		LARGE_INTEGER start, end;
 		QueryPerformanceCounter(&start);
@@ -298,11 +304,6 @@ void screen_loop(int events_per_frame, int simulation_framerate)
 			Sleep(desired_frame_time - ms);
 		}
 		last = start;
-	}
-
-	if (used_period)
-	{
-		timeEndPeriod(1);
 	}
 }
 

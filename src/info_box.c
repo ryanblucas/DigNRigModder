@@ -214,6 +214,7 @@ static DWORD info_thread_proc(LPVOID param)
 	}
 	window = NULL;
 	FreeConsole();
+	debug_format("Closed from window\n");
 	return result;
 }
 

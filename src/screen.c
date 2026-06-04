@@ -29,6 +29,7 @@ static CHAR_INFO* target = buffer;
 static int cell_size = TARGET_CELL_SIZE;
 
 static bool used_period;
+static volatile LONG flag_running;
 
 const rgb_color_t palette[16] =
 {
@@ -248,7 +249,8 @@ static void screen_loop_no_simulation(void)
 	DWORD read;
 	bool consumed_first_focus = false;
 	DWORD prev_button_state = 0;
-	while (ReadConsoleInputW(in, &ir, 1, &read) && read == 1)
+	InterlockedExchange(&flag_running, TRUE);
+	while (ReadConsoleInputW(in, &ir, 1, &read) && read == 1 && GetConsoleWindow() != NULL)
 	{
 		queue_run();
 		if (IS_FOCUS_RECORD(ir) && !consumed_first_focus)
@@ -258,6 +260,7 @@ static void screen_loop_no_simulation(void)
 		}
 		screen_handle_input(&ir, &prev_button_state);
 	}
+	InterlockedExchange(&flag_running, FALSE);
 }
 
 void screen_loop(int events_per_frame, int simulation_framerate)
@@ -276,6 +279,7 @@ void screen_loop(int events_per_frame, int simulation_framerate)
 	DWORD read;
 	bool consumed_first_focus = false;
 	DWORD prev_button_state = 0;
+	InterlockedExchange(&flag_running, TRUE);
 	while (GetConsoleWindow() != NULL)
 	{
 		LARGE_INTEGER start, end;
@@ -305,6 +309,7 @@ void screen_loop(int events_per_frame, int simulation_framerate)
 		}
 		last = start;
 	}
+	InterlockedExchange(&flag_running, FALSE);
 }
 
 void screen_repaint(void)
@@ -581,4 +586,12 @@ void screen_sprite_set_dirt_color(sprite_t sprite, rgb_color_t dirt_color)
 {
 	RUNTIME_ASSERT(sprite);
 	sprite->dirt_color = dirt_color;
+}
+
+void screen_wait_for_end(void)
+{
+	while (InterlockedOr(&flag_running, 0))
+	{
+		Sleep(0);
+	}
 }

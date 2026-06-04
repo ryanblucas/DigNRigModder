@@ -246,17 +246,21 @@ void info_initialize(info_handle_change_mode_t _change_mode)
 
 void info_destroy(void)
 {
+	CloseHandle(thread);
+	thread = NULL;
 	if (window)
 	{
 		PostQuitMessage(0);
+		window = NULL;
 	}
 	if (GetConsoleWindow())
 	{
 		FreeConsole();
 	}
-	CloseHandle(thread);
 	DeleteObject(font_caption);
 	DeleteObject(font_text);
+	font_caption = NULL;
+	font_text = NULL;
 	UnregisterClassW(INFO_BOX_CLASS_NAME, NULL);
 }
 

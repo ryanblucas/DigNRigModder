@@ -81,3 +81,6 @@ int screen_sprite_width(const sprite_t sprite);
 int screen_sprite_height(const sprite_t sprite);
 rgb_color_t screen_sprite_dirt_color(const sprite_t sprite);
 void screen_sprite_set_dirt_color(sprite_t sprite, rgb_color_t dirt_color);
+
+/* Synchronous function that waits for screen_loop to return. This does not try to close anything on its own. */
+void screen_wait_for_end(void);

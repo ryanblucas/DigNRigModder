@@ -8,6 +8,7 @@
 #include "info_box.h"
 
 static editor_state_t editor;
+static bool already_cleaned_up;
 
 static void call_respective_start(info_mode_t mode)
 {
@@ -50,13 +51,24 @@ static void change_mode_handler(info_mode_t old_mode)
 
 static void cleanup(void)
 {
+	if (already_cleaned_up)
+	{
+		return;
+	}
+	already_cleaned_up = true;
+	debug_profiler_push();
+
 	file_editor_save(&editor);
 
+	FreeConsole();
+	info_destroy();
+	screen_wait_for_end();
+
+	screen_destroy();
 	save_destroy();
 	asset_destroy();
 
-	info_destroy();
-	screen_destroy();
+	debug_profiler_pop("Cleanup");
 }
 
 static BOOL WINAPI ctrl_handler(DWORD ctrl_type)

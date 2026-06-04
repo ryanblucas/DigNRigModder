@@ -26,9 +26,11 @@ static size_t serialize_hash_get_size(uint64_t type_hash)
 {
 	switch (type_hash)
 	{
+	case TYPE_INT8_T:
 	case TYPE_UINT8_T:
 	case TYPE_DNR_MINERAL_SIZE_T:
 		return 1;
+	case TYPE_INT16_T:
 	case TYPE_UINT16_T:
 	case TYPE_DNR_MINERAL_TYPE_T:
 		return 2;
@@ -42,6 +44,8 @@ static size_t serialize_hash_get_size(uint64_t type_hash)
 	case TYPE_DNR_RIG_TYPE_T:
 	case TYPE_DNR_MINERAL_MOVE_DIRECTION_T:
 	case TYPE_DNR_MINERAL_SPAWN_RULE_T:
+	case TYPE_DNR_WEATHER_TYPE_T:
+	case TYPE_ASSET_TILE_TYPE_T:
 		return 4;
 	case TYPE_DNR_SPRITE_T:
 		return sizeof(dnr_sprite_t);
@@ -55,6 +59,8 @@ static size_t serialize_hash_get_size(uint64_t type_hash)
 		return sizeof(dnr_block_t);
 	case TYPE_DNR_MINERAL_T:
 		return sizeof(dnr_mineral_t);
+	case TYPE_SHOP_ITEM_T:
+		return sizeof(shop_item_t);
 	}
 	return 0;
 }

@@ -256,6 +256,7 @@ static void asset_select_handle_mouse_button(bool m1_down, int x, int y)
 		action_buffer_post_add_asset_block(action_buffer, &asset);
 
 		asset_invalidate();
+		asset_info_set_current(INVALID_REGION);
 		break;
 	}
 	case EVENT_SELECTION_RESIZE_STOP:
@@ -350,10 +351,13 @@ static void asset_do_action(action_t* act)
 	}
 	if (act->type == ACTION_FIELD)
 	{
+		action_buffer_reverse_field(act);
+		asset_handle_global_field_change(serialize_element_get_value(act->sub.field.element));
 		return;
 	}
 	action_buffer_reverse_asset_block(&asset, act);
 	asset_invalidate();
+	asset_info_set_current(tool_select_region(tool_select));
 }
 
 static void asset_copy(void)

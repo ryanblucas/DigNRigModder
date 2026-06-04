@@ -294,6 +294,7 @@ static void save_viewer_select_handle_mouse_button(bool m1_down, int x, int y)
 		action_buffer_post_add_block(action_buffer, save);
 
 		save_viewer_invalidate_region(total);
+		save_info_cell_set_current(-1, -1);
 		break;
 	}
 	case EVENT_SELECTION_RESIZE_STOP:

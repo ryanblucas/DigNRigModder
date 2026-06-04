@@ -10,7 +10,10 @@
 
 typedef struct element* element_t;
 
-/* by running serialize_hash on each of the types as a string, you get this result. */
+/* by running serialize_hash on each of the types as a string, you get this result
+   this sucks. But, it would be way too difficult to change at this point. Everytime
+   you add something to this list, make sure you update serialize_element_get_size() AND
+   serialize_stringify_elementary()/serialize_recursive_advanced() */
 
 #define TYPE_FLOAT 210624726069ULL
 #define TYPE_RGB_COLOR_T 13790352177619491131ULL

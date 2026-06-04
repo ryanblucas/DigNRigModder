@@ -489,7 +489,7 @@ element_t serialize_single(const char* type, void* value, const char* name, HWND
 	RUNTIME_ASSERT(tree_item);
 
 	element_t se = dig_malloc(sizeof * se);
-	*se = (struct element){ .window = tree_window, .tree_item = tree_item, .type_hash = type_hash, .value = value, .count = 0 };
+	*se = (struct element){ .window = tree_window, .tree_item = tree_item, .type_hash = type_hash, .value = value, .count = 0, .enabled = true };
 	wcsncpy(se->name, wname, sizeof se->name / sizeof * se->name - 1);
 
 	TVITEMEXW tvi = { .mask = TVIF_PARAM, .hItem = tree_item, .lParam = (LPARAM)se };
@@ -517,7 +517,7 @@ element_t serialize_array(const char* type, void* value, int count, const char* 
 
 	tvins.itemex.mask |= TVIF_PARAM;
 	element_t se = dig_malloc(sizeof * se);
-	*se = (struct element) { .window = tree_window, .type_hash = type_hash, .value = value, .count = count };
+	*se = (struct element) { .window = tree_window, .type_hash = type_hash, .value = value, .count = count, .enabled = true };
 	wcsncpy(se->name, wname, sizeof se->name / sizeof * se->name - 1);
 	tvins.itemex.lParam = (LPARAM)se;
 

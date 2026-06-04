@@ -32,5 +32,6 @@ int save_info_get_current_brush_size(void);
 
 void save_info_cell_set_current(int x, int y);
 void save_info_cell_set_current_region(region_t region);
+void save_info_refresh_current_tree(void);
 
 element_t save_info_element_find(bool global, const char* query);

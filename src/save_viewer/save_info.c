@@ -594,6 +594,36 @@ void save_info_cell_set_current_region(region_t region)
 	debug_profiler_pop("Setting region");
 }
 
+static void save_info_refresh_topdown(HWND window, HTREEITEM item)
+{
+	if (!item)
+	{
+		return;
+	}
+	do
+	{
+		TVITEMEXW tvi = { .mask = TVIF_PARAM, .hItem = item };
+		TreeView_GetItem(window, &tvi);
+		if (tvi.lParam)
+		{
+			element_t elem = (element_t)tvi.lParam;
+			serialize_element_set_value(elem, serialize_element_get_value(elem));
+		}
+		item = TreeView_GetNextSibling(window, item);
+	} while (item);
+}
+
+void save_info_refresh_current_tree(void)
+{
+	HWND window = child_windows[CWI_SAVE_CURRENT_TREEVIEW];
+	HTREEITEM item = TreeView_GetRoot(window);
+	do
+	{
+		save_info_refresh_topdown(window, TreeView_GetChild(window, item));
+		item = TreeView_GetNextSibling(window, item);
+	} while (item);
+}
+
 element_t save_info_element_find(bool global, const char* query)
 {
 	if (global)

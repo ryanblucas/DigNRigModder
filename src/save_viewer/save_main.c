@@ -201,6 +201,7 @@ static void save_viewer_do_action(action_t* act)
 	action_buffer_reverse_block(save, act);
 	save_viewer_invalidate_region(act->sub.block.region);
 	screen_repaint();
+	save_info_refresh_current_tree();
 }
 
 static void save_viewer_handle_keyboard(virtual_key_t vk, keyboard_control_t ctrl)

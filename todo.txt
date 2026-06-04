@@ -1,3 +1,10 @@
+Part of the performance concerns are the main thread calling info box functions that, because 
+	they maybe call a TreeView_* macro, are synchronous and have to wait everytime each of those
+	functions are called. This should probably be changed to use the main->window communication.
+
+Win11's terminal does not support Dig-N-Rig or this modder at all. While you can change the terminal/console host
+	used in Win11, it'd be better to recreate a console implementation that doesn't have the same weaknesses.
+
 Tools
 	When pasting something, the result of that is immediately selected and allowed to be moved.
 		If the user chooses to move that object, it should be on a seperate layer

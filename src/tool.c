@@ -141,7 +141,7 @@ static tool_event_t tool_select_stop_move(tool_select_t tool)
 {
 	region_t src_region = region_validate(tool->selection);
 	region_t dest_region = tool_select_move_region(tool);
-	if (memcmp(&src_region, &dest_region, sizeof src_region) != 0)
+	if (!region_is_equal(src_region, dest_region))
 	{
 		/* maintain state of tool until next time state is affected so that it can be referenced in response to this function */
 		return EVENT_SELECTION_MOVE_STOP;

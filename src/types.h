@@ -102,6 +102,11 @@ extern inline int region_height(region_t region)
 	return abs(region.y1 - region.y0) + 1;
 }
 
+extern inline bool region_is_equal(region_t a, region_t b)
+{
+	return a.x0 == b.x0 && a.x1 == b.x1 && a.y0 == b.y0 && a.y1 == b.y1;
+}
+
 extern inline int region_size(region_t region)
 {
 	return region_width(region) * region_height(region);
@@ -126,8 +131,7 @@ extern inline region_t region_validate(region_t region)
 
 extern inline bool region_is_invalid(region_t region)
 {
-	region_t invalid = INVALID_REGION;
-	return region.x0 == invalid.x0 && region.y0 == invalid.y0 && region.x1 == invalid.x1 && region.y1 == invalid.y1;
+	return region_is_equal(region, INVALID_REGION);
 }
 
 extern inline bool region_is_inside(region_t region, int x, int y)

@@ -107,15 +107,17 @@ void tool_select_render(const tool_select_t tool, int scroll_x, int scroll_y)
 	screen_invert_region(screen_region);
 }
 
-static void tool_select_start_move(tool_select_t tool, int x, int y, int scroll_y)
+static void tool_select_start_move(tool_select_t tool, int x, int y, int scroll_x, int scroll_y)
 {
 	region_t correct = region_validate(tool->selection);
+	correct.x0 -= scroll_x;
+	correct.x1 -= scroll_x;
 	correct.y0 -= scroll_y;
 	correct.y1 -= scroll_y;
 	tool->hinge_x = x - correct.x0;
 	tool->hinge_y = y - correct.y0;
-	tool->move_x = x;
-	tool->move_y = y;
+	tool->move_x = x + scroll_x;
+	tool->move_y = y + scroll_y;
 
 	char* text = dig_malloc(region_size(tool->selection));
 	attribute_t* attributes = dig_malloc(region_size(tool->selection) * sizeof * attributes);
@@ -148,7 +150,7 @@ static tool_event_t tool_select_stop_move(tool_select_t tool)
 	return EVENT_SELECTION_MOVE_CANCEL;
 }
 
-tool_event_t tool_select_handle_mouse_move(tool_select_t tool, bool m1_down, int x, int y, int scroll_y)
+tool_event_t tool_select_handle_mouse_move(tool_select_t tool, bool m1_down, int x, int y, int scroll_x, int scroll_y)
 {
 	if (tool->last_event == EVENT_SELECTION_MOVE_STOP)
 	{
@@ -160,7 +162,7 @@ tool_event_t tool_select_handle_mouse_move(tool_select_t tool, bool m1_down, int
 		return tool->last_event = EVENT_NOTHING;
 	}
 
-	int new_selected_x = x;
+	int new_selected_x = x + scroll_x;
 	int new_selected_y = y + scroll_y;
 
 	if (tool->hinge_x >= 0 && tool->hinge_y >= 0)
@@ -182,7 +184,7 @@ tool_event_t tool_select_handle_mouse_move(tool_select_t tool, bool m1_down, int
 	return tool->last_event = EVENT_SELECTION_RESIZE;
 }
 
-tool_event_t tool_select_handle_mouse_click(tool_select_t tool, bool m1_down, int x, int y, int scroll_y)
+tool_event_t tool_select_handle_mouse_click(tool_select_t tool, bool m1_down, int x, int y, int scroll_x, int scroll_y)
 {
 	if (tool->last_event == EVENT_SELECTION_MOVE_STOP)
 	{
@@ -203,18 +205,18 @@ tool_event_t tool_select_handle_mouse_click(tool_select_t tool, bool m1_down, in
 		return tool->last_event;
 	}
 
-	if (!region_is_invalid(tool->selection) && region_is_inside(tool->selection, x, y + scroll_y))
+	if (!region_is_invalid(tool->selection) && region_is_inside(tool->selection, x + scroll_x, y + scroll_y))
 	{
-		tool_select_start_move(tool, x, y, scroll_y);
+		tool_select_start_move(tool, x, y, scroll_x, scroll_y);
 		return tool->last_event = EVENT_SELECTION_MOVE_START;
 	}
 
-	if (x < 0 || y < 0 || x >= region_width(tool->arena) || y >= region_height(tool->arena))
+	if (x + scroll_x < 0 || y + scroll_y < 0 || x + scroll_x >= region_width(tool->arena) || y + scroll_y >= region_height(tool->arena))
 	{
 		return tool->last_event = EVENT_NOTHING;
 	}
 
-	tool->selection.x0 = tool->selection.x1 = x;
+	tool->selection.x0 = tool->selection.x1 = x + scroll_x;
 	tool->selection.y0 = tool->selection.y1 = y + scroll_y;
 	tool->selection = region_keep_inside(tool->arena, tool->selection);
 	return tool->last_event = EVENT_SELECTION_RESIZE;

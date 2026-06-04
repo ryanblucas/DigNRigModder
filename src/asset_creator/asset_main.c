@@ -236,7 +236,7 @@ static void asset_handle_repaint(void)
 
 static void asset_select_handle_mouse_button(bool m1_down, int x, int y)
 {
-	tool_event_t event = tool_select_handle_mouse_click(tool_select, m1_down, x, y, 0);
+	tool_event_t event = tool_select_handle_mouse_click(tool_select, m1_down, x, y, -scroll_x, -scroll_y);
 	switch (event)
 	{
 	case EVENT_SELECTION_MOVE_STOP:
@@ -295,18 +295,19 @@ static void asset_brush_handle_mouse_move(tool_brush_t brush, bool m1_down, int 
 
 static void asset_handle_mouse_button(bool m1_down, int x, int y)
 {
+	info_tool_t current = asset_info_get_current_tool();
+	if (current == TOOL_SELECT)
+	{
+		asset_select_handle_mouse_button(m1_down, x, y);
+		return;
+	}
 	x -= scroll_x;
 	y -= scroll_y;
 	if (x >= asset.width || y >= asset.height || x < 0 || y < 0)
 	{
 		return;
 	}
-	info_tool_t current = asset_info_get_current_tool();
-	if (current == TOOL_SELECT)
-	{
-		asset_select_handle_mouse_button(m1_down, x, y);
-	}
-	else if (current == TOOL_BRUSH)
+	if (current == TOOL_BRUSH)
 	{
 		asset_brush_handle_mouse_button(tool_brush, m1_down, x, y);
 	}
@@ -318,19 +319,20 @@ static void asset_handle_mouse_button(bool m1_down, int x, int y)
 
 static void asset_handle_mouse_move(bool m1_down, int x, int y)
 {
+	info_tool_t current = asset_info_get_current_tool();
+	if (current == TOOL_SELECT)
+	{
+		tool_select_handle_mouse_move(tool_select, m1_down, x, y, -scroll_x, -scroll_y);
+		asset_invalidate();
+		return;
+	}
 	x -= scroll_x;
 	y -= scroll_y;
 	if (x >= asset.width || y >= asset.height || x < 0 || y < 0)
 	{
 		return;
 	}
-	info_tool_t current = asset_info_get_current_tool();
-	if (current == TOOL_SELECT)
-	{
-		tool_select_handle_mouse_move(tool_select, m1_down, x, y, 0);
-		asset_invalidate();
-	}
-	else if (current == TOOL_BRUSH)
+	if (current == TOOL_BRUSH)
 	{
 		asset_brush_handle_mouse_move(tool_brush, m1_down, x, y);
 	}

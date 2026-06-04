@@ -64,9 +64,9 @@ region_t tool_select_move_region(const tool_select_t tool);
 /* renders selection (invert what is selected or render what is being moved) */
 void tool_select_render(const tool_select_t tool, int scroll_x, int scroll_y);
 /* Handles a mouse movement for a selection tool */
-tool_event_t tool_select_handle_mouse_move(tool_select_t tool, bool m1_down, int x, int y, int scroll_y);
+tool_event_t tool_select_handle_mouse_move(tool_select_t tool, bool m1_down, int x, int y, int scroll_x, int scroll_y);
 /* Handles a mouse click for a selection tool */
-tool_event_t tool_select_handle_mouse_click(tool_select_t tool, bool m1_down, int x, int y, int scroll_y);
+tool_event_t tool_select_handle_mouse_click(tool_select_t tool, bool m1_down, int x, int y, int scroll_x, int scroll_y);
 
 /* creates a brush tool. Callback is called on each cell that is brushed over. 
    Each cell can be called on more than once. brush_type refers to what the

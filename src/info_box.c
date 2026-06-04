@@ -62,6 +62,11 @@ static void info_window_tree_control_proc(HWND hwnd, WPARAM wparam, LPARAM lpara
 			TreeView_GetItem(nmtv->hdr.hwndFrom, &tvi);
 			element_t element = (element_t)tvi.lParam;
 
+			if (!element)
+			{
+				return;
+			}
+
 			if (classes[current_mode].interact_tree_item 
 				&& !classes[current_mode].interact_tree_item(nmtv->hdr.hwndFrom == global_treeviews[current_mode], element))
 			{
@@ -80,7 +85,7 @@ static LRESULT info_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
 		handle_generic_t handler = (handle_generic_t)wparam;
 		const void* data = (const void*)lparam;
 		handler(data);
-		break;
+		return 0;
 	}
 	case WM_CREATE:
 	{
@@ -116,6 +121,39 @@ static LRESULT info_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
 			info_window_tree_control_proc(hwnd, wparam, lparam);
 		}
 		break;
+	}
+	case WM_KEYUP:
+	case WM_KEYDOWN:
+	case WM_SYSKEYUP:
+	case WM_SYSKEYDOWN:
+	{
+		INPUT_RECORD ir = { .EventType = KEY_EVENT };
+		ir.Event.KeyEvent = (KEY_EVENT_RECORD)
+		{
+			.bKeyDown = msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN,
+			.wVirtualKeyCode = (WORD)wparam,
+			.wRepeatCount = (WORD)(lparam & 0xFFFF),
+			.wVirtualScanCode = (WORD)((lparam >> 16) & 0xFF)
+		};
+
+		BYTE keyboard_state[256];
+		RUNTIME_ASSERT(GetKeyboardState(keyboard_state));
+		wchar_t ch[2] = { 0 };
+
+		ToUnicode((UINT)wparam, ir.Event.KeyEvent.wVirtualScanCode,
+			keyboard_state, ch, 2, 0);
+		ir.Event.KeyEvent.uChar.UnicodeChar = ch[0];
+
+		ir.Event.KeyEvent.dwControlKeyState |= (GetKeyState(VK_SHIFT) & 0x8000) ? SHIFT_PRESSED : 0;
+		ir.Event.KeyEvent.dwControlKeyState |= (GetKeyState(VK_CONTROL) & 0x8000) ? LEFT_CTRL_PRESSED : 0;
+		ir.Event.KeyEvent.dwControlKeyState |= (GetKeyState(VK_MENU) & 0x8000) ? LEFT_ALT_PRESSED : 0;
+		ir.Event.KeyEvent.dwControlKeyState |= (GetKeyState(VK_CAPITAL) & 0x0001) ? CAPSLOCK_ON : 0;
+		ir.Event.KeyEvent.dwControlKeyState |= (GetKeyState(VK_NUMLOCK) & 0x0001) ? NUMLOCK_ON : 0;
+		ir.Event.KeyEvent.dwControlKeyState |= (GetKeyState(VK_SCROLL) & 0x0001) ? SCROLLLOCK_ON : 0;
+
+		DWORD written;
+		RUNTIME_ASSERT(WriteConsoleInputW(GetStdHandle(STD_INPUT_HANDLE), &ir, 1, &written) && written == 1);
+		return 0;
 	}
 	case WM_SIZE:
 		SetWindowPos(tab_control, NULL, 0, 0, LOWORD(lparam), HIWORD(lparam), SWP_NOMOVE);

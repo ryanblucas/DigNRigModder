@@ -24,3 +24,5 @@ char* path_find_dnr_save(char* buf, size_t buf_size, int save);
 	Setting max at a negative number or 0 means the result will contain all directories found.
 	Max is set to the amount of strings returned. Returns NULL if no files are found in the directory. */
 char* path_enumerate_directory_create(const char* directory, int* max);
+
+bool path_exists(const char* directory);

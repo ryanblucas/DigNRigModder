@@ -329,7 +329,10 @@ bool file_editor_save(const editor_state_t* state)
 	fprintf(file, "#MaxEventsPerFrame\n%i\n", state->max_events_per_frame);
 	fprintf(file, "#SimulationFramerate\n%i\n", state->simulation_framerate);
 	fprintf(file, "#IsSmallConsole\n%i\n", !!state->is_small_console);
-	fprintf(file, "#CurrentAssetDirectory\n%s\n", state->current_asset_directory);
+	if (path_exists(state->current_asset_directory))
+	{
+		fprintf(file, "#CurrentAssetDirectory\n%s\n", state->current_asset_directory);
+	}
 	fprintf(file, "#AssetPalette\n");
 	for (int i = 0; i < sizeof state->asset_palette / sizeof * state->asset_palette; i++)
 	{

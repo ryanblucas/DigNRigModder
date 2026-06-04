@@ -84,3 +84,15 @@ char* path_enumerate_directory_create(const char* directory, int* max)
 	*max = abs(start - *max);
 	return result;
 }
+
+bool path_exists(const char* directory)
+{
+	FILE* f = fopen(directory, "r");
+	if (!f)
+	{
+		/* clear errno */
+		errno;
+		return false;
+	}
+	return true;
+}

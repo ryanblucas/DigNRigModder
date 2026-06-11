@@ -1,3 +1,9 @@
+/*
+    dllmain.c ~ RL
+*/
+
+#include "address.h"
+#include <stdio.h>
 #include <Windows.h>
 
 /* this is to resolve any linking issues with exports.def */
@@ -18,7 +24,14 @@ BOOL APIENTRY DllMain(HMODULE module, DWORD reason_for_call, LPVOID reserved)
     switch (reason_for_call)
     {
     case DLL_PROCESS_ATTACH:
+    {
+        address_initialize();
+        for (int i = 0; i < LAYER_COUNT; i++)
+        {
+            address_layer_filename_set(i, address_layer_filename_get(i));
+        }
         break;
+    }
     case DLL_THREAD_ATTACH:
     case DLL_THREAD_DETACH:
     case DLL_PROCESS_DETACH:

@@ -1,0 +1,12 @@
+LIBRARY "fmodex"
+EXPORTS
+    FMOD_System_Update=fmodex_orig.FMOD_System_Update
+    FMOD_System_Create=fmodex_orig.FMOD_System_Create
+    FMOD_System_GetVersion=fmodex_orig.FMOD_System_GetVersion
+    FMOD_System_Init=fmodex_orig.FMOD_System_Init
+    FMOD_Channel_SetVolume=fmodex_orig.FMOD_Channel_SetVolume
+    FMOD_Channel_Stop=fmodex_orig.FMOD_Channel_Stop
+    FMOD_Channel_GetVolume=fmodex_orig.FMOD_Channel_GetVolume
+    FMOD_System_PlaySound=fmodex_orig.FMOD_System_PlaySound
+    FMOD_System_CreateSound=fmodex_orig.FMOD_System_CreateSound
+    FMOD_Channel_IsPlaying=fmodex_orig.FMOD_Channel_IsPlaying

@@ -29,6 +29,7 @@ BOOL APIENTRY DllMain(HMODULE module, DWORD reason_for_call, LPVOID reserved)
         for (int i = 0; i < LAYER_COUNT; i++)
         {
             address_layer_filename_set(i, address_layer_filename_get(i));
+            address_layer_name_set(i, "Hello World");
         }
         break;
     }

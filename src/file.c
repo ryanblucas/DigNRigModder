@@ -720,3 +720,18 @@ cleanup:
 	fclose(file);
 	return result;
 }
+
+campaign_t* file_campaign_load(const char* directory)
+{
+
+}
+
+void file_campaign_unload(campaign_t* campaign)
+{
+
+}
+
+bool file_campaign_save(const char* directory, const campaign_t* campaign)
+{
+
+}

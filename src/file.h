@@ -410,6 +410,18 @@ typedef struct editor_state
 	asset_block_t asset_palette[8];
 } editor_state_t;
 
+typedef struct layer
+{
+	char* name;
+	char* directory;
+} layer_t;
+
+typedef struct campaign
+{
+	char* name;
+	layer_t layers[LAYER_COUNT];
+} campaign_t;
+
 bool file_editor_load(editor_state_t* state);
 bool file_editor_save(const editor_state_t* state);
 
@@ -420,3 +432,7 @@ bool file_asset_save(const char* directory, const asset_t* asset);
 dnr_state_t* file_state_load(const char* directory);
 void file_state_unload(dnr_state_t* save);
 bool file_state_save(const char* directory, const dnr_state_t* save);
+
+campaign_t* file_campaign_load(const char* directory);
+void file_campaign_unload(campaign_t* campaign);
+bool file_campaign_save(const char* directory, const campaign_t* campaign);

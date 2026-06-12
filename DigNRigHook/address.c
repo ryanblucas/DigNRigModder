@@ -9,7 +9,7 @@
 #include <stdint.h>
 #include <Windows.h>
 
-static bool initialized;
+static uintptr_t base_address;
 
 static uintptr_t text_layer_strings[LAYER_COUNT] =
 {
@@ -49,23 +49,17 @@ static uintptr_t text_layer_name_strings[LAYER_COUNT] =
 
 void address_initialize(void)
 {
-	if (initialized)
+	/* base_address can never be 0, so this removes a redundant variable */
+	if (base_address)
 	{
 		return;
 	}
-	uintptr_t base_address = (uintptr_t)GetModuleHandleA(NULL);
+	base_address = (uintptr_t)GetModuleHandleA(NULL);
 	for (int i = 0; i < LAYER_COUNT; i++)
 	{
 		text_layer_strings[i] += base_address;
 		text_layer_name_strings[i] += base_address;
 	}
-	initialized = true;
-}
-
-const char* address_layer_filename_get(int index)
-{
-	assert(index >= 0 && index < LAYER_COUNT);
-	return *(const char**)text_layer_strings[index];
 }
 
 static inline void address_text_set(uintptr_t addr, const void* value, size_t size)
@@ -74,6 +68,20 @@ static inline void address_text_set(uintptr_t addr, const void* value, size_t si
 	VirtualProtect(addr, size, PAGE_EXECUTE_READWRITE, &previous);
 	memcpy(addr, value, size);
 	VirtualProtect(addr, size, previous, &temp);
+}
+
+void address_change_call(uintptr_t addr, uintptr_t func)
+{
+	addr += base_address;
+	assert(*(uint8_t*)addr == 0xE8); /* relative call opcode */
+	func -= addr + 5; /* relative call opcode calls the function offset from the next instruction */
+	address_text_set(addr + 1, &func, sizeof func);
+}
+
+const char* address_layer_filename_get(int index)
+{
+	assert(index >= 0 && index < LAYER_COUNT);
+	return *(const char**)text_layer_strings[index];
 }
 
 void address_layer_filename_set(int index, const char* name)

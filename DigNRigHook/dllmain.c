@@ -21,22 +21,16 @@ void __stdcall FMOD_Channel_IsPlaying() {}
 
 BOOL APIENTRY DllMain(HMODULE module, DWORD reason_for_call, LPVOID reserved)
 {
-    switch (reason_for_call)
+    if (reason_for_call != DLL_PROCESS_ATTACH)
     {
-    case DLL_PROCESS_ATTACH:
+        return TRUE; /* return result doesn't actually matter under these circumstances */
+    }
+    address_initialize();
+    for (int i = 0; i < LAYER_COUNT; i++)
     {
-        address_initialize();
-        for (int i = 0; i < LAYER_COUNT; i++)
-        {
-            address_layer_filename_set(i, address_layer_filename_get(i));
-            address_layer_name_set(i, "Hello World");
-        }
-        break;
+        address_layer_filename_set(i, address_layer_filename_get(i));
+        address_layer_name_set(i, "Hello World");
     }
-    case DLL_THREAD_ATTACH:
-    case DLL_THREAD_DETACH:
-    case DLL_PROCESS_DETACH:
-        break;
-    }
+
     return TRUE;
 }

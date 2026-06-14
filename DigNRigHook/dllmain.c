@@ -24,7 +24,7 @@ void __stdcall FMOD_Channel_IsPlaying() {}
 
 static int __cdecl hook_win_check(void)
 {
-    dnr_player_t* player = ADDRESS_GET_CONSTANT(dnr_player_t, ADDRESS_PLAYER);
+    const dnr_player_t* player = ADDRESS_GET_CONSTANT(dnr_player_t, ADDRESS_PLAYER);
     /* original check for now */
     return 1392.0 < player->sprite.y && 142.0 < player->sprite.x;
 }
@@ -48,18 +48,18 @@ static void __declspec(naked) hook_win_check_code_cave(void)
     }
 }
 
-static void hook_start_rig(void)
-{
-    
-}
-
 static DWORD WINAPI hook_initialize(LPVOID param)
 {
     address_initialize();
-    address_text_inject_code_cave(ADDRESS_TEXT_CHECK_INSIDE_EXIT_BOX, (uintptr_t)hook_win_check_code_cave, 0x2E);
-    //address_text_change_call(ADDRESS_TEXT_GAME_MAKE_STARTING_RIG (uintptr_t)hook_start_rig);
-    //ADDRESS_ASSIGN_MEMORY(float, ADDRESS_START_X, 100.0F);
-    //ADDRESS_ASSIGN_MEMORY(float, ADDRESS_START_Y, 300.0F);
+    address_text_inject_code_cave(ADDRESS_TEXT_CHECK_INSIDE_EXIT_BOX, (uintptr_t)hook_win_check_code_cave, ADDRESS_TEXT_CHECK_INSIDE_EXIT_BOX_LENGTH);
+    
+    //address_text_inject_call(ADDRESS_TEXT_GAME_MAKE_STARTING_RIG, (uintptr_t)hook_start_rig);
+    
+    //ADDRESS_ASSIGN_MEMORY(float, ADDRESS_FLOAT_START_X, 100.0F);
+    //ADDRESS_ASSIGN_MEMORY(float, ADDRESS_FLOAT_START_Y, 300.0F);
+    
+    //address_text_set_nop(ADDRESS_TEXT_DRAW_FACTORY_ANIMATION_CALL, ADDRESS_TEXT_DRAW_FACTORY_ANIMATION_CALL_LENGTH);
+    //address_text_inject_call(ADDRESS_TEXT_DRAW_FACTORY_ANIMATION_CALL, (uintptr_t)hook_draw_factory_animation);
     return 0;
 }
 

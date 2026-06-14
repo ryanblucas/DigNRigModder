@@ -128,11 +128,20 @@ void address_text_inject_payload(uintptr_t addr, const void* payload, size_t len
 	FlushInstructionCache((HANDLE)base_address, addr, len);
 }
 
-void address_text_change_call(uintptr_t addr, uintptr_t func)
+void address_text_inject_call(uintptr_t addr, uintptr_t func)
 {
-	RUNTIME_ASSERT(*(uint8_t*)(addr + base_address) == 0xE8); /* relative call opcode */
-	func -= base_address + addr + 5; /* relative call opcode calls the function offset from the next instruction */
-	address_text_inject_payload(addr + 1, &func, sizeof func);
+	addr += base_address;
+	func -= addr + 5; /* relative call opcode calls the function offset from the next instruction */
+	DWORD previous, temp;
+	VirtualProtect(addr, 5, PAGE_EXECUTE_READWRITE, &previous);
+	memset(addr, 0xE8, 1);
+	memcpy(addr + 1, &func, 4);
+	VirtualProtect(addr, 5, previous, &temp);
+
+#pragma warning(push)
+#pragma warning(disable : 6385)
+	FlushInstructionCache((HANDLE)base_address, addr, 5);
+#pragma warning(pop)
 }
 
 void address_text_inject_code_cave(uintptr_t addr, uintptr_t func, size_t length)
@@ -151,6 +160,16 @@ void address_text_inject_code_cave(uintptr_t addr, uintptr_t func, size_t length
 
 	VirtualProtect(addr, length, previous, &temp);
 
+	FlushInstructionCache((HANDLE)base_address, addr, length);
+}
+
+void address_text_set_nop(uintptr_t addr, size_t length)
+{
+	addr += base_address;
+	DWORD previous, temp;
+	VirtualProtect(addr, length, PAGE_EXECUTE_READWRITE, &previous);
+	memset(addr, 0x90, length); /* NOP */
+	VirtualProtect(addr, length, previous, &temp);
 	FlushInstructionCache((HANDLE)base_address, addr, length);
 }
 

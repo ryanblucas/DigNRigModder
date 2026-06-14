@@ -7,13 +7,22 @@
 
 #include "file.h"
 
-#define ADDRESS_CALL_GAME_MAKE_STARTING_RIG	0x000045C4
-#define ADDRESS_CHECK_INSIDE_EXIT_BOX		0x0002F04A
+#define ADDRESS_TEXT_GAME_MAKE_STARTING_RIG	0x000045C4
+#define ADDRESS_TEXT_CHECK_INSIDE_EXIT_BOX	0x0002F04A
+
+#define ADDRESS_START_X						0x000520EC
+#define ADDRESS_START_Y						0x0005306C
+#define ADDRESS_PLAYER						0x0034B520
+
+#define ADDRESS_GET_CONSTANT(type, addr) ((const type*)(address_base_pointer() + (addr)))
+#define ADDRESS_ASSIGN_MEMORY(type, addr, value) (address_acquire_data(addr, sizeof(type)), *(type*)(address_base_pointer() + (addr)) = (value), address_release_data(addr))
 
 void address_initialize(void);
 
 uintptr_t __cdecl address_base_pointer(void);
-dnr_player_t* address_player(void);
+
+bool address_acquire_data(uintptr_t location, size_t size);
+void address_release_data(uintptr_t location);
 
 /* Injects payload at location. */
 void address_text_inject_payload(uintptr_t addr, const void* payload, size_t len);

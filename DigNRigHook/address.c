@@ -47,6 +47,14 @@ static uintptr_t text_layer_name_strings[LAYER_COUNT] =
 	0x0001833B, /* core */
 };
 
+static struct access
+{
+	DWORD previous_permissions;
+	uintptr_t location;
+	size_t size;
+	bool used;
+} access_table[32];
+
 void address_initialize(void)
 {
 	/* base_address can never be 0, so this removes a redundant variable to check for initialization */
@@ -61,9 +69,51 @@ uintptr_t __cdecl address_base_pointer(void)
 	return base_address;
 }
 
-dnr_player_t* address_player(void)
+static bool address_verify_access(uintptr_t location, size_t size)
 {
-	return (dnr_player_t*)(base_address + 0x0034B520);
+	for (int i = 0; i < sizeof access_table / sizeof * access_table; i++)
+	{
+		if (access_table[i].used 
+			&& (access_table[i].location < location && access_table[i].location + access_table[i].size > location)
+			|| (access_table[i].location < location + size && access_table[i].location + access_table[i].size > location + size))
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+bool address_acquire_data(uintptr_t location, size_t size)
+{
+	location += base_address;
+	RUNTIME_ASSERT(address_verify_access(location, size));
+	for (int i = 0; i < sizeof access_table / sizeof * access_table; i++)
+	{
+		if (!access_table[i].used)
+		{
+			VirtualProtect(location, size, PAGE_EXECUTE_READWRITE, &access_table[i].previous_permissions);
+			access_table[i].location = location;
+			access_table[i].size = size;
+			access_table[i].used = true;
+			return true;
+		}
+	}
+	return false;
+}
+
+void address_release_data(uintptr_t location)
+{
+	location += base_address;
+	for (int i = 0; i < sizeof access_table / sizeof * access_table; i++)
+	{
+		if (access_table[i].used && access_table[i].location == location)
+		{
+			DWORD temp;
+			VirtualProtect(location, access_table[i].size, access_table[i].previous_permissions, &temp);
+			access_table[i].used = false;
+			return;
+		}
+	}
 }
 
 void address_text_inject_payload(uintptr_t addr, const void* payload, size_t len)
@@ -80,14 +130,14 @@ void address_text_inject_payload(uintptr_t addr, const void* payload, size_t len
 
 void address_text_change_call(uintptr_t addr, uintptr_t func)
 {
-	assert(*(uint8_t*)(addr + base_address) == 0xE8); /* relative call opcode */
+	RUNTIME_ASSERT(*(uint8_t*)(addr + base_address) == 0xE8); /* relative call opcode */
 	func -= base_address + addr + 5; /* relative call opcode calls the function offset from the next instruction */
 	address_text_inject_payload(addr + 1, &func, sizeof func);
 }
 
 void address_text_inject_code_cave(uintptr_t addr, uintptr_t func, size_t length)
 {
-	assert(length >= 5);
+	RUNTIME_ASSERT(length >= 5);
 
 	addr += base_address;
 	func -= addr + 5; /* rel32 is the function offset from the next instruction */
@@ -106,24 +156,24 @@ void address_text_inject_code_cave(uintptr_t addr, uintptr_t func, size_t length
 
 const char* address_layer_filename_get(int index)
 {
-	assert(index >= 0 && index < LAYER_COUNT);
+	RUNTIME_ASSERT(index >= 0 && index < LAYER_COUNT);
 	return *(const char**)(base_address + text_layer_strings[index]);
 }
 
 void address_layer_filename_set(int index, const char* name)
 {
-	assert(index >= 0 && index < LAYER_COUNT);
+	RUNTIME_ASSERT(index >= 0 && index < LAYER_COUNT);
 	address_text_inject_payload(text_layer_strings[index], &name, sizeof name);
 }
 
 const char* address_layer_name_get(int index)
 {
-	assert(index >= 0 && index < LAYER_COUNT);
+	RUNTIME_ASSERT(index >= 0 && index < LAYER_COUNT);
 	return *(const char**)(base_address + text_layer_name_strings[index]);
 }
 
 void address_layer_name_set(int index, const char* name)
 {
-	assert(index >= 0 && index < LAYER_COUNT);
+	RUNTIME_ASSERT(index >= 0 && index < LAYER_COUNT);
 	address_text_inject_payload(text_layer_name_strings[index], &name, sizeof name);
 }

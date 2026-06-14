@@ -49,55 +49,81 @@ static uintptr_t text_layer_name_strings[LAYER_COUNT] =
 
 void address_initialize(void)
 {
-	/* base_address can never be 0, so this removes a redundant variable */
-	if (base_address)
+	/* base_address can never be 0, so this removes a redundant variable to check for initialization */
+	if (!base_address)
 	{
-		return;
-	}
-	base_address = (uintptr_t)GetModuleHandleA(NULL);
-	for (int i = 0; i < LAYER_COUNT; i++)
-	{
-		text_layer_strings[i] += base_address;
-		text_layer_name_strings[i] += base_address;
+		base_address = (uintptr_t)GetModuleHandleA(NULL);
 	}
 }
 
-static inline void address_text_set(uintptr_t addr, const void* value, size_t size)
+uintptr_t __cdecl address_base_pointer(void)
 {
-	DWORD previous, temp;
-	VirtualProtect(addr, size, PAGE_EXECUTE_READWRITE, &previous);
-	memcpy(addr, value, size);
-	VirtualProtect(addr, size, previous, &temp);
+	return base_address;
 }
 
-void address_change_call(uintptr_t addr, uintptr_t func)
+dnr_player_t* address_player(void)
+{
+	return (dnr_player_t*)(base_address + 0x0034B520);
+}
+
+void address_text_inject_payload(uintptr_t addr, const void* payload, size_t len)
 {
 	addr += base_address;
-	assert(*(uint8_t*)addr == 0xE8); /* relative call opcode */
-	func -= addr + 5; /* relative call opcode calls the function offset from the next instruction */
-	address_text_set(addr + 1, &func, sizeof func);
+
+	DWORD previous, temp;
+	VirtualProtect(addr, len, PAGE_EXECUTE_READWRITE, &previous);
+	memcpy(addr, payload, len);
+	VirtualProtect(addr, len, previous, &temp);
+
+	FlushInstructionCache((HANDLE)base_address, addr, len);
+}
+
+void address_text_change_call(uintptr_t addr, uintptr_t func)
+{
+	assert(*(uint8_t*)(addr + base_address) == 0xE8); /* relative call opcode */
+	func -= base_address + addr + 5; /* relative call opcode calls the function offset from the next instruction */
+	address_text_inject_payload(addr + 1, &func, sizeof func);
+}
+
+void address_text_inject_code_cave(uintptr_t addr, uintptr_t func, size_t length)
+{
+	assert(length >= 5);
+
+	addr += base_address;
+	func -= addr + 5; /* rel32 is the function offset from the next instruction */
+
+	DWORD previous, temp;
+	VirtualProtect(addr, length, PAGE_EXECUTE_READWRITE, &previous);
+
+	memset(addr, 0x90, length); /* NOP */
+	memset(addr, 0xE9, 1); /* JMP rel32 */
+	memcpy(addr + 1, &func, sizeof func); /* sets rel32 */
+
+	VirtualProtect(addr, length, previous, &temp);
+
+	FlushInstructionCache((HANDLE)base_address, addr, length);
 }
 
 const char* address_layer_filename_get(int index)
 {
 	assert(index >= 0 && index < LAYER_COUNT);
-	return *(const char**)text_layer_strings[index];
+	return *(const char**)(base_address + text_layer_strings[index]);
 }
 
 void address_layer_filename_set(int index, const char* name)
 {
 	assert(index >= 0 && index < LAYER_COUNT);
-	address_text_set(text_layer_strings[index], &name, sizeof name);
+	address_text_inject_payload(text_layer_strings[index], &name, sizeof name);
 }
 
 const char* address_layer_name_get(int index)
 {
 	assert(index >= 0 && index < LAYER_COUNT);
-	return *(const char**)text_layer_name_strings[index];
+	return *(const char**)(base_address + text_layer_name_strings[index]);
 }
 
 void address_layer_name_set(int index, const char* name)
 {
 	assert(index >= 0 && index < LAYER_COUNT);
-	address_text_set(text_layer_name_strings[index], &name, sizeof name);
+	address_text_inject_payload(text_layer_name_strings[index], &name, sizeof name);
 }

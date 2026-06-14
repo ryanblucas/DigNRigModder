@@ -419,6 +419,8 @@ typedef struct layer
 typedef struct campaign
 {
 	char* name;
+	int start_x, start_y;
+	region_t end_box;
 	layer_t layers[LAYER_COUNT];
 } campaign_t;
 

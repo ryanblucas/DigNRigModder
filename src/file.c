@@ -10,10 +10,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "string_builder.h"
 
 #define DATA_STRING_MAX_SIZE 272
 
-#define _UNEXPECTED_TOKEN_MESSAGE(file, tok, etype) debug_format("(%s, %i) Unexpected token %i, expected %i at line %i, col %i\n", directory, __LINE__, tok.type, etype, (file)->line, (file)->col);
+#define _UNEXPECTED_TOKEN_MESSAGE(file, tok, etype) debug_format("(%s, %i) Unexpected token %s, expected %s at line %i, col %i\n", directory, __LINE__, file_convert_token_type_to_string(tok.type), file_convert_token_type_to_string(etype), (file)->line, (file)->col);
 #define MATCH_AND_ADVANCE_TOKEN(file, tok, etype) if (tok.type != (etype)) { _UNEXPECTED_TOKEN_MESSAGE(file, tok, etype); goto cleanup; } else { file_next(file, &tok); }
 #define MATCH_TOKEN(file, tok, etype) if (tok.type != (etype)) { _UNEXPECTED_TOKEN_MESSAGE(file, tok, etype); goto cleanup; }
 #define ENSURE_CONDITION(file, cond) if (!(cond)) { debug_format("(%i) Failed condition " #cond " at line %i, col %i\n", __LINE__, (file)->line, (file)->col); goto cleanup; }
@@ -46,6 +47,27 @@ struct token
 		float decimal;
 	} data;
 };
+
+static inline const char* file_convert_token_type_to_string(enum token_type type)
+{
+	switch (type)
+	{
+	case TOKEN_HASHTAG:
+		return "hashtag";
+	case TOKEN_NEWLINE:
+		return "newline";
+	case TOKEN_EOF:
+		return "eof";
+	case TOKEN_STRING:
+		return "string";
+	case TOKEN_INTEGER:
+		return "integer";
+	case TOKEN_DECIMAL:
+		return "decimal";
+	default:
+		return NULL;
+	}
+}
 
 static inline int file_fpeek(struct file* file)
 {
@@ -189,6 +211,43 @@ static void file_serialize_and_print_token(struct token* token)
 	}
 }
 
+static bool file_asset_parse_attribute_single(const char* directory, struct file* file, struct token* pcurr, int* out)
+{
+	struct token curr = *pcurr;
+	bool result = false;
+	file_next(file, &curr);
+	MATCH_AND_ADVANCE_TOKEN(file, curr, TOKEN_NEWLINE);
+	*out = curr.data.integer;
+	MATCH_AND_ADVANCE_TOKEN(file, curr, TOKEN_INTEGER);
+	result = true;
+cleanup:
+	*pcurr = curr;
+	return result;
+}
+
+static bool file_asset_parse_attribute_array(const char* directory, struct file* file, struct token* pcurr, asset_t* res, size_t offset)
+{
+	struct token curr = *pcurr;
+	bool result = false;
+	file_next(file, &curr);
+	MATCH_AND_ADVANCE_TOKEN(file, curr, TOKEN_NEWLINE);
+	ENSURE_CONDITION(file, res->width != 0 && res->height != 0 && res->blocks);
+	for (int y = 0; y < res->height; y++)
+	{
+		MATCH_TOKEN(file, curr, TOKEN_INTEGER);
+		for (int x = 0; x < res->width; x++)
+		{
+			*(int*)((uint8_t*)(res->blocks + y * res->width + x) + offset) = curr.data.integer;
+			MATCH_AND_ADVANCE_TOKEN(file, curr, TOKEN_INTEGER);
+		}
+		MATCH_AND_ADVANCE_TOKEN(file, curr, TOKEN_NEWLINE);
+	}
+	result = true;
+cleanup:
+	*pcurr = curr;
+	return result;
+}
+
 bool file_editor_load(editor_state_t* state)
 {
 	struct file file = { 0 };
@@ -212,35 +271,19 @@ bool file_editor_load(editor_state_t* state)
 		MATCH_TOKEN(&file, curr, TOKEN_STRING);
 		if (strncmp(curr.data.str, "CurrentSave", DATA_STRING_MAX_SIZE) == 0)
 		{
-			file_next(&file, &curr);
-			MATCH_AND_ADVANCE_TOKEN(&file, curr, TOKEN_NEWLINE);
-			MATCH_TOKEN(&file, curr, TOKEN_INTEGER);
-			state->current_save = curr.data.integer;
-			file_next(&file, &curr);
+			ENSURE_CONDITION(&file, file_asset_parse_attribute_single(directory, &file, &curr, &state->current_save));
 		}
 		else if (strncmp(curr.data.str, "MaxEventsPerFrame", DATA_STRING_MAX_SIZE) == 0)
 		{
-			file_next(&file, &curr);
-			MATCH_AND_ADVANCE_TOKEN(&file, curr, TOKEN_NEWLINE);
-			MATCH_TOKEN(&file, curr, TOKEN_INTEGER);
-			state->max_events_per_frame = curr.data.integer;
-			file_next(&file, &curr);
+			ENSURE_CONDITION(&file, file_asset_parse_attribute_single(directory, &file, &curr, &state->max_events_per_frame));
 		}
 		else if (strncmp(curr.data.str, "SimulationFramerate", DATA_STRING_MAX_SIZE) == 0)
 		{
-			file_next(&file, &curr);
-			MATCH_AND_ADVANCE_TOKEN(&file, curr, TOKEN_NEWLINE);
-			MATCH_TOKEN(&file, curr, TOKEN_INTEGER);
-			state->simulation_framerate = curr.data.integer;
-			file_next(&file, &curr);
+			ENSURE_CONDITION(&file, file_asset_parse_attribute_single(directory, &file, &curr, &state->simulation_framerate));
 		}
 		else if (strncmp(curr.data.str, "IsSmallConsole", DATA_STRING_MAX_SIZE) == 0)
 		{
-			file_next(&file, &curr);
-			MATCH_AND_ADVANCE_TOKEN(&file, curr, TOKEN_NEWLINE);
-			MATCH_TOKEN(&file, curr, TOKEN_INTEGER);
-			state->is_small_console = (boolean32_t)curr.data.integer;
-			file_next(&file, &curr);
+			ENSURE_CONDITION(&file, file_asset_parse_attribute_single(directory, &file, &curr, (int*)&state->is_small_console));
 		}
 		else if (strncmp(curr.data.str, "CurrentMode", DATA_STRING_MAX_SIZE) == 0)
 		{
@@ -342,43 +385,6 @@ bool file_editor_save(const editor_state_t* state)
 	fclose(file);
 	debug_format("Finished saving file\n");
 	return true;
-}
-
-static bool file_asset_parse_attribute_single(const char* directory, struct file* file, struct token* pcurr, int* out)
-{
-	struct token curr = *pcurr;
-	bool result = false;
-	file_next(file, &curr);
-	MATCH_AND_ADVANCE_TOKEN(file, curr, TOKEN_NEWLINE);
-	*out = curr.data.integer;
-	MATCH_AND_ADVANCE_TOKEN(file, curr, TOKEN_INTEGER);
-	result = true;
-cleanup:
-	*pcurr = curr;
-	return result;
-}
-
-static bool file_asset_parse_attribute_array(const char* directory, struct file* file, struct token* pcurr, asset_t* res, size_t offset)
-{
-	struct token curr = *pcurr;
-	bool result = false;
-	file_next(file, &curr);
-	MATCH_AND_ADVANCE_TOKEN(file, curr, TOKEN_NEWLINE);
-	ENSURE_CONDITION(file, res->width != 0 && res->height != 0 && res->blocks);
-	for (int y = 0; y < res->height; y++)
-	{
-		MATCH_TOKEN(file, curr, TOKEN_INTEGER);
-		for (int x = 0; x < res->width; x++)
-		{
-			*(int*)((uint8_t*)(res->blocks + y * res->width + x) + offset) = curr.data.integer;
-			MATCH_AND_ADVANCE_TOKEN(file, curr, TOKEN_INTEGER);
-		}
-		MATCH_AND_ADVANCE_TOKEN(file, curr, TOKEN_NEWLINE);
-	}
-	result = true;
-cleanup:
-	*pcurr = curr;
-	return result;
 }
 
 static inline void file_asset_layer_color_correct(asset_t* res)
@@ -561,6 +567,115 @@ cleanup:
 	return result;
 }
 
+campaign_t* file_campaign_load(const char* directory)
+{
+	struct file file = { 0 };
+	file.handle = fopen(directory, "r");
+	if (!file.handle)
+	{
+		return NULL;
+	}
+
+	string_builder_t* builder = string_builder_create(512);
+	campaign_t* result = dig_malloc(sizeof * result + sizeof builder);
+	*(string_builder_t**)(result + 1) = builder;
+	int layer_count = 0;
+
+	struct token curr;
+	file_next(&file, &curr);
+	while (curr.type != TOKEN_EOF)
+	{
+		MATCH_AND_ADVANCE_TOKEN(&file, curr, TOKEN_HASHTAG);
+		MATCH_TOKEN(&file, curr, TOKEN_STRING);
+		if (strncmp(curr.data.str, "Title", DATA_STRING_MAX_SIZE) == 0)
+		{
+			file_next(&file, &curr);
+			MATCH_AND_ADVANCE_TOKEN(&file, curr, TOKEN_NEWLINE);
+			MATCH_TOKEN(&file, curr, TOKEN_STRING);
+			result->name = (char*)string_builder_add(builder, curr.data.str);
+			file_next(&file, &curr);
+		}
+		else if (strncmp(curr.data.str, "StartX", DATA_STRING_MAX_SIZE) == 0)
+		{
+			ENSURE_CONDITION(&file, file_asset_parse_attribute_single(directory, &file, &curr, &result->start_x));
+		}
+		else if (strncmp(curr.data.str, "StartY", DATA_STRING_MAX_SIZE) == 0)
+		{
+			ENSURE_CONDITION(&file, file_asset_parse_attribute_single(directory, &file, &curr, &result->start_y));
+		}
+		else if (strncmp(curr.data.str, "EndBox", DATA_STRING_MAX_SIZE) == 0)
+		{
+			file_next(&file, &curr);
+			MATCH_AND_ADVANCE_TOKEN(&file, curr, TOKEN_NEWLINE);
+			result->end_box.x0 = curr.data.integer;
+			MATCH_AND_ADVANCE_TOKEN(&file, curr, TOKEN_INTEGER);
+			result->end_box.y0 = curr.data.integer;
+			MATCH_AND_ADVANCE_TOKEN(&file, curr, TOKEN_INTEGER);
+			result->end_box.x1 = curr.data.integer;
+			MATCH_AND_ADVANCE_TOKEN(&file, curr, TOKEN_INTEGER);
+			result->end_box.y1 = curr.data.integer;
+			MATCH_AND_ADVANCE_TOKEN(&file, curr, TOKEN_INTEGER);
+		}
+		else if (strncmp(curr.data.str, "Layers", DATA_STRING_MAX_SIZE) == 0)
+		{
+			file_next(&file, &curr);
+			MATCH_AND_ADVANCE_TOKEN(&file, curr, TOKEN_NEWLINE);
+			for (; curr.type != TOKEN_EOF && curr.type != TOKEN_HASHTAG; layer_count++)
+			{
+				ENSURE_CONDITION(&file, layer_count < 14);
+
+				MATCH_TOKEN(&file, curr, TOKEN_STRING);
+				result->layers[layer_count].name = (char*)string_builder_add(builder, curr.data.str);
+				MATCH_AND_ADVANCE_TOKEN(&file, curr, TOKEN_STRING);
+				MATCH_AND_ADVANCE_TOKEN(&file, curr, TOKEN_NEWLINE);
+
+				MATCH_TOKEN(&file, curr, TOKEN_STRING);
+				result->layers[layer_count].directory = (char*)string_builder_add(builder, curr.data.str);
+				MATCH_AND_ADVANCE_TOKEN(&file, curr, TOKEN_STRING);
+				while (curr.type == TOKEN_NEWLINE)
+				{
+					file_next(&file, &curr);
+				}
+			}
+		}
+		while (curr.type == TOKEN_NEWLINE)
+		{
+			file_next(&file, &curr);
+		}
+	}
+	fclose(file.handle);
+	result->name += (size_t)builder->buf;
+	for (int i = 0; i < layer_count; i++)
+	{
+		result->layers[i].name += (size_t)builder->buf;
+		result->layers[i].directory += (size_t)builder->buf;
+	}
+	for (int i = layer_count; i < 14; i++)
+	{
+		result->layers[i].name = "Blank";
+		result->layers[i].directory = "blank.layer";
+	}
+	return result;
+cleanup:
+	fclose(file.handle);
+	file_campaign_unload(result);
+	return NULL;
+}
+
+void file_campaign_unload(campaign_t* campaign)
+{
+	if (campaign)
+	{
+		string_builder_destroy(*(string_builder_t**)(campaign + 1));
+		free(campaign);
+	}
+}
+
+bool file_campaign_save(const char* directory, const campaign_t* campaign)
+{
+
+}
+
 static void file_state_load_shop_item(const uint32_t* arena, shop_item_t* item, int index)
 {
 	item->discovered = arena[index];
@@ -719,19 +834,4 @@ bool file_state_save(const char* directory, const dnr_state_t* save)
 cleanup:
 	fclose(file);
 	return result;
-}
-
-campaign_t* file_campaign_load(const char* directory)
-{
-
-}
-
-void file_campaign_unload(campaign_t* campaign)
-{
-
-}
-
-bool file_campaign_save(const char* directory, const campaign_t* campaign)
-{
-
 }

@@ -75,6 +75,9 @@
     <ClCompile Include="src\event_queue.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\string_builder.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\types.h">
@@ -138,6 +141,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\event_queue.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\string_builder.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -166,6 +166,7 @@
     <ClCompile Include="..\src\game.c" />
     <ClCompile Include="..\src\path.c" />
     <ClCompile Include="..\src\screen.c" />
+    <ClCompile Include="..\src\string_builder.c" />
     <ClCompile Include="address.c" />
     <ClCompile Include="dllmain.c" />
   </ItemGroup>
@@ -178,6 +179,7 @@
     <ClInclude Include="..\src\game.h" />
     <ClInclude Include="..\src\path.h" />
     <ClInclude Include="..\src\screen.h" />
+    <ClInclude Include="..\src\string_builder.h" />
     <ClInclude Include="address.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

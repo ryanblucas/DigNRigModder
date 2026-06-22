@@ -101,9 +101,15 @@ void* address_acquire_data(uintptr_t location, size_t size)
 	return NULL;
 }
 
-void address_release_data(uintptr_t location)
+void* address_acquire_ptr(uintptr_t location, size_t size)
 {
-	location += base_address;
+	uintptr_t ptr = *ADDRESS_GET_CONSTANT(uintptr_t, location);
+	return address_acquire_data(ptr - base_address, size);
+}
+
+void address_release_data(void* ptr)
+{
+	uintptr_t location = (uintptr_t)ptr;
 	for (int i = 0; i < sizeof access_table / sizeof * access_table; i++)
 	{
 		if (access_table[i].used && access_table[i].location == location)

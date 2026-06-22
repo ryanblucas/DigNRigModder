@@ -19,8 +19,6 @@ void __stdcall FMOD_System_PlaySound() {}
 void __stdcall FMOD_System_CreateSound() {}
 void __stdcall FMOD_Channel_IsPlaying() {}
 
-static void __cdecl hook_profile_render(int x, int y);
-
 /* The condition that checks whether the player won or not only checks if their x and y
    are greater than two values, meaning the check is not a rectangle. This changes that. */
 
@@ -62,8 +60,7 @@ struct profile
 
 static void __cdecl hook_profile_render(int num, struct profile* profile, int x, int y)
 {
-	CHAR_INFO* screen_data = *ADDRESS_GET_CONSTANT(CHAR_INFO*, ADDRESS_PTR_SCREEN_DATA);
-	address_acquire_data(screen_data - address_base_pointer(), sizeof * screen_data * TARGET_WIDTH * TARGET_HEIGHT);
+	CHAR_INFO* screen_data = address_acquire_ptr(ADDRESS_PTR_SCREEN_DATA, sizeof * screen_data * TARGET_WIDTH * TARGET_HEIGHT);
 
 	char msg[64];
 	snprintf(msg, sizeof msg, "prof %i", num);
@@ -73,44 +70,43 @@ static void __cdecl hook_profile_render(int num, struct profile* profile, int x,
 		screen_data[(y + 1) * TARGET_WIDTH + x + i].Char.AsciiChar = msg[i];
 	}
 
-	address_release_data(screen_data - address_base_pointer());
+	address_release_data(screen_data);
 }
 
 static void __declspec(naked) hook_profile_render_code_cave(void)
 {
 	__asm
 	{
-		push eax
 		call address_base_pointer
-		mov esi, eax
-		pop eax
+		add ecx, dword ptr[eax + 0x053A80] /* replicate overwritten behavior */
 
+		push eax /* preserve state */
+		push edx /* preserve state */
 		push ecx /* y reg */
-		push edx /* x reg */
+		push ebx /* x reg */
 
 		/* profile pointer */
-		mov ecx, dword ptr[esp + 0x20]
+		mov ecx, dword ptr[esp + 0x28]
 		sub ecx, 0x0C
 		push ecx
 
 		/* calculate profile index */
-		mov ecx, dword ptr[esp + 0x20]
-		sub ecx, esi
+		mov ecx, dword ptr[esp + 0x28]
+		sub ecx, eax
 		sub ecx, 0x34A4CC
 		shr ecx, 2
 		push ecx
 
 		call hook_profile_render
 		add esp, 0x8
-		pop edx
+		pop ebx
 		pop ecx
 
-		lea eax, [esp + 0x3C] /* replicate overwritten behavior */
-		add esi, ADDRESS_TEXT_RENDER_PROFILE_INFO_RETURN_BASE
-		jns jump_to
-		add esi, ADDRESS_TEXT_RENDER_PROFILE_INFO_RETURN_JS_OFFSET
-	jump_to:
-		jmp esi
+		pop edx
+		pop eax
+
+		add eax, ADDRESS_TEXT_RENDER_PROFILE_INFO_RETURN
+		jmp eax
 	}
 }
 

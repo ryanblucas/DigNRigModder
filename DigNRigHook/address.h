@@ -8,10 +8,9 @@
 #define REMOVE_STATE_SIZE_CHECK
 #include "file.h"
 
-#define ADDRESS_TEXT_RENDER_PROFILE_INFO			0x00024FC8
+#define ADDRESS_TEXT_RENDER_PROFILE_INFO			0x00024FB7
 #define ADDRESS_TEXT_RENDER_PROFILE_INFO_LENGTH		0x06
-#define ADDRESS_TEXT_RENDER_PROFILE_INFO_RETURN_BASE 0x00024FCE
-#define ADDRESS_TEXT_RENDER_PROFILE_INFO_RETURN_JS_OFFSET 0x58
+#define ADDRESS_TEXT_RENDER_PROFILE_INFO_RETURN		0x00024FBD
 
 #define ADDRESS_TEXT_GAME_MAKE_STARTING_RIG			0x000045C4
 #define ADDRESS_TEXT_CHECK_INSIDE_EXIT_BOX			0x0002F04A
@@ -26,14 +25,17 @@
 #define ADDRESS_INT_SCREEN_DEPTH 0x0065E3E0
 
 #define ADDRESS_GET_CONSTANT(type, addr) ((const type*)(address_base_pointer() + (addr)))
-#define ADDRESS_ASSIGN_MEMORY(type, addr, value) (address_acquire_data(addr, sizeof(type)), *(type*)(address_base_pointer() + (addr)) = (value), address_release_data(addr))
 
 void address_initialize(void);
 
 uintptr_t __cdecl address_base_pointer(void);
 
+/* Acquires data from offset+location of size "size." This is necessary to write over data from Dig-N-Rig's executing space. Otherwise, use ADDRESS_GET_CONSTANT. */
 void* address_acquire_data(uintptr_t location, size_t size);
-void address_release_data(uintptr_t location);
+/* Acquires the data pointed to from offset+location of size "size." */
+void* address_acquire_ptr(uintptr_t location, size_t size);
+/* Releases ptr returned from address_acquire_* */
+void address_release_data(void* ptr);
 
 /* Injects payload at location. */
 void address_text_inject_payload(uintptr_t addr, const void* payload, size_t len);

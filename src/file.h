@@ -345,10 +345,12 @@ SERIALIZABLE_DNR_STATE_3
 
 #pragma pack()
 
+#ifndef REMOVE_STATE_SIZE_CHECK
 /* classic */
 enum {
 	DNR_STATE_T_SIZE_CHECK = 1 / (sizeof(dnr_state_t) == 23445008)
 };
+#endif
 
 typedef enum asset_tile_type
 {

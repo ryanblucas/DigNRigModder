@@ -1,5 +1,5 @@
 /*
-    dllmain.c ~ RL
+	dllmain.c ~ RL
 */
 
 #include "address.h"
@@ -19,57 +19,124 @@ void __stdcall FMOD_System_PlaySound() {}
 void __stdcall FMOD_System_CreateSound() {}
 void __stdcall FMOD_Channel_IsPlaying() {}
 
+static void __cdecl hook_profile_render(int x, int y);
+
 /* The condition that checks whether the player won or not only checks if their x and y
    are greater than two values, meaning the check is not a rectangle. This changes that. */
 
 static int __cdecl hook_win_check(void)
 {
-    const dnr_player_t* player = ADDRESS_GET_CONSTANT(dnr_player_t, ADDRESS_PLAYER);
-    /* original check for now */
-    return 1392.0 < player->sprite.y && 142.0 < player->sprite.x;
+	const dnr_player_t* player = ADDRESS_GET_CONSTANT(dnr_player_t, ADDRESS_PLAYER);
+	/* original check for now */
+	return 1392.0 < player->sprite.y && 142.0 < player->sprite.x;
 }
 
 static void __declspec(naked) hook_win_check_code_cave(void)
 {
-    __asm
-    {
-        /* both registers EAX and EDX are assigned before they are accessed in the function this code cave is in */
+	__asm
+	{
+		/* both registers EAX and EDX are assigned before they are accessed in the function this code cave is in */
 
-        call address_base_pointer
-        mov edx, eax
-        add edx, 0x2F078
+		call address_base_pointer
+		mov edx, eax
+		add edx, 0x2F078
 
-        call hook_win_check
-        test eax, eax
-        jnz jump_to
-        add edx, 0xEF
-    jump_to:
-        jmp edx
-    }
+		call hook_win_check
+		test eax, eax
+		jnz jump_to
+		add edx, 0xEF
+	jump_to:
+		jmp edx
+	}
+}
+
+struct profile
+{
+	bool exists;
+	int diggit_version;
+	int current_layer;
+	int seconds_spent;
+	double completion_percent;
+	int times_won;
+};
+
+static void __cdecl hook_profile_render(int num, struct profile* profile, int x, int y)
+{
+	CHAR_INFO* screen_data = *ADDRESS_GET_CONSTANT(CHAR_INFO*, ADDRESS_PTR_SCREEN_DATA);
+	address_acquire_data(screen_data - address_base_pointer(), sizeof * screen_data * TARGET_WIDTH * TARGET_HEIGHT);
+
+	char msg[64];
+	snprintf(msg, sizeof msg, "prof %i", num);
+	for (int i = 0; msg[i] != '\0'; i++)
+	{
+		screen_data[(y + 1) * TARGET_WIDTH + x + i].Attributes = CREATE_ATTRIBUTE(LIGHT_WHITE, DARK_BLACK);
+		screen_data[(y + 1) * TARGET_WIDTH + x + i].Char.AsciiChar = msg[i];
+	}
+
+	address_release_data(screen_data - address_base_pointer());
+}
+
+static void __declspec(naked) hook_profile_render_code_cave(void)
+{
+	__asm
+	{
+		push eax
+		call address_base_pointer
+		mov esi, eax
+		pop eax
+
+		push ecx /* y reg */
+		push edx /* x reg */
+
+		/* profile pointer */
+		mov ecx, dword ptr[esp + 0x20]
+		sub ecx, 0x0C
+		push ecx
+
+		/* calculate profile index */
+		mov ecx, dword ptr[esp + 0x20]
+		sub ecx, esi
+		sub ecx, 0x34A4CC
+		shr ecx, 2
+		push ecx
+
+		call hook_profile_render
+		add esp, 0x8
+		pop edx
+		pop ecx
+
+		lea eax, [esp + 0x3C] /* replicate overwritten behavior */
+		add esi, ADDRESS_TEXT_RENDER_PROFILE_INFO_RETURN_BASE
+		jns jump_to
+		add esi, ADDRESS_TEXT_RENDER_PROFILE_INFO_RETURN_JS_OFFSET
+	jump_to:
+		jmp esi
+	}
 }
 
 static DWORD WINAPI hook_initialize(LPVOID param)
 {
-    address_initialize();
-    address_text_inject_code_cave(ADDRESS_TEXT_CHECK_INSIDE_EXIT_BOX, (uintptr_t)hook_win_check_code_cave, ADDRESS_TEXT_CHECK_INSIDE_EXIT_BOX_LENGTH);
-    
-    //address_text_inject_call(ADDRESS_TEXT_GAME_MAKE_STARTING_RIG, (uintptr_t)hook_start_rig);
-    
-    //ADDRESS_ASSIGN_MEMORY(float, ADDRESS_FLOAT_START_X, 100.0F);
-    //ADDRESS_ASSIGN_MEMORY(float, ADDRESS_FLOAT_START_Y, 300.0F);
-    
-    //address_text_set_nop(ADDRESS_TEXT_DRAW_FACTORY_ANIMATION_CALL, ADDRESS_TEXT_DRAW_FACTORY_ANIMATION_CALL_LENGTH);
-    //address_text_inject_call(ADDRESS_TEXT_DRAW_FACTORY_ANIMATION_CALL, (uintptr_t)hook_draw_factory_animation);
-    return 0;
+	address_initialize();
+	address_text_inject_code_cave(ADDRESS_TEXT_CHECK_INSIDE_EXIT_BOX, (uintptr_t)hook_win_check_code_cave, ADDRESS_TEXT_CHECK_INSIDE_EXIT_BOX_LENGTH);
+	address_text_inject_code_cave(ADDRESS_TEXT_RENDER_PROFILE_INFO, (uintptr_t)hook_profile_render_code_cave, ADDRESS_TEXT_RENDER_PROFILE_INFO_LENGTH);
+
+	//address_text_inject_call(ADDRESS_TEXT_GAME_MAKE_STARTING_RIG, (uintptr_t)hook_start_rig);
+	
+	//ADDRESS_ASSIGN_MEMORY(float, ADDRESS_FLOAT_START_X, 100.0F);
+	//ADDRESS_ASSIGN_MEMORY(float, ADDRESS_FLOAT_START_Y, 300.0F);
+	
+	//address_text_set_nop(ADDRESS_TEXT_DRAW_FACTORY_ANIMATION_CALL, ADDRESS_TEXT_DRAW_FACTORY_ANIMATION_CALL_LENGTH);
+	//address_text_inject_call(ADDRESS_TEXT_DRAW_FACTORY_ANIMATION_CALL, (uintptr_t)hook_draw_factory_animation);
+	return 0;
 }
 
 BOOL APIENTRY DllMain(HMODULE module, DWORD reason_for_call, LPVOID reserved)
 {
-    if (reason_for_call != DLL_PROCESS_ATTACH)
-    {
-        return TRUE; /* return result doesn't actually matter under these circumstances */
-    }
-    /* prevents deadlocking loader */
-    CreateThread(NULL, 0, hook_initialize, NULL, 0, NULL);
-    return TRUE;
+	if (reason_for_call != DLL_PROCESS_ATTACH)
+	{
+		return TRUE; /* return result doesn't actually matter under these circumstances */
+	}
+	/* prevents deadlocking loader */
+	CreateThread(NULL, 0, hook_initialize, NULL, 0, NULL);
+	return TRUE;
 }

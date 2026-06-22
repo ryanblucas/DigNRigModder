@@ -83,7 +83,7 @@ static bool address_verify_access(uintptr_t location, size_t size)
 	return true;
 }
 
-bool address_acquire_data(uintptr_t location, size_t size)
+void* address_acquire_data(uintptr_t location, size_t size)
 {
 	location += base_address;
 	RUNTIME_ASSERT(address_verify_access(location, size));
@@ -91,14 +91,14 @@ bool address_acquire_data(uintptr_t location, size_t size)
 	{
 		if (!access_table[i].used)
 		{
-			VirtualProtect(location, size, PAGE_EXECUTE_READWRITE, &access_table[i].previous_permissions);
+			VirtualProtect((LPVOID)location, size, PAGE_READWRITE, &access_table[i].previous_permissions);
 			access_table[i].location = location;
 			access_table[i].size = size;
 			access_table[i].used = true;
-			return true;
+			return (void*)location;
 		}
 	}
-	return false;
+	return NULL;
 }
 
 void address_release_data(uintptr_t location)
@@ -109,7 +109,7 @@ void address_release_data(uintptr_t location)
 		if (access_table[i].used && access_table[i].location == location)
 		{
 			DWORD temp;
-			VirtualProtect(location, access_table[i].size, access_table[i].previous_permissions, &temp);
+			VirtualProtect((LPVOID)location, access_table[i].size, access_table[i].previous_permissions, &temp);
 			access_table[i].used = false;
 			return;
 		}
@@ -121,11 +121,11 @@ void address_text_inject_payload(uintptr_t addr, const void* payload, size_t len
 	addr += base_address;
 
 	DWORD previous, temp;
-	VirtualProtect(addr, len, PAGE_EXECUTE_READWRITE, &previous);
-	memcpy(addr, payload, len);
-	VirtualProtect(addr, len, previous, &temp);
+	VirtualProtect((LPVOID)addr, len, PAGE_EXECUTE_READWRITE, &previous);
+	memcpy((void*)addr, payload, len);
+	VirtualProtect((LPVOID)addr, len, previous, &temp);
 
-	FlushInstructionCache((HANDLE)base_address, addr, len);
+	FlushInstructionCache((HANDLE)base_address, (LPCVOID)addr, len);
 }
 
 void address_text_inject_call(uintptr_t addr, uintptr_t func)
@@ -133,14 +133,14 @@ void address_text_inject_call(uintptr_t addr, uintptr_t func)
 	addr += base_address;
 	func -= addr + 5; /* relative call opcode calls the function offset from the next instruction */
 	DWORD previous, temp;
-	VirtualProtect(addr, 5, PAGE_EXECUTE_READWRITE, &previous);
-	memset(addr, 0xE8, 1);
-	memcpy(addr + 1, &func, 4);
-	VirtualProtect(addr, 5, previous, &temp);
+	VirtualProtect((LPVOID)addr, 5, PAGE_EXECUTE_READWRITE, &previous);
+	memset((void*)addr, 0xE8, 1);
+	memcpy((void*)(addr + 1), &func, 4);
+	VirtualProtect((LPVOID)addr, 5, previous, &temp);
 
 #pragma warning(push)
 #pragma warning(disable : 6385)
-	FlushInstructionCache((HANDLE)base_address, addr, 5);
+	FlushInstructionCache((HANDLE)base_address, (LPCVOID)addr, 5);
 #pragma warning(pop)
 }
 
@@ -152,25 +152,25 @@ void address_text_inject_code_cave(uintptr_t addr, uintptr_t func, size_t length
 	func -= addr + 5; /* rel32 is the function offset from the next instruction */
 
 	DWORD previous, temp;
-	VirtualProtect(addr, length, PAGE_EXECUTE_READWRITE, &previous);
+	VirtualProtect((LPVOID)addr, length, PAGE_EXECUTE_READWRITE, &previous);
 
-	memset(addr, 0x90, length); /* NOP */
-	memset(addr, 0xE9, 1); /* JMP rel32 */
-	memcpy(addr + 1, &func, sizeof func); /* sets rel32 */
+	memset((void*)addr, 0x90, length); /* NOP */
+	memset((void*)addr, 0xE9, 1); /* JMP rel32 */
+	memcpy((void*)(addr + 1), &func, sizeof func); /* sets rel32 */
 
-	VirtualProtect(addr, length, previous, &temp);
+	VirtualProtect((LPVOID)addr, length, previous, &temp);
 
-	FlushInstructionCache((HANDLE)base_address, addr, length);
+	FlushInstructionCache((HANDLE)base_address, (LPCVOID)addr, length);
 }
 
 void address_text_set_nop(uintptr_t addr, size_t length)
 {
 	addr += base_address;
 	DWORD previous, temp;
-	VirtualProtect(addr, length, PAGE_EXECUTE_READWRITE, &previous);
-	memset(addr, 0x90, length); /* NOP */
-	VirtualProtect(addr, length, previous, &temp);
-	FlushInstructionCache((HANDLE)base_address, addr, length);
+	VirtualProtect((LPVOID)addr, length, PAGE_EXECUTE_READWRITE, &previous);
+	memset((void*)addr, 0x90, length); /* NOP */
+	VirtualProtect((LPVOID)addr, length, previous, &temp);
+	FlushInstructionCache((HANDLE)base_address, (LPCVOID)addr, length);
 }
 
 const char* address_layer_filename_get(int index)

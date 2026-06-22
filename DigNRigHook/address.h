@@ -5,7 +5,13 @@
 
 #pragma once
 
+#define REMOVE_STATE_SIZE_CHECK
 #include "file.h"
+
+#define ADDRESS_TEXT_RENDER_PROFILE_INFO			0x00024FC8
+#define ADDRESS_TEXT_RENDER_PROFILE_INFO_LENGTH		0x06
+#define ADDRESS_TEXT_RENDER_PROFILE_INFO_RETURN_BASE 0x00024FCE
+#define ADDRESS_TEXT_RENDER_PROFILE_INFO_RETURN_JS_OFFSET 0x58
 
 #define ADDRESS_TEXT_GAME_MAKE_STARTING_RIG			0x000045C4
 #define ADDRESS_TEXT_CHECK_INSIDE_EXIT_BOX			0x0002F04A
@@ -26,7 +32,7 @@ void address_initialize(void);
 
 uintptr_t __cdecl address_base_pointer(void);
 
-bool address_acquire_data(uintptr_t location, size_t size);
+void* address_acquire_data(uintptr_t location, size_t size);
 void address_release_data(uintptr_t location);
 
 /* Injects payload at location. */

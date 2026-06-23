@@ -61,14 +61,21 @@ struct profile
 
 static void __cdecl hook_profile_render(int num, struct profile* profile, int x, int y)
 {
+	if (y < 0 || y >= TARGET_HEIGHT)
+	{
+		return;
+	}
+
 	CHAR_INFO* screen_data = address_acquire_ptr(ADDRESS_PTR_SCREEN_DATA, sizeof * screen_data * TARGET_WIDTH * TARGET_HEIGHT);
 
 	char msg[64];
-	snprintf(msg, sizeof msg, "prof %i", num);
-	for (int i = 0; msg[i] != '\0'; i++)
+	int len = snprintf(msg, sizeof msg, "Profile %i", num);
+	x -= len / 2;
+	for (int i = 0; msg[i] != '\0' && x + i < TARGET_WIDTH; i++)
 	{
-		screen_data[(y + 1) * TARGET_WIDTH + x + i].Attributes = CREATE_ATTRIBUTE(LIGHT_WHITE, DARK_BLACK);
-		screen_data[(y + 1) * TARGET_WIDTH + x + i].Char.AsciiChar = msg[i];
+		int pos = (y + 1) * TARGET_WIDTH + x + i;
+		screen_data[pos].Attributes = CREATE_ATTRIBUTE(LIGHT_WHITE, DARK_BLACK);
+		screen_data[pos].Char.AsciiChar = msg[i];
 	}
 
 	address_release_data(screen_data);
@@ -144,7 +151,7 @@ static void __cdecl hook_write_state(const char* filename)
 {
 	/* you can't actually use the file directly from the function because you don't have the permissions. so, this hooks after dnr writes to the file and closes it */
 	debug_format("%s\n", filename);
-	//FILE* file = fopen(filename, "rb");
+	//FILE* file = fopen(filename, "ab");
 	//fclose(file);
 }
 

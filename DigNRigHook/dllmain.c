@@ -3,6 +3,7 @@
 */
 
 #include "address.h"
+#include <io.h>
 #include <stdio.h>
 #include <Windows.h>
 
@@ -110,19 +111,73 @@ static void __declspec(naked) hook_profile_render_code_cave(void)
 	}
 }
 
+static void __cdecl hook_load_profile(const char* filename)
+{
+	/* you can't actually use the file directly from the function because you don't have the permissions. so, this hooks before dnr opens the file */
+	FILE* file = fopen(filename, "rb");
+	fclose(file);
+}
+
+static void __declspec(naked) hook_load_profile_code_cave(void)
+{
+	__asm
+	{
+		call address_base_pointer
+		mov esi, eax
+		add esi, ADDRESS_TEXT_LOAD_PROFILE_RETURN
+		
+		/* replicate overwritten behavior */
+		lea eax, [esp + 0x14]
+		push eax
+
+		push ecx
+		push edx
+		call hook_load_profile
+		pop edx
+		pop ecx
+
+		jmp esi
+	}
+}
+
+static void __cdecl hook_write_state(const char* filename)
+{
+	/* you can't actually use the file directly from the function because you don't have the permissions. so, this hooks after dnr writes to the file and closes it */
+	debug_format("%s\n", filename);
+	//FILE* file = fopen(filename, "rb");
+	//fclose(file);
+}
+
+static void __declspec(naked) hook_write_state_code_cave(void)
+{
+	__asm
+	{
+		call address_base_pointer
+		add eax, ADDRESS_TEXT_WRITE_STATE_RETURN
+		push eax
+
+		lea ecx, dword ptr[ebp - 0x110]
+		push ecx
+		call hook_write_state
+		add esp, 0x4
+		pop eax
+
+		/* replicate overwritten behavior */
+		mov ecx, dword ptr[esp + 0x10BC]
+
+		jmp eax
+	}
+}
+
 static DWORD WINAPI hook_initialize(LPVOID param)
 {
 	address_initialize();
+
 	address_text_inject_code_cave(ADDRESS_TEXT_CHECK_INSIDE_EXIT_BOX, (uintptr_t)hook_win_check_code_cave, ADDRESS_TEXT_CHECK_INSIDE_EXIT_BOX_LENGTH);
 	address_text_inject_code_cave(ADDRESS_TEXT_RENDER_PROFILE_INFO, (uintptr_t)hook_profile_render_code_cave, ADDRESS_TEXT_RENDER_PROFILE_INFO_LENGTH);
+	address_text_inject_code_cave(ADDRESS_TEXT_LOAD_PROFILE, (uintptr_t)hook_load_profile_code_cave, ADDRESS_TEXT_LOAD_PROFILE_LENGTH);
+	address_text_inject_code_cave(ADDRESS_TEXT_WRITE_STATE, (uintptr_t)hook_write_state_code_cave, ADDRESS_TEXT_WRITE_STATE_LENGTH);
 
-	//address_text_inject_call(ADDRESS_TEXT_GAME_MAKE_STARTING_RIG, (uintptr_t)hook_start_rig);
-	
-	//ADDRESS_ASSIGN_MEMORY(float, ADDRESS_FLOAT_START_X, 100.0F);
-	//ADDRESS_ASSIGN_MEMORY(float, ADDRESS_FLOAT_START_Y, 300.0F);
-	
-	//address_text_set_nop(ADDRESS_TEXT_DRAW_FACTORY_ANIMATION_CALL, ADDRESS_TEXT_DRAW_FACTORY_ANIMATION_CALL_LENGTH);
-	//address_text_inject_call(ADDRESS_TEXT_DRAW_FACTORY_ANIMATION_CALL, (uintptr_t)hook_draw_factory_animation);
 	return 0;
 }
 

@@ -120,6 +120,7 @@ void address_release_data(void* ptr)
 			return;
 		}
 	}
+	debug_format("Failed to release data %p\n", ptr);
 }
 
 void address_text_inject_payload(uintptr_t addr, const void* payload, size_t len)

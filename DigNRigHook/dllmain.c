@@ -21,6 +21,16 @@ void __stdcall FMOD_System_PlaySound() {}
 void __stdcall FMOD_System_CreateSound() {}
 void __stdcall FMOD_Channel_IsPlaying() {}
 
+enum app_state
+{
+	STATE_GAME,
+	STATE_MAIN_MENU,
+	STATE_OPTIONS,
+	STATE_CREDITS,
+
+	STATE_MOD_SELECT_CAMPAIGN,
+};
+
 static campaign_t default_campaign;
 
 static int current_profile = 0;
@@ -221,10 +231,60 @@ static void __declspec(naked) hook_write_state_code_cave(void)
 	}
 }
 
+static void __cdecl hook_create_state(void)
+{
+	int* app_state = address_acquire_data(ADDRESS_INT_APP_STATE, sizeof * app_state);
+	*app_state = STATE_MOD_SELECT_CAMPAIGN;
+	address_release_data(app_state);
+}
+
+static void __declspec(naked) hook_create_state_code_cave(void)
+{
+	__asm
+	{
+		call hook_create_state
+		call address_base_pointer
+		add eax, ADDRESS_TEXT_CREATE_STATE_RETURN
+		jmp eax
+	}
+}
+
+static int __cdecl hook_update_select_campaign_state(void)
+{
+	int* app_state = address_acquire_data(ADDRESS_INT_APP_STATE, sizeof * app_state);
+	*app_state = STATE_GAME;
+	address_release_data(app_state);
+
+	return 1;
+}
+
+static void __declspec(naked) hook_update_select_campaign_state_naked(void)
+{
+	__asm
+	{
+		mov ecx, eax
+		call address_base_pointer
+		add eax, ADDRESS_TEXT_STATE_SWITCH_DEFAULT
+		cmp ecx, 0x4
+		jne jump_to_end
+
+		push eax
+		call hook_update_select_campaign_state
+		mov ecx, eax
+		pop eax
+
+		test ecx, ecx
+		jnz jump_to_end
+		sub eax, (ADDRESS_TEXT_STATE_SWITCH_DEFAULT - ADDRESS_TEXT_CREATE_STATE_WORK)
+	jump_to_end:
+		jmp eax
+	}
+}
+
 static void hook_load_existing_state(void)
 {
 	const WCHAR* profile_name = *ADDRESS_GET_CONSTANT(WCHAR*, ADDRESS_PTR_PROFILE_ADDRESS);
-	while (*profile_name || *profile_name < L'0' || *profile_name > L'9')
+	while (*profile_name && !(*profile_name >= L'0' && *profile_name <= L'9'))
 	{
 		profile_name++;
 	}
@@ -263,7 +323,10 @@ static DWORD WINAPI hook_initialize(LPVOID param)
 	address_text_inject_code_cave(ADDRESS_TEXT_RENDER_PROFILE_INFO, (uintptr_t)hook_profile_render_code_cave, ADDRESS_TEXT_RENDER_PROFILE_INFO_LENGTH);
 	address_text_inject_code_cave(ADDRESS_TEXT_LOAD_PROFILE, (uintptr_t)hook_load_profile_code_cave, ADDRESS_TEXT_LOAD_PROFILE_LENGTH);
 	address_text_inject_code_cave(ADDRESS_TEXT_WRITE_STATE, (uintptr_t)hook_write_state_code_cave, ADDRESS_TEXT_WRITE_STATE_LENGTH);
+	address_text_inject_code_cave(ADDRESS_TEXT_CREATE_STATE, (uintptr_t)hook_create_state_code_cave, ADDRESS_TEXT_CREATE_STATE_LENGTH);
 
+	uintptr_t ptr = (uintptr_t)hook_update_select_campaign_state_naked - (address_base_pointer() + ADDRESS_TEXT_JA_SWITCH_STATE + 0x06);
+	address_text_inject_payload(ADDRESS_TEXT_JA_SWITCH_STATE + 0x02, &ptr, sizeof ptr);
 	address_text_inject_call(ADDRESS_TEXT_GAME_START_SAVE, (uintptr_t)hook_load_existing_state);
 
 	return 0;

@@ -176,6 +176,11 @@ static void __declspec(naked) hook_write_state_code_cave(void)
 	}
 }
 
+static void hook_load_existing_state(void)
+{
+	ADDRESS_CALL_LOAD_STATE();
+}
+
 static DWORD WINAPI hook_initialize(LPVOID param)
 {
 	address_initialize();
@@ -184,6 +189,8 @@ static DWORD WINAPI hook_initialize(LPVOID param)
 	address_text_inject_code_cave(ADDRESS_TEXT_RENDER_PROFILE_INFO, (uintptr_t)hook_profile_render_code_cave, ADDRESS_TEXT_RENDER_PROFILE_INFO_LENGTH);
 	address_text_inject_code_cave(ADDRESS_TEXT_LOAD_PROFILE, (uintptr_t)hook_load_profile_code_cave, ADDRESS_TEXT_LOAD_PROFILE_LENGTH);
 	address_text_inject_code_cave(ADDRESS_TEXT_WRITE_STATE, (uintptr_t)hook_write_state_code_cave, ADDRESS_TEXT_WRITE_STATE_LENGTH);
+
+	address_text_inject_call(ADDRESS_TEXT_GAME_START_SAVE, (uintptr_t)hook_load_existing_state);
 
 	return 0;
 }

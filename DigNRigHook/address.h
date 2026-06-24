@@ -20,6 +20,7 @@
 #define ADDRESS_TEXT_RENDER_PROFILE_INFO_LENGTH		0x06
 #define ADDRESS_TEXT_RENDER_PROFILE_INFO_RETURN		0x00024FBD
 
+#define ADDRESS_TEXT_GAME_START_SAVE				0x0004299C
 #define ADDRESS_TEXT_GAME_MAKE_STARTING_RIG			0x000045C4
 #define ADDRESS_TEXT_CHECK_INSIDE_EXIT_BOX			0x0002F04A
 #define ADDRESS_TEXT_CHECK_INSIDE_EXIT_BOX_LENGTH	0x2E
@@ -33,6 +34,11 @@
 #define ADDRESS_INT_SCREEN_DEPTH 0x0065E3E0
 
 #define ADDRESS_GET_CONSTANT(type, addr) ((const type*)(address_base_pointer() + (addr)))
+
+#define ADDRESS_CALL_LOAD_STATE()			((void (*)())(address_base_pointer() + 0x00038120))()
+#define ADDRESS_CALL_DESTROY_STALACTITES()	((void (*)())(address_base_pointer() + 0x0000BF80))()
+#define ADDRESS_CALL_DESTROY_LIQUIDS()		((void (*)())(address_base_pointer() + 0x000030B0))()
+#define ADDRESS_CALL_INITIALIZE_LAYERS()	((void (*)())(address_base_pointer() + 0x00004450))()
 
 void address_initialize(void);
 

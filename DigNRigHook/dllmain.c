@@ -4,6 +4,7 @@
 
 #include "address.h"
 #include <io.h>
+#include "path.h"
 #include <stdio.h>
 #include <Windows.h>
 
@@ -19,6 +20,12 @@ void __stdcall FMOD_Channel_GetVolume() {}
 void __stdcall FMOD_System_PlaySound() {}
 void __stdcall FMOD_System_CreateSound() {}
 void __stdcall FMOD_Channel_IsPlaying() {}
+
+static campaign_t default_campaign;
+
+static int current_profile = 0;
+static campaign_t* campaigns[3];
+static char campaign_directories[MAX_PATH * 3];
 
 /* The condition that checks whether the player won or not only checks if their x and y
    are greater than two values, meaning the check is not a rectangle. This changes that. */
@@ -61,7 +68,7 @@ struct profile
 
 static void __cdecl hook_profile_render(int num, struct profile* profile, int x, int y)
 {
-	if (y < 0 || y >= TARGET_HEIGHT)
+	if (y < 0 || y >= TARGET_HEIGHT || !campaigns[num])
 	{
 		return;
 	}
@@ -69,7 +76,7 @@ static void __cdecl hook_profile_render(int num, struct profile* profile, int x,
 	CHAR_INFO* screen_data = address_acquire_ptr(ADDRESS_PTR_SCREEN_DATA, sizeof * screen_data * TARGET_WIDTH * TARGET_HEIGHT);
 
 	char msg[64];
-	int len = snprintf(msg, sizeof msg, "Profile %i", num);
+	int len = snprintf(msg, sizeof msg, "%s", campaigns[num]->name);
 	x -= len / 2;
 	for (int i = 0; msg[i] != '\0' && x + i < TARGET_WIDTH; i++)
 	{
@@ -122,6 +129,29 @@ static void __cdecl hook_load_profile(const char* filename)
 {
 	/* you can't actually use the file directly from the function because you don't have the permissions. so, this hooks before dnr opens the file */
 	FILE* file = fopen(filename, "rb");
+	fseek(file, SEEK_END, 0);
+
+	while (*filename && !(*filename >= '0' && *filename <= '9'))
+	{
+		filename++;
+	}
+	RUNTIME_ASSERT(*filename);
+	int profile_index = *filename - '1';
+
+	campaigns[profile_index] = &default_campaign;
+
+	char payload[MAX_PATH + 3];
+	if (fread(payload, 1, sizeof payload, file) != sizeof payload)
+	{
+		fclose(file);
+		return;
+	}
+	if (payload[0] == 'M' && payload[1] == 'O' && payload[2] == 'D' && path_exists(payload + 3))
+	{
+		snprintf(campaign_directories[profile_index * MAX_PATH], MAX_PATH, "%s", payload + 3);
+		campaigns[profile_index] = file_campaign_load(campaign_directories[profile_index * MAX_PATH]);
+	}
+
 	fclose(file);
 }
 
@@ -149,10 +179,25 @@ static void __declspec(naked) hook_load_profile_code_cave(void)
 
 static void __cdecl hook_write_state(const char* filename)
 {
+	if (campaigns[current_profile] == &default_campaign)
+	{
+		return;
+	}
+
 	/* you can't actually use the file directly from the function because you don't have the permissions. so, this hooks after dnr writes to the file and closes it */
-	debug_format("%s\n", filename);
-	//FILE* file = fopen(filename, "ab");
-	//fclose(file);
+	FILE* file = fopen(filename, "ab");
+	fseek(file, SEEK_END, 0);
+
+	char payload[MAX_PATH + 3];
+	memset(payload, 0, sizeof payload);
+	payload[0] = 'M';
+	payload[1] = 'O';
+	payload[2] = 'D';
+	/* no fprintf to the file directly, the payload at the end of the file needs to be the exact same so its easier to see if the payload exists or not when reading it back */
+	snprintf(payload + 3, MAX_PATH, "%s", &campaign_directories[current_profile * MAX_PATH]);
+	RUNTIME_ASSERT(fwrite(payload, 1, sizeof payload, file) == sizeof payload);
+
+	fclose(file);
 }
 
 static void __declspec(naked) hook_write_state_code_cave(void)
@@ -178,12 +223,41 @@ static void __declspec(naked) hook_write_state_code_cave(void)
 
 static void hook_load_existing_state(void)
 {
+	const WCHAR* profile_name = *ADDRESS_GET_CONSTANT(WCHAR*, ADDRESS_PTR_PROFILE_ADDRESS);
+	while (*profile_name || *profile_name < L'0' || *profile_name > L'9')
+	{
+		profile_name++;
+	}
+	RUNTIME_ASSERT(*profile_name);
+	current_profile = *profile_name - L'1';
+	for (int i = 0; i < 14; i++)
+	{
+		address_layer_filename_set(i, campaigns[current_profile]->layers[i].directory);
+		address_layer_name_set(i, campaigns[current_profile]->layers[i].name);
+	}
+	ADDRESS_CALL_DESTROY_STALACTITES();
+	ADDRESS_CALL_DESTROY_LIQUIDS();
+	ADDRESS_CALL_INITIALIZE_LAYERS();
 	ADDRESS_CALL_LOAD_STATE();
 }
 
 static DWORD WINAPI hook_initialize(LPVOID param)
 {
+	default_campaign.end_box.x0 = 142;
+	default_campaign.end_box.y0 = 1392;
+	default_campaign.end_box.x1 = 150;
+	default_campaign.end_box.y1 = 1400;
+	default_campaign.name = "Dig-N-Rig";
+	default_campaign.start_x = 46;
+	default_campaign.start_y = 450;
+
 	address_initialize();
+
+	for (int i = 0; i < 14; i++)
+	{
+		default_campaign.layers[i].name = address_layer_name_get(i);
+		default_campaign.layers[i].directory = address_layer_filename_get(i);
+	}
 
 	address_text_inject_code_cave(ADDRESS_TEXT_CHECK_INSIDE_EXIT_BOX, (uintptr_t)hook_win_check_code_cave, ADDRESS_TEXT_CHECK_INSIDE_EXIT_BOX_LENGTH);
 	address_text_inject_code_cave(ADDRESS_TEXT_RENDER_PROFILE_INFO, (uintptr_t)hook_profile_render_code_cave, ADDRESS_TEXT_RENDER_PROFILE_INFO_LENGTH);

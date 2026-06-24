@@ -32,6 +32,7 @@
 #define ADDRESS_PLAYER			0x0034B520
 #define ADDRESS_PTR_SCREEN_DATA	0x0065C5CC
 #define ADDRESS_INT_SCREEN_DEPTH 0x0065E3E0
+#define ADDRESS_PTR_PROFILE_ADDRESS 0x0034BC84
 
 #define ADDRESS_GET_CONSTANT(type, addr) ((const type*)(address_base_pointer() + (addr)))
 

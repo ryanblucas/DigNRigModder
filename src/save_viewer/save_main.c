@@ -101,6 +101,10 @@ static int save_viewer_prompt_which_save(int start)
 	{
 		/* temporary use of change field modal function */
 		change_field_modal_integer(NULL, &res, sizeof res | SIZE_IS_SIGNED);
+		if (res == start)
+		{
+			return res;
+		}
 		char directory[MAX_PATH];
 		path_find_dnr_save(directory, sizeof directory, res);
 		FILE* file = fopen(directory, "rb");

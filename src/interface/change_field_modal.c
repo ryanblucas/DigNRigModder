@@ -166,8 +166,8 @@ static INT_PTR cfm_combo_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 		else if (LOWORD(wparam) == IDCANCEL)
 		{
 			struct modal_open_struct* mos = (struct modal_open_struct*)GetWindowLongPtrW(hwnd, DWLP_USER);
-			RUNTIME_ASSERT(ComboBox_GetLBTextLen(GetDlgItem(hwnd, IDCOMBO), index) < sizeof mos->result / sizeof * mos->result);
-			ComboBox_GetLBText(GetDlgItem(hwnd, IDCOMBO), index, mos->result);
+			RUNTIME_ASSERT(ComboBox_GetLBTextLen(GetDlgItem(hwnd, IDCOMBO), mos->choice_first) < sizeof mos->result / sizeof * mos->result);
+			ComboBox_GetLBText(GetDlgItem(hwnd, IDCOMBO), mos->choice_first, mos->result);
 			EndDialog(hwnd, 1);
 		}
 		break;
@@ -299,7 +299,7 @@ static INT_PTR cfm_text_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 		else if (LOWORD(wparam) == IDCANCEL)
 		{
 			struct modal_open_struct* mos = (struct modal_open_struct*)GetWindowLongPtrW(hwnd, DWLP_USER);
-			Edit_GetText(GetDlgItem(hwnd, IDEDIT), mos->result, sizeof mos->result / sizeof * mos->result);
+			wcsncpy(mos->result, mos->choice_array, sizeof mos->result / sizeof * mos->result);
 			EndDialog(hwnd, 1);
 		}
 		break;

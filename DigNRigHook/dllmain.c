@@ -193,16 +193,16 @@ static void __cdecl hook_load_profile(const char* filename)
 
 	campaigns[profile_index] = &default_campaign;
 
-	char payload[MAX_PATH + 3];
+	char payload[MOD_FOOTER_SIZE];
 	fseek(file, -(int)(sizeof payload), SEEK_END);
 	if (fread(payload, 1, sizeof payload, file) != sizeof payload)
 	{
 		fclose(file);
 		return;
 	}
-	if (payload[0] == 'M' && payload[1] == 'O' && payload[2] == 'D' && path_exists(payload + 3))
+	if (payload[0] == 'M' && payload[1] == 'O' && payload[2] == 'D' && path_exists(payload + 7))
 	{
-		snprintf(&campaign_directories[profile_index * MAX_PATH], MAX_PATH, "%s", payload + 3);
+		snprintf(&campaign_directories[profile_index * MAX_PATH], MAX_PATH, "%s", payload + 7);
 		campaigns[profile_index] = file_campaign_load(&campaign_directories[profile_index * MAX_PATH]);
 	}
 
@@ -241,17 +241,18 @@ static void __cdecl hook_write_state(const char* filename)
 	/* you can't actually use the file directly from the function because you don't have the permissions. so, this hooks after dnr writes to the file and closes it */
 	FILE* file = fopen(filename, "ab+");
 
-	char begin[MAX_PATH + 3];
+	char begin[MOD_FOOTER_SIZE];
 	fseek(file, -(long)(sizeof begin), SEEK_END);
 	fread(begin, 1, sizeof begin, file);
 
-	char payload[MAX_PATH + 3];
+	char payload[MOD_FOOTER_SIZE];
 	memset(payload, 0, sizeof payload);
 	payload[0] = 'M';
 	payload[1] = 'O';
 	payload[2] = 'D';
+	memcpy(payload + 3, ADDRESS_GET_CONSTANT(int, ADDRESS_INT_STALACTITE_COUNT), 4);
 	/* no fprintf to the file directly, the payload at the end of the file needs to be the exact same so its easier to see if the payload exists or not when reading it back */
-	snprintf(payload + 3, MAX_PATH, "%s", &campaign_directories[current_profile * MAX_PATH]);
+	snprintf(payload + 7, MAX_PATH, "%s", &campaign_directories[current_profile * MAX_PATH]);
 	if (memcmp(begin, payload, sizeof payload) != 0)
 	{
 		RUNTIME_ASSERT(fwrite(payload, 1, sizeof payload, file) == sizeof payload);

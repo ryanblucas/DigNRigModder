@@ -693,6 +693,25 @@ static void file_state_load_shop_item(const uint32_t* arena, shop_item_t* item, 
 	item->mineral_cost[7] = arena[index * 0x8 + 0x9D];
 }
 
+static int file_calculate_stalactite_count(FILE* file)
+{
+	long start = ftell(file);
+	fseek(file, -MOD_FOOTER_SIZE, SEEK_END);
+	char payload[MOD_FOOTER_SIZE];
+	if (fread(payload, 1, MOD_FOOTER_SIZE, file) != MOD_FOOTER_SIZE)
+	{
+		return -1;
+	}
+	fseek(file, start, SEEK_SET);
+	if (payload[0] != 'M' || payload[1] != 'O' || payload[2] != 'D')
+	{
+		return DEFAULT_STALACTITE_COUNT;
+	}
+	int result = 0;
+	memcpy(&result, payload + 3, 4);
+	return result;
+}
+
 dnr_state_t* file_state_load(const char* directory)
 {
 	FILE* file = fopen(directory, "rb");
@@ -702,8 +721,12 @@ dnr_state_t* file_state_load(const char* directory)
 		return NULL;
 	}
 
-	dnr_state_t* res = dig_malloc(sizeof * res + sizeof * res->stalactite_array * DEFAULT_STALACTITE_COUNT);
-	res->stalactite_count = DEFAULT_STALACTITE_COUNT;
+	debug_profiler_push();
+	
+	int stcnt = file_calculate_stalactite_count(file);
+	dnr_state_t* res = dig_malloc(sizeof * res + sizeof * res->stalactite_array * stcnt);
+	BINARY_ENSURE_CONDITION(stcnt != -1);
+	res->stalactite_count = stcnt;
 	res->stalactite_array = (stalactite_t*)(res + 1);
 
 	/* read up to stalactites */
@@ -725,7 +748,8 @@ dnr_state_t* file_state_load(const char* directory)
 	fseek(file, 0, SEEK_END);
 	long size = ftell(file);
 	fseek(file, curr, SEEK_SET);
-	BINARY_ENSURE_CONDITION(fread((uint8_t*)res + offsetof(dnr_state_t, stalactite_count) + sizeof res->stalactite_count, size - curr, 1, file) == 1);
+	uint8_t* offset = (uint8_t*)res + offsetof(dnr_state_t, stalactite_count) + sizeof res->stalactite_count;
+	BINARY_ENSURE_CONDITION(fread(offset, min(size - curr, (uint8_t*)(res + 1) - offset), 1, file) == 1);
 
 	file_state_load_shop_item(res->reserved2, &res->dirt_digger, 0);
 	file_state_load_shop_item(res->reserved2, &res->rock_drill, 1);
@@ -750,11 +774,13 @@ dnr_state_t* file_state_load(const char* directory)
 	}
 
 	fclose(file);
+	debug_profiler_pop("Reading file");
 	return res;
 
 cleanup:
 	fclose(file);
 	free(res);
+	debug_profiler_pop("FAILED - Reading file");
 	return NULL;
 }
 

@@ -10,6 +10,7 @@
 
 /* This can be found at runtime by counting all the TileTypes that are == 0x7 */
 #define DEFAULT_STALACTITE_COUNT 242
+#define MOD_FOOTER_SIZE 267
 
 typedef enum mineral
 {

@@ -222,40 +222,6 @@ static void __declspec(naked) hook_write_state_code_cave(void)
 	}
 }
 
-static void __declspec(naked) hook_create_state_code_cave(void)
-{
-	__asm
-	{
-		call scs_start
-		call address_base_pointer
-		add eax, ADDRESS_TEXT_CREATE_STATE_RETURN
-		jmp eax
-	}
-}
-
-static void __declspec(naked) hook_update_select_campaign_state_naked(void)
-{
-	__asm
-	{
-		mov ecx, eax
-		call address_base_pointer
-		add eax, ADDRESS_TEXT_STATE_SWITCH_DEFAULT
-		cmp ecx, 0x4
-		jne jump_to_end
-
-		push eax
-		call scs_update
-		mov ecx, eax
-		pop eax
-
-		test ecx, ecx
-		jnz jump_to_end
-		sub eax, (ADDRESS_TEXT_STATE_SWITCH_DEFAULT - ADDRESS_TEXT_CREATE_STATE_WORK)
-	jump_to_end:
-		jmp eax
-	}
-}
-
 static void hook_load_existing_state(void)
 {
 	const WCHAR* profile_name = *ADDRESS_GET_CONSTANT(WCHAR*, ADDRESS_PTR_PROFILE_ADDRESS);
@@ -287,6 +253,7 @@ static DWORD WINAPI hook_initialize(LPVOID param)
 	default_campaign.start_y = 450;
 
 	address_initialize();
+	sce_initialize();
 
 	for (int i = 0; i < 14; i++)
 	{
@@ -298,12 +265,7 @@ static DWORD WINAPI hook_initialize(LPVOID param)
 	address_text_inject_code_cave(ADDRESS_TEXT_RENDER_PROFILE_INFO, (uintptr_t)hook_profile_render_code_cave, ADDRESS_TEXT_RENDER_PROFILE_INFO_LENGTH);
 	address_text_inject_code_cave(ADDRESS_TEXT_LOAD_PROFILE, (uintptr_t)hook_load_profile_code_cave, ADDRESS_TEXT_LOAD_PROFILE_LENGTH);
 	address_text_inject_code_cave(ADDRESS_TEXT_WRITE_STATE, (uintptr_t)hook_write_state_code_cave, ADDRESS_TEXT_WRITE_STATE_LENGTH);
-	address_text_inject_code_cave(ADDRESS_TEXT_CREATE_STATE, (uintptr_t)hook_create_state_code_cave, ADDRESS_TEXT_CREATE_STATE_LENGTH);
-
-	uintptr_t ptr = (uintptr_t)hook_update_select_campaign_state_naked - (address_base_pointer() + ADDRESS_TEXT_JA_SWITCH_STATE + 0x06);
-	address_text_inject_payload(ADDRESS_TEXT_JA_SWITCH_STATE + 0x02, &ptr, sizeof ptr);
 	address_text_inject_call(ADDRESS_TEXT_GAME_START_SAVE, (uintptr_t)hook_load_existing_state);
-
 	return 0;
 }
 

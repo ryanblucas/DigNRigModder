@@ -5,5 +5,12 @@
 
 #pragma once
 
+enum scs_result
+{
+	SCS_RESULT_CREATE_STATE,
+	SCS_RESULT_CONTINUE,
+};
+
+void sce_initialize(void);
 void __cdecl scs_start(void);
-int __cdecl scs_update(void);
+enum scs_result __cdecl scs_update(void);

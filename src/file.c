@@ -693,22 +693,34 @@ static void file_state_load_shop_item(const uint32_t* arena, shop_item_t* item, 
 	item->mineral_cost[7] = arena[index * 0x8 + 0x9D];
 }
 
-static int file_calculate_stalactite_count(FILE* file)
+#define GET_FOOTER_FROM_STATE(state) ((struct dnr_mod_footer*)((state)->stalactite_array + (state)->stalactite_count))
+
+struct dnr_mod_footer
 {
+	char magic_header[3];
+	int stalactite_count;
+	char campaign_directory[260];
+};
+
+static struct dnr_mod_footer file_find_footer(FILE* file)
+{
+	struct dnr_mod_footer result = { 0 };
 	long start = ftell(file);
 	fseek(file, -MOD_FOOTER_SIZE, SEEK_END);
 	char payload[MOD_FOOTER_SIZE];
 	if (fread(payload, 1, MOD_FOOTER_SIZE, file) != MOD_FOOTER_SIZE)
 	{
-		return -1;
+		return result;
 	}
 	fseek(file, start, SEEK_SET);
-	if (payload[0] != 'M' || payload[1] != 'O' || payload[2] != 'D')
+	if (memcmp(payload, "MOD", 3) != 0)
 	{
-		return DEFAULT_STALACTITE_COUNT;
+		result.stalactite_count = DEFAULT_STALACTITE_COUNT;
+		return result;
 	}
-	int result = 0;
-	memcpy(&result, payload + 3, 4);
+	memcpy(result.magic_header, "MOD", 3);
+	memcpy(&result.stalactite_count, payload + 3, 4);
+	strncpy(result.campaign_directory, payload + 7, MAX_PATH);
 	return result;
 }
 
@@ -723,11 +735,12 @@ dnr_state_t* file_state_load(const char* directory)
 
 	debug_profiler_push();
 	
-	int stcnt = file_calculate_stalactite_count(file);
-	dnr_state_t* res = dig_malloc(sizeof * res + sizeof * res->stalactite_array * stcnt);
-	BINARY_ENSURE_CONDITION(stcnt != -1);
-	res->stalactite_count = stcnt;
+	struct dnr_mod_footer footer = file_find_footer(file);
+	dnr_state_t* res = dig_malloc(sizeof * res + sizeof * res->stalactite_array * footer.stalactite_count + sizeof(struct dnr_mod_footer));
+	BINARY_ENSURE_CONDITION(footer.stalactite_count != -1);
+	res->stalactite_count = footer.stalactite_count;
 	res->stalactite_array = (stalactite_t*)(res + 1);
+	*GET_FOOTER_FROM_STATE(res) = footer;
 
 	/* read up to stalactites */
 	BINARY_ENSURE_CONDITION(fread(res, offsetof(dnr_state_t, stalactite_array), 1, file) == 1);
@@ -855,6 +868,14 @@ bool file_state_save(const char* directory, const dnr_state_t* save)
 
 	size_t offset = offsetof(dnr_state_t, stalactite_count) + sizeof save->stalactite_count;
 	BINARY_ENSURE_CONDITION(fwrite((uint8_t*)save + offset, offsetof(dnr_state_t, dirt_digger) - offset, 1, file) == 1);
+
+	struct dnr_mod_footer* footer = GET_FOOTER_FROM_STATE(save);
+	if (memcmp(footer->magic_header, "MOD", 3) == 0)
+	{
+		BINARY_ENSURE_CONDITION(fwrite(footer->magic_header, 3, 1, file) == 1);
+		BINARY_ENSURE_CONDITION(fwrite(&footer->stalactite_count, 4, 1, file) == 1);
+		BINARY_ENSURE_CONDITION(fwrite(footer->campaign_directory, 260, 1, file) == 1);
+	}
 
 	result = true;
 cleanup:

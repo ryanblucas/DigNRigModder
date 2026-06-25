@@ -587,6 +587,8 @@ void save_start(void)
 		cache[i] = game_spritify_layer(save, i);
 	}
 
+	int mid = (y_pos + TARGET_HEIGHT / 2) / TARGET_HEIGHT;
+	screen_change_dirt_color(screen_sprite_dirt_color(cache[mid]));
 	save_viewer_move_window(TARGET_HEIGHT / 2 - save->spawn_y);
 	weather_set_state(save);
 	save_info_state_set(save); /* wait till last second to call so that there's not much waiting if any on this thread */

@@ -44,6 +44,8 @@
 
 #define ADDRESS_BOOL_UP_ARROW_STATE		0x0065C870
 #define ADDRESS_BOOL_DOWN_ARROW_STATE	0x0065C888
+#define ADDRESS_BOOL_ENTER_STATE		0x0065C9A8
+#define ADDRESS_BOOL_ESCAPE_STATE		0x0065CA08
 
 #define ADDRESS_GET_CONSTANT(type, addr) ((const type*)(address_base_pointer() + (addr)))
 
@@ -51,6 +53,8 @@
 #define ADDRESS_CALL_DESTROY_STALACTITES()	((void (*)())(address_base_pointer() + 0x0000BF80))()
 #define ADDRESS_CALL_DESTROY_LIQUIDS()		((void (*)())(address_base_pointer() + 0x000030B0))()
 #define ADDRESS_CALL_INITIALIZE_LAYERS()	((void (*)())(address_base_pointer() + 0x00004450))()
+
+#define ADDRESS_CALL_SCREEN_INVALIDATE()	((void (*)())(address_base_pointer() + 0x000468F0))()
 
 void address_initialize(void);
 

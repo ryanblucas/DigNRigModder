@@ -2,6 +2,7 @@
 	dllmain.c ~ RL
 */
 
+#include "hook.h"
 #include "address.h"
 #include <io.h>
 #include "path.h"
@@ -28,14 +29,64 @@ static int current_profile = 0;
 static campaign_t* campaigns[3];
 static char campaign_directories[MAX_PATH * 3];
 
+int hook_get_current_profile(void)
+{
+	const WCHAR* profile_name = *ADDRESS_GET_CONSTANT(WCHAR*, ADDRESS_PTR_PROFILE_ADDRESS);
+	while (*profile_name && !(*profile_name >= L'0' && *profile_name <= L'9'))
+	{
+		profile_name++;
+	}
+	RUNTIME_ASSERT(*profile_name);
+	current_profile = *profile_name - L'1';
+	RUNTIME_ASSERT(current_profile >= 0 && current_profile <= 2);
+	return current_profile;
+}
+
+static void hook_load_campaign(const campaign_t* camp)
+{
+	float* ptr = address_acquire_data(ADDRESS_FLOAT_START_X, sizeof * ptr);
+	*ptr = camp->start_x;
+	address_release_data(ptr);
+	ptr = address_acquire_data(ADDRESS_FLOAT_START_Y, sizeof * ptr);
+	*ptr = camp->start_y;
+	address_release_data(ptr);
+
+	for (int i = 0; i < 14; i++)
+	{
+		address_layer_filename_set(i, camp->layers[i].directory);
+		address_layer_name_set(i, camp->layers[i].name);
+	}
+}
+
+void hook_set_profile_campaign(int profile, const char* directory)
+{
+	if (directory)
+	{
+		strncpy(&campaign_directories[profile * MAX_PATH], directory, MAX_PATH);
+		if (campaigns[profile] != &default_campaign)
+		{
+			file_campaign_unload(campaigns[profile]);
+		}
+		campaigns[profile] = file_campaign_load(directory);
+	}
+	else
+	{
+		campaigns[profile] = &default_campaign;
+	}
+
+	if (profile == current_profile)
+	{
+		hook_load_campaign(campaigns[profile]);
+	}
+}
+
 /* The condition that checks whether the player won or not only checks if their x and y
    are greater than two values, meaning the check is not a rectangle. This changes that. */
 
 static int __cdecl hook_win_check(void)
 {
 	const dnr_player_t* player = ADDRESS_GET_CONSTANT(dnr_player_t, ADDRESS_PLAYER);
-	/* original check for now */
-	return 1392.0 < player->sprite.y && 142.0 < player->sprite.x;
+	return region_is_inside(campaigns[current_profile]->end_box, (int)player->sprite.x, (int)player->sprite.y);
 }
 
 static void __declspec(naked) hook_win_check_code_cave(void)
@@ -48,8 +99,10 @@ static void __declspec(naked) hook_win_check_code_cave(void)
 		mov edx, eax
 		add edx, 0x2F078
 
+		push edx
 		call hook_win_check
 		test eax, eax
+		pop edx
 		jnz jump_to
 		add edx, 0xEF
 	jump_to:
@@ -130,7 +183,6 @@ static void __cdecl hook_load_profile(const char* filename)
 {
 	/* you can't actually use the file directly from the function because you don't have the permissions. so, this hooks before dnr opens the file */
 	FILE* file = fopen(filename, "rb");
-	fseek(file, SEEK_END, 0);
 
 	while (*filename && !(*filename >= '0' && *filename <= '9'))
 	{
@@ -142,6 +194,7 @@ static void __cdecl hook_load_profile(const char* filename)
 	campaigns[profile_index] = &default_campaign;
 
 	char payload[MAX_PATH + 3];
+	fseek(file, -(int)(sizeof payload), SEEK_END);
 	if (fread(payload, 1, sizeof payload, file) != sizeof payload)
 	{
 		fclose(file);
@@ -186,8 +239,11 @@ static void __cdecl hook_write_state(const char* filename)
 	}
 
 	/* you can't actually use the file directly from the function because you don't have the permissions. so, this hooks after dnr writes to the file and closes it */
-	FILE* file = fopen(filename, "ab");
-	fseek(file, SEEK_END, 0);
+	FILE* file = fopen(filename, "ab+");
+
+	char begin[MAX_PATH + 3];
+	fseek(file, -(long)(sizeof begin), SEEK_END);
+	fread(begin, 1, sizeof begin, file);
 
 	char payload[MAX_PATH + 3];
 	memset(payload, 0, sizeof payload);
@@ -196,8 +252,10 @@ static void __cdecl hook_write_state(const char* filename)
 	payload[2] = 'D';
 	/* no fprintf to the file directly, the payload at the end of the file needs to be the exact same so its easier to see if the payload exists or not when reading it back */
 	snprintf(payload + 3, MAX_PATH, "%s", &campaign_directories[current_profile * MAX_PATH]);
-	RUNTIME_ASSERT(fwrite(payload, 1, sizeof payload, file) == sizeof payload);
-
+	if (memcmp(begin, payload, sizeof payload) != 0)
+	{
+		RUNTIME_ASSERT(fwrite(payload, 1, sizeof payload, file) == sizeof payload);
+	}
 	fclose(file);
 }
 
@@ -224,18 +282,8 @@ static void __declspec(naked) hook_write_state_code_cave(void)
 
 static void hook_load_existing_state(void)
 {
-	const WCHAR* profile_name = *ADDRESS_GET_CONSTANT(WCHAR*, ADDRESS_PTR_PROFILE_ADDRESS);
-	while (*profile_name && !(*profile_name >= L'0' && *profile_name <= L'9'))
-	{
-		profile_name++;
-	}
-	RUNTIME_ASSERT(*profile_name);
-	current_profile = *profile_name - L'1';
-	for (int i = 0; i < 14; i++)
-	{
-		address_layer_filename_set(i, campaigns[current_profile]->layers[i].directory);
-		address_layer_name_set(i, campaigns[current_profile]->layers[i].name);
-	}
+	int profile = hook_get_current_profile();
+	hook_load_campaign(campaigns[profile]);
 	ADDRESS_CALL_DESTROY_STALACTITES();
 	ADDRESS_CALL_DESTROY_LIQUIDS();
 	ADDRESS_CALL_INITIALIZE_LAYERS();
@@ -259,6 +307,10 @@ static DWORD WINAPI hook_initialize(LPVOID param)
 	{
 		default_campaign.layers[i].name = address_layer_name_get(i);
 		default_campaign.layers[i].directory = address_layer_filename_get(i);
+	}
+	for (int i = 0; i < 3; i++)
+	{
+		campaigns[i] = &default_campaign;
 	}
 
 	address_text_inject_code_cave(ADDRESS_TEXT_CHECK_INSIDE_EXIT_BOX, (uintptr_t)hook_win_check_code_cave, ADDRESS_TEXT_CHECK_INSIDE_EXIT_BOX_LENGTH);

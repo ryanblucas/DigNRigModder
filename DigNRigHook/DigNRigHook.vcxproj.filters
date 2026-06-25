@@ -42,6 +42,9 @@
     <ClCompile Include="..\src\string_builder.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="select_campaign_state.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="exports.def">
@@ -68,6 +71,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\src\string_builder.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="select_campaign_state.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

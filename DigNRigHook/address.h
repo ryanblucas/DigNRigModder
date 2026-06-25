@@ -42,6 +42,9 @@
 #define ADDRESS_PTR_PROFILE_ADDRESS 0x0034BC84
 #define ADDRESS_INT_APP_STATE	0x00053098
 
+#define ADDRESS_BOOL_UP_ARROW_STATE		0x0065C870
+#define ADDRESS_BOOL_DOWN_ARROW_STATE	0x0065C888
+
 #define ADDRESS_GET_CONSTANT(type, addr) ((const type*)(address_base_pointer() + (addr)))
 
 #define ADDRESS_CALL_LOAD_STATE()			((void (*)())(address_base_pointer() + 0x00038120))()

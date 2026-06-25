@@ -5,6 +5,7 @@
 #include "address.h"
 #include <io.h>
 #include "path.h"
+#include "select_campaign_state.h"
 #include <stdio.h>
 #include <Windows.h>
 
@@ -20,16 +21,6 @@ void __stdcall FMOD_Channel_GetVolume() {}
 void __stdcall FMOD_System_PlaySound() {}
 void __stdcall FMOD_System_CreateSound() {}
 void __stdcall FMOD_Channel_IsPlaying() {}
-
-enum app_state
-{
-	STATE_GAME,
-	STATE_MAIN_MENU,
-	STATE_OPTIONS,
-	STATE_CREDITS,
-
-	STATE_MOD_SELECT_CAMPAIGN,
-};
 
 static campaign_t default_campaign;
 
@@ -158,8 +149,8 @@ static void __cdecl hook_load_profile(const char* filename)
 	}
 	if (payload[0] == 'M' && payload[1] == 'O' && payload[2] == 'D' && path_exists(payload + 3))
 	{
-		snprintf(campaign_directories[profile_index * MAX_PATH], MAX_PATH, "%s", payload + 3);
-		campaigns[profile_index] = file_campaign_load(campaign_directories[profile_index * MAX_PATH]);
+		snprintf(&campaign_directories[profile_index * MAX_PATH], MAX_PATH, "%s", payload + 3);
+		campaigns[profile_index] = file_campaign_load(&campaign_directories[profile_index * MAX_PATH]);
 	}
 
 	fclose(file);
@@ -231,31 +222,15 @@ static void __declspec(naked) hook_write_state_code_cave(void)
 	}
 }
 
-static void __cdecl hook_create_state(void)
-{
-	int* app_state = address_acquire_data(ADDRESS_INT_APP_STATE, sizeof * app_state);
-	*app_state = STATE_MOD_SELECT_CAMPAIGN;
-	address_release_data(app_state);
-}
-
 static void __declspec(naked) hook_create_state_code_cave(void)
 {
 	__asm
 	{
-		call hook_create_state
+		call scs_start
 		call address_base_pointer
 		add eax, ADDRESS_TEXT_CREATE_STATE_RETURN
 		jmp eax
 	}
-}
-
-static int __cdecl hook_update_select_campaign_state(void)
-{
-	int* app_state = address_acquire_data(ADDRESS_INT_APP_STATE, sizeof * app_state);
-	*app_state = STATE_GAME;
-	address_release_data(app_state);
-
-	return 1;
 }
 
 static void __declspec(naked) hook_update_select_campaign_state_naked(void)
@@ -269,7 +244,7 @@ static void __declspec(naked) hook_update_select_campaign_state_naked(void)
 		jne jump_to_end
 
 		push eax
-		call hook_update_select_campaign_state
+		call scs_update
 		mov ecx, eax
 		pop eax
 

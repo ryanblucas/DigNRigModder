@@ -169,6 +169,7 @@
     <ClCompile Include="..\src\string_builder.c" />
     <ClCompile Include="address.c" />
     <ClCompile Include="dllmain.c" />
+    <ClCompile Include="select_campaign_state.c" />
   </ItemGroup>
   <ItemGroup>
     <None Include="exports.def" />
@@ -181,6 +182,7 @@
     <ClInclude Include="..\src\screen.h" />
     <ClInclude Include="..\src\string_builder.h" />
     <ClInclude Include="address.h" />
+    <ClInclude Include="select_campaign_state.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

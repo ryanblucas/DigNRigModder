@@ -36,7 +36,7 @@ typedef enum info_mode
 {
 	MODE_SAVE,
 	MODE_ASSET,
-	// MODE_SPRITE,
+	MODE_CAMPAIGN,
 	MODE_COUNT
 } info_mode_t;
 

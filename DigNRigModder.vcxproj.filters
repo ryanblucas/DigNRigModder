@@ -78,6 +78,12 @@
     <ClCompile Include="src\string_builder.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\campaign_creator\campaign_main.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\campaign_creator\campaign_info.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\types.h">
@@ -146,6 +152,12 @@
     <ClInclude Include="src\string_builder.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\campaign_creator\campaign_main.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\campaign_creator\campaign_info.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />
@@ -160,6 +172,9 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="preview\ss1.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="Dig-N-Rig_Modder.ico">
       <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>

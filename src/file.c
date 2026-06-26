@@ -673,7 +673,7 @@ void file_campaign_unload(campaign_t* campaign)
 
 bool file_campaign_save(const char* directory, const campaign_t* campaign)
 {
-
+	return false;
 }
 
 static void file_state_load_shop_item(const uint32_t* arena, shop_item_t* item, int index)

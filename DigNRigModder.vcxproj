@@ -129,6 +129,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\campaign_creator\campaign_info.c" />
+    <ClCompile Include="src\campaign_creator\campaign_main.c" />
     <ClCompile Include="src\event_queue.c" />
     <ClCompile Include="src\action_buffer.c" />
     <ClCompile Include="src\interface\change_field_modal.c" />
@@ -153,6 +155,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\action_buffer.h" />
+    <ClInclude Include="src\campaign_creator\campaign_info.h" />
+    <ClInclude Include="src\campaign_creator\campaign_main.h" />
     <ClInclude Include="src\event_queue.h" />
     <ClInclude Include="src\interface\change_field_modal.h" />
     <ClInclude Include="src\interface\charmap_control.h" />
@@ -185,6 +189,7 @@
     <Text Include="todo.txt" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="Dig-N-Rig_Modder.ico" />
     <Image Include="preview\ss1.png" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

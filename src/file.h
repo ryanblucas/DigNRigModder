@@ -349,7 +349,7 @@ SERIALIZABLE_DNR_STATE_3
 #ifndef REMOVE_STATE_SIZE_CHECK
 /* classic */
 enum {
-	DNR_STATE_T_SIZE_CHECK = 1 / (sizeof(dnr_state_t) == 23445272)
+	DNR_STATE_T_SIZE_CHECK = 1 / (sizeof(dnr_state_t) == 23445008)
 };
 #endif
 

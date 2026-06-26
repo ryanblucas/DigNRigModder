@@ -4,6 +4,7 @@
 
 #include "save_viewer/save_main.h"
 #include "asset_creator/asset_main.h"
+#include "campaign_creator/campaign_main.h"
 #include "screen.h"
 #include "info_box.h"
 
@@ -20,6 +21,9 @@ static void call_respective_start(info_mode_t mode)
 	case MODE_ASSET:
 		asset_start();
 		break;
+	case MODE_CAMPAIGN:
+		campaign_start();
+		break;
 	}
 }
 
@@ -32,6 +36,9 @@ static void call_respective_end(info_mode_t mode)
 		break;
 	case MODE_ASSET:
 		asset_end();
+		break;
+	case MODE_CAMPAIGN:
+		campaign_end();
 		break;
 	}
 }
@@ -65,8 +72,10 @@ static void cleanup(void)
 	screen_wait_for_end();
 
 	screen_destroy();
+
 	save_destroy();
 	asset_destroy();
+	campaign_destroy();
 
 	debug_profiler_pop("Cleanup");
 }
@@ -102,6 +111,7 @@ int main()
 
 	save_initialize(&editor);
 	asset_initialize(&editor);
+	campaign_initialize(&editor);
 
 	screen_initialize(editor.is_small_console);
 	screen_change_title("Dig-N-Rig Display");

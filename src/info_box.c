@@ -16,6 +16,9 @@
 #define INFO_BOX_WINDOW_STYLE (WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX)
 #define INFO_BOX_WINDOW_STYLE_EX (WS_EX_OVERLAPPEDWINDOW)
 
+#define INFO_BOX_CAPTION L"Dig-N-Rig Modder"
+#define INFO_BOX_CAPTION_MAX_SIZE 128
+
 static HFONT font_caption; 
 static HFONT font_text;
 
@@ -29,6 +32,8 @@ static info_mode_t current_mode;
 static info_mode_class_t classes[MODE_COUNT];
 static HWND global_treeviews[MODE_COUNT];
 static HWND current_treeviews[MODE_COUNT];
+
+static WCHAR captions[INFO_BOX_CAPTION_MAX_SIZE * MODE_COUNT];
 
 static info_events_t events;
 static info_handle_change_mode_t change_mode;
@@ -192,8 +197,13 @@ static void info_window_initialize(void)
 	int wx = info_window_bounds.right - info_window_bounds.left;
 	int wy = info_window_bounds.bottom - info_window_bounds.top;
 
-	window = CreateWindowExW(INFO_BOX_WINDOW_STYLE_EX, INFO_BOX_CLASS_NAME, L"Dig-N-Rig Modder", INFO_BOX_WINDOW_STYLE, x, y, wx, wy, NULL, NULL, NULL, NULL);
+	window = CreateWindowExW(INFO_BOX_WINDOW_STYLE_EX, INFO_BOX_CLASS_NAME, INFO_BOX_CAPTION, INFO_BOX_WINDOW_STYLE, x, y, wx, wy, NULL, NULL, NULL, NULL);
 	RUNTIME_ASSERT(window);
+
+	for (int i = 0; i < MODE_COUNT; i++)
+	{
+		wcsncpy(&captions[i * INFO_BOX_CAPTION_MAX_SIZE], INFO_BOX_CAPTION, INFO_BOX_CAPTION_MAX_SIZE);
+	}
 }
 
 static DWORD info_thread_proc(LPVOID param)
@@ -218,6 +228,21 @@ static DWORD info_thread_proc(LPVOID param)
 	FreeConsole();
 	debug_format("Closed from window\n");
 	return result;
+}
+
+void info_set_caption(const char* caption)
+{
+	if (!caption || !*caption)
+	{
+		wcsncpy(&captions[current_mode * INFO_BOX_CAPTION_MAX_SIZE], INFO_BOX_CAPTION, INFO_BOX_CAPTION_MAX_SIZE);
+		SetWindowTextW(window, INFO_BOX_CAPTION);
+		return;
+	}
+	WCHAR wname[min(64, INFO_BOX_CAPTION_MAX_SIZE)], buf[INFO_BOX_CAPTION_MAX_SIZE];
+	RUNTIME_ASSERT(MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, caption, -1, wname, sizeof wname / sizeof * wname));
+	StringCbPrintfW(buf, sizeof buf, INFO_BOX_CAPTION " - %s", wname);
+	SetWindowTextW(window, buf);
+	wcsncpy(&captions[current_mode * INFO_BOX_CAPTION_MAX_SIZE], buf, INFO_BOX_CAPTION_MAX_SIZE);
 }
 
 void info_add_class(const info_mode_class_t* class)
@@ -288,4 +313,6 @@ void info_set_current_mode(info_mode_t mode)
 	current_mode = mode;
 	RAISE_EVENT(change_mode, prev);
 	classes[mode].show(true);
+
+	SetWindowTextW(window, &captions[mode * INFO_BOX_CAPTION_MAX_SIZE]);
 }

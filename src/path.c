@@ -85,6 +85,16 @@ char* path_enumerate_directory_create(const char* directory, int* max)
 	return result;
 }
 
+const char* path_get_file_name(const char* directory)
+{
+	const char* name = (const char*)strrchr(directory, '\\');
+	if (!name)
+	{
+		name = directory - 1;
+	}
+	return name + 1;
+}
+
 bool path_exists(const char* directory)
 {
 	FILE* f = fopen(directory, "r");

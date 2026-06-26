@@ -144,6 +144,7 @@ void asset_info_show(bool is_visible)
 		FindClose(handle);
 
 		snprintf(directory, sizeof directory, "%s\\%s", buf, wfd.cFileName);
+		info_set_caption(wfd.cFileName);
 		queue_add(internal.events->file_handler, directory);
 	}
 
@@ -193,6 +194,7 @@ static void asset_info_handle_command(HWND window, WPARAM wparam)
 			.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST
 		};
 		GetOpenFileNameA(&ofn);
+		info_set_caption(path_get_file_name(directory));
 		queue_add(internal.events->file_handler, directory);
 	}
 	else if (window == child_windows[CWI_ASSET_PALETTE] && HIWORD(wparam) == MINERAL_PALETTE_CONTROL_SET_SELECTED_CELL)
@@ -405,11 +407,7 @@ void asset_info_directory_set(const char* _directory)
 	fclose(file);
 
 	snprintf(directory, sizeof directory, "%s", _directory);
-	const char* name = (const char*)strrchr(_directory, '\\');
-	if (!name)
-	{
-		name = _directory;
-	}
+	info_set_caption(path_get_file_name(directory));
 }
 
 void asset_info_directory_get(char* _directory, size_t buf_size)

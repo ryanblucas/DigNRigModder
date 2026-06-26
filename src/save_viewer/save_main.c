@@ -242,6 +242,7 @@ static void save_viewer_handle_keyboard(virtual_key_t vk, keyboard_control_t ctr
 		{
 			editor->current_save = save_viewer_prompt_which_save(editor->current_save);
 			path_find_dnr_save(save_directory, sizeof save_directory, editor->current_save);
+			info_set_caption(path_get_file_name(save_directory));
 		}
 		debug_format("Reloading save...\n");
 		dnr_state_t* next = file_state_load(save_directory);
@@ -549,6 +550,7 @@ static bool save_try_load_save(void)
 			return false;
 		}
 	}
+	info_set_caption(path_get_file_name(save_directory));
 	return true;
 }
 

@@ -68,6 +68,9 @@ typedef struct info_mode_class
 
 typedef void (*info_handle_change_mode_t)(info_mode_t old_mode);
 
+/* This sets the caption of the current mode. Therefore, when mode is changed, the caption set here will be reset until the mode changes back. */
+void info_set_caption(const char* caption);
+
 void info_add_class(const info_mode_class_t* class);
 void info_set_event_handlers(const info_events_t* events);
 void info_initialize(info_handle_change_mode_t change_mode);

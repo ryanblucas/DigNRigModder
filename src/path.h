@@ -25,4 +25,7 @@ char* path_find_dnr_save(char* buf, size_t buf_size, int save);
 	Max is set to the amount of strings returned. Returns NULL if no files are found in the directory. */
 char* path_enumerate_directory_create(const char* directory, int* max);
 
+/* returns file name of path. (e.g., C:\Dig-N-Rig\Dig-N-Rig.exe returns Dig-N-Rig.exe, but just Dig-N-Rig.exe will return Dig-N-Rig.exe) */
+const char* path_get_file_name(const char* directory);
+
 bool path_exists(const char* directory);

@@ -16,18 +16,21 @@ Tools
 		something akin to the selection tool, where no changes are actually committed until the mouse is let go. What the user sees
 		between mouse down and mouse up is just a sprite being rendered over the screen. That's another promising solution to this.
 	Text tool
+	Rectangle/shape tool
+	All tool buttons should be consolidated into a Win32 window or some function to remove boilerplate
 
 Asset creator
 	UI needs to be improved
 	Add prefabs
 
 Campaign creator
+	Puts all layers in there
+	Allows for editing of these layers in the creator that when saved, saves to their respective files
+	Starts at all blank.layers, listbox on the side allows for you to open up an existing layer. When you edit a layer 
+		from blank.layer, it is renamed to {campaign name}_{layer index}.layer and placed in the game's asset folder.
+	Another listbox adjacent to the directories that has the layer names
+	Textbox for changing title
+	Allows for editing of dnr_block_t's. Some sort of toggle for binary mode/asset mode
+	Rectangle tool to create "end box"
 	Patches game's binary files to support custom campaigns
 		The rig blocks that connect to the factory in the actual game are hardcoded in, this can be changed
-		The names of each layer are hardcoded in, add support to change this
-
-Important, yet not urgent
-	Determine all the reserved fields
-	Add unit testing for every module
-	Add documentation to all functions and modules
-	Add more RUNTIME_ASSERTs, or remove them if that makes the most sense

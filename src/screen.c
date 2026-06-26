@@ -116,12 +116,6 @@ static void screen_initialize_font(bool is_small_console)
 	cfi.nFont = 0;
 	swprintf(cfi.FaceName, sizeof cfi.FaceName / sizeof * cfi.FaceName, font_name);
 	RUNTIME_ASSERT(SetCurrentConsoleFontEx(out, FALSE, &cfi));
-
-	RUNTIME_ASSERT(GetCurrentConsoleFontEx(out, FALSE, &cfi));
-	if (wcsncmp(cfi.FaceName, font_name, sizeof cfi.FaceName / sizeof * cfi.FaceName) != 0)
-	{
-		debug_format("Failed to locate Dig-N-Rig's font!\n");
-	}
 }
 
 static void screen_initialize_cursor(void)
@@ -139,6 +133,14 @@ void screen_initialize(bool is_small_console)
 	screen_initialize_font(is_small_console);
 	RUNTIME_ASSERT(SetConsoleActiveScreenBuffer(out));
 	screen_initialize_cursor();
+
+	WCHAR* font_name = is_small_console ? DNR_FONT_SMALL : DNR_FONT;
+	CONSOLE_FONT_INFOEX cfi = { .cbSize = sizeof cfi };
+	RUNTIME_ASSERT(GetCurrentConsoleFontEx(out, FALSE, &cfi));
+	if (wcsncmp(cfi.FaceName, font_name, sizeof cfi.FaceName / sizeof * cfi.FaceName) != 0)
+	{
+		debug_format("Failed to locate Dig-N-Rig's font!\n");
+	}
 
 	used_period = timeBeginPeriod(1) == TIMERR_NOERROR;
 	if (!used_period)
@@ -232,7 +234,7 @@ static void screen_simulator_run(LARGE_INTEGER start, LARGE_INTEGER last, LARGE_
 
 	float delta = (float)(start.QuadPart - last.QuadPart) / frequency.QuadPart;
 	screen_simulator_t* sim = events.simulators;
-	while (*sim)
+	while (sim && *sim)
 	{
 		(*sim)(delta);
 		sim++;

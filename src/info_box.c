@@ -177,7 +177,6 @@ static void info_window_initialize(void)
 	wc.lpszClassName = INFO_BOX_CLASS_NAME;
 	wc.hCursor = LoadCursorW(NULL, IDC_ARROW);
 	wc.hIcon = (HICON)LoadImage(GetModuleHandle(NULL), MAKEINTRESOURCE(IDI_ICON1), IMAGE_ICON, 32, 32, LR_DEFAULTCOLOR | LR_SHARED);
-	debug_format("%i\n", GetLastError());
 	RUNTIME_ASSERT(RegisterClassExW(&wc));
 
 	HWND console_window = GetConsoleWindow();

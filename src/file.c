@@ -298,6 +298,10 @@ bool file_editor_load(editor_state_t* state)
 			{
 				state->current_mode = MODE_ASSET;
 			}
+			else if (strncmp(curr.data.str, "Campaign", DATA_STRING_MAX_SIZE) == 0)
+			{
+				state->current_mode = MODE_CAMPAIGN;
+			}
 			file_next(&file, &curr);
 		}
 		else if (strncmp(curr.data.str, "CurrentAssetDirectory", DATA_STRING_MAX_SIZE) == 0)
@@ -366,6 +370,9 @@ bool file_editor_save(const editor_state_t* state)
 		break;
 	case MODE_ASSET:
 		mode_descriptor = "Asset";
+		break;
+	case MODE_CAMPAIGN:
+		mode_descriptor = "Campaign";
 		break;
 	}
 	fprintf(file, "#CurrentMode\n%s\n", mode_descriptor);

@@ -807,6 +807,7 @@
 #define LANG_YORUBA                     0x6a
 #define VK_ADD                          0x6B
 #define LANG_QUECHUA                    0x6b
+#define IDI_ICON1                       107
 #define VK_SEPARATOR                    0x6C
 #define LANG_SOTHO                      0x6c
 #define VK_SUBTRACT                     0x6D

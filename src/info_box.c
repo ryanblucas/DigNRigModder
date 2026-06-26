@@ -5,7 +5,9 @@
 
 #include "info_box.h"
 #include "debug.h"
+#include "interface/resource.h"
 #include "types.h"
+#include "path.h"
 #include <Windows.h>
 #include <commctrl.h>
 #include <strsafe.h>
@@ -174,7 +176,8 @@ static void info_window_initialize(void)
 	wc.lpfnWndProc = info_window_proc;
 	wc.lpszClassName = INFO_BOX_CLASS_NAME;
 	wc.hCursor = LoadCursorW(NULL, IDC_ARROW);
-
+	wc.hIcon = (HICON)LoadImage(GetModuleHandle(NULL), MAKEINTRESOURCE(IDI_ICON1), IMAGE_ICON, 32, 32, LR_DEFAULTCOLOR | LR_SHARED);
+	debug_format("%i\n", GetLastError());
 	RUNTIME_ASSERT(RegisterClassExW(&wc));
 
 	HWND console_window = GetConsoleWindow();

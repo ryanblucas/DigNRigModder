@@ -51,9 +51,10 @@ const rgb_color_t palette[16] =
 	RGB(232, 232, 238),
 };
 
+static screen_simulator_t empty_simulators[] = { NULL };
+
 void screen_set_event_handlers(const screen_events_t* _events)
 {
-	static screen_simulator_t empty_simulators[] = { NULL };
 	if (events.simulators && events.simulators != empty_simulators)
 	{
 		free(events.simulators);
@@ -152,7 +153,10 @@ void screen_initialize(bool is_small_console)
 void screen_destroy(void)
 {
 	CloseHandle(out);
-	free(events.simulators);
+	if (events.simulators != empty_simulators)
+	{
+		free(events.simulators);
+	}
 	out = NULL;
 	if (used_period)
 	{

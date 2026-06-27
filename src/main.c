@@ -117,9 +117,12 @@ int main()
 	screen_change_title("Dig-N-Rig Display");
 	/* initialize info after screen so that the window is placed adjacent to the console as opposed to under it */
 	info_initialize(change_mode_handler);
+	info_mode_t mode = info_get_current_mode();
 	info_set_current_mode(editor.current_mode);
-
-	call_respective_start(info_get_current_mode());
+	if (mode == editor.current_mode)
+	{
+		call_respective_start(info_get_current_mode());
+	}
 	screen_loop(editor.max_events_per_frame, editor.simulation_framerate);
 	/* Actually, don't call the respective end. That's really just cleaning up for the next mode, which can cause problems at this point in execution.
 	   For example, if the user stops the application from the info box in the save mode, the console is freed then screen_loop returns for this

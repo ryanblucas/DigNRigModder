@@ -3,6 +3,7 @@
 */
 
 #include "campaign_info.h"
+#include "../path.h"
 
 enum child_window_index
 {
@@ -29,6 +30,7 @@ enum child_window_index
 	CWI_COUNT
 };
 
+static campaign_t* campaign;
 static HWND child_windows[CWI_COUNT];
 static info_internal_t internal;
 
@@ -97,4 +99,40 @@ bool campaign_info_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESU
 bool campaign_info_handle_interact_tree_item(bool is_global, element_t element)
 {
 	return false;
+}
+
+static void campaign_info_set_internal(const void* unused)
+{
+	SetWindowTextA(child_windows[CWI_TEXTBOX_TITLE], campaign->name);
+}
+
+void campaign_info_set(campaign_t* _campaign, const char* directory)
+{
+	campaign = _campaign;
+	/* i do not like this */
+	for (int i = 0; i < 100 && !internal.window; i++)
+	{
+		Sleep(10);
+	}
+	RUNTIME_ASSERT(internal.window);
+	info_set_caption(path_get_file_name(directory));
+	queue_add_from_window(campaign_info_set_internal, NULL);
+}
+
+bool campaign_info_find_file(char* directory, size_t size)
+{
+	OPENFILENAMEA ofn =
+	{
+		.lStructSize = sizeof ofn,
+		.hwndOwner = internal.window,
+		.lpstrFilter = "Campaign files\0*.campaign",
+		.lpstrFile = directory, .nMaxFile = size,
+		.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST
+	};
+	bool result = !!GetOpenFileNameA(&ofn);
+	if (result)
+	{
+		info_set_caption(path_get_file_name(directory));
+	}
+	return result;
 }

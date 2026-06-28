@@ -87,6 +87,10 @@ char* path_enumerate_directory_create(const char* directory, int* max)
 
 const char* path_get_file_name(const char* directory)
 {
+	if (!directory)
+	{
+		return NULL;
+	}
 	const char* name = (const char*)strrchr(directory, '\\');
 	if (!name)
 	{

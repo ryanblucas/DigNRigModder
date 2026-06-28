@@ -312,6 +312,14 @@ bool file_editor_load(editor_state_t* state)
 			snprintf(state->current_asset_directory, MAX_PATH, "%s", curr.data.str);
 			file_next(&file, &curr);
 		}
+		else if (strncmp(curr.data.str, "CurrentCampaignDirectory", DATA_STRING_MAX_SIZE) == 0)
+		{
+			file_next(&file, &curr);
+			MATCH_AND_ADVANCE_TOKEN(&file, curr, TOKEN_NEWLINE);
+			MATCH_TOKEN(&file, curr, TOKEN_STRING);
+			snprintf(state->current_campaign_directory, MAX_PATH, "%s", curr.data.str);
+			file_next(&file, &curr);
+		}
 		else if (strncmp(curr.data.str, "AssetPalette", DATA_STRING_MAX_SIZE) == 0)
 		{
 			file_next(&file, &curr);
@@ -382,6 +390,10 @@ bool file_editor_save(const editor_state_t* state)
 	if (path_exists(state->current_asset_directory))
 	{
 		fprintf(file, "#CurrentAssetDirectory\n%s\n", state->current_asset_directory);
+	}
+	if (path_exists(state->current_campaign_directory))
+	{
+		fprintf(file, "#CurrentCampaignDirectory\n%s\n", state->current_campaign_directory);
 	}
 	fprintf(file, "#AssetPalette\n");
 	for (int i = 0; i < sizeof state->asset_palette / sizeof * state->asset_palette; i++)
@@ -571,6 +583,24 @@ bool file_asset_save(const char* directory, const asset_t* asset)
 	result = true;
 cleanup:
 	fclose(file->handle);
+	return result;
+}
+
+campaign_t* file_campaign_blank(void)
+{
+	string_builder_t* builder = string_builder_create(1);
+	campaign_t* result = dig_malloc(sizeof * result + sizeof builder);
+	*(string_builder_t**)(result + 1) = builder;
+
+	result->start_x = result->start_y = 0;
+	result->end_box = (region_t){ 0 };
+	result->name = "Blank";
+	for (int i = 0; i < 14; i++)
+	{
+		result->layers[i].name = "Blank";
+		result->layers[i].directory = "blank.layer";
+	}
+
 	return result;
 }
 

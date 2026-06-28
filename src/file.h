@@ -409,19 +409,20 @@ typedef struct editor_state
 	bool is_small_console;
 	int current_save;
 	char current_asset_directory[MAX_PATH];
+	char current_campaign_directory[MAX_PATH];
 	info_mode_t current_mode;
 	asset_block_t asset_palette[8];
 } editor_state_t;
 
 typedef struct layer
 {
-	char* name;
-	char* directory;
+	const char* name;
+	const char* directory;
 } layer_t;
 
 typedef struct campaign
 {
-	char* name;
+	const char* name;
 	int start_x, start_y;
 	region_t end_box;
 	layer_t layers[LAYER_COUNT];
@@ -434,6 +435,7 @@ asset_t file_asset_load(const char* directory);
 void file_asset_unload(asset_t* asset);
 bool file_asset_save(const char* directory, const asset_t* asset);
 
+campaign_t* file_campaign_blank(void);
 campaign_t* file_campaign_load(const char* directory);
 void file_campaign_unload(campaign_t* campaign);
 bool file_campaign_save(const char* directory, const campaign_t* campaign);

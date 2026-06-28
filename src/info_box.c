@@ -92,6 +92,7 @@ static LRESULT info_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
 		handle_generic_t handler = (handle_generic_t)wparam;
 		const void* data = (const void*)lparam;
 		handler(data);
+		queue_pop_window_event();
 		return 0;
 	}
 	case WM_CREATE:

@@ -86,6 +86,7 @@ void campaign_info_initialize(info_internal_t* _internal)
 
 void campaign_info_destroy(void)
 {
+	string_builder_destroy(builder);
 	for (int i = 0; i < CWI_COUNT; i++)
 	{
 		DestroyWindow(child_windows[i]);
@@ -134,6 +135,26 @@ static void campaign_info_handle_double_click_listbox(HWND list_box, int index)
 	SendMessageA(list_box, LB_INSERTSTRING, (WPARAM)index, (LPARAM)buf);
 }
 
+static void campaign_info_dispatch_command(WPARAM wparam, LPARAM lparam)
+{
+	HWND wnd = (HWND)lparam;
+	if (HIWORD(wparam) == LBN_DBLCLK)
+	{
+		int selected_index = ListBox_GetCurSel(wnd);
+		if (selected_index != LB_ERR)
+		{
+			campaign_info_handle_double_click_listbox(wnd, selected_index);
+		}
+		return true;
+	}
+	else if (HIWORD(wparam) == EN_CHANGE && wnd == child_windows[CWI_TEXTBOX_TITLE])
+	{
+		static char buf[128];
+		GetWindowTextA(wnd, buf, sizeof buf);
+		campaign->name = buf;
+	}
+}
+
 bool campaign_info_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESULT* out)
 {
 	*out = 0;
@@ -141,16 +162,7 @@ bool campaign_info_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESU
 	{
 	case WM_COMMAND:
 	{
-		if (HIWORD(wparam) != LBN_DBLCLK)
-		{
-			return true;
-		}
-		HWND list_box = (HWND)lparam;
-		int selected_index = ListBox_GetCurSel(list_box);
-		if (selected_index != LB_ERR)
-		{
-			campaign_info_handle_double_click_listbox(list_box, selected_index);
-		}
+		campaign_info_dispatch_command(wparam, lparam);
 		return true;
 	}
 	}

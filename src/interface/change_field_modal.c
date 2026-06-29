@@ -15,7 +15,7 @@ struct modal_open_struct
 	const WCHAR* title;
 	int choice_first, choice_length;
 	WCHAR* choice_array;
-	WCHAR result[32];
+	WCHAR result[260];
 };
 
 struct modal_charinfo_open_struct
@@ -317,7 +317,7 @@ void change_field_modal_string(HWND owner, char* buf, size_t size)
 		memset(buf, 0, size);
 		return;
 	}
-	RUNTIME_ASSERT(WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, mos.result, -1, buf, size, NULL, NULL));
+	RUNTIME_ASSERT(WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, mos.result, -1, buf, (int)size, NULL, NULL));
 }
 
 void change_field_modal_integer(HWND owner, void* value, int bitmask_size)

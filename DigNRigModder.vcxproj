@@ -129,6 +129,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\asset_creator\asset_util.c" />
     <ClCompile Include="src\campaign_creator\campaign_info.c" />
     <ClCompile Include="src\campaign_creator\campaign_main.c" />
     <ClCompile Include="src\event_queue.c" />
@@ -155,6 +156,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\action_buffer.h" />
+    <ClInclude Include="src\asset_creator\asset_util.h" />
     <ClInclude Include="src\campaign_creator\campaign_info.h" />
     <ClInclude Include="src\campaign_creator\campaign_main.h" />
     <ClInclude Include="src\event_queue.h" />

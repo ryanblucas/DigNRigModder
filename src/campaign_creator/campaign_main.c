@@ -7,12 +7,12 @@
 #include "../info_box.h"
 #include "../path.h"
 #include "../screen.h"
+#include "../asset_creator/asset_util.h"
 #include <stdio.h>
 
 static editor_state_t* editor_state;
 static campaign_t* current_campaign;
 static int y_pos;
-static sprite_t cache[14];
 static asset_t layers[14];
 
 static bool campaign_try_load(const char* directory)
@@ -36,7 +36,6 @@ static bool campaign_try_load(const char* directory)
 		char sub_buf[MAX_PATH], abs_buf[MAX_PATH];
 		snprintf(sub_buf, sizeof sub_buf, "Layers\\%s", current_campaign->layers[i].directory);
 		layers[i] = file_asset_load(path_find_dnr_main(abs_buf, sizeof abs_buf, sub_buf));
-		cache[i] = game_spritify_asset(layers[i]);
 	}
 	return result;
 }
@@ -69,18 +68,10 @@ static void campaign_handle_file_change(const char* directory)
 
 static void campaign_move_window(int addend)
 {
-	static int prev_mid = 0;
 	y_pos -= addend;
 	y_pos = min(y_pos, TARGET_HEIGHT * 13 - 1);
 	y_pos = max(y_pos, 0);
-	//weather_set_scroll(y_pos);
-	int mid = (y_pos + TARGET_HEIGHT / 2) / TARGET_HEIGHT;
-	if (prev_mid != mid)
-	{
-		screen_change_dirt_color(screen_sprite_dirt_color(cache[mid]));
-		//weather_start(save->layer_headers[mid].weather_type, save->layer_headers[mid].weather_particle_rate, save->layer_headers[mid].weather_speed);
-	}
-	prev_mid = mid;
+	screen_change_dirt_color(layers[(y_pos + TARGET_HEIGHT / 2) / TARGET_HEIGHT].dirt_color);
 	screen_repaint();
 }
 
@@ -88,8 +79,8 @@ static void campaign_handle_repaint(void)
 {
 	int top = y_pos / TARGET_HEIGHT;
 	int bottom = y_pos / TARGET_HEIGHT + 1;
-	screen_sprite_render(0, -y_pos % TARGET_HEIGHT, cache[top]);
-	screen_sprite_render(0, TARGET_HEIGHT - y_pos % TARGET_HEIGHT, cache[bottom]);
+	asset_render(&layers[top], true, 0, -y_pos % TARGET_HEIGHT);
+	asset_render(&layers[bottom], true, 0, TARGET_HEIGHT - y_pos % TARGET_HEIGHT);
 }
 
 static void campaign_handle_keyboard(virtual_key_t key, keyboard_control_t ctr)
@@ -124,6 +115,7 @@ void campaign_start(void)
 	screen_set_event_handlers(&screen_events);
 
 	campaign_try_load(editor_state->current_campaign_directory);
+	screen_change_dirt_color(layers[(y_pos + TARGET_HEIGHT / 2) / TARGET_HEIGHT].dirt_color);
 }
 
 void campaign_end(void)

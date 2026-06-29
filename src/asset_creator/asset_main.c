@@ -4,12 +4,15 @@
 
 #include "asset_main.h"
 #include "asset_info.h"
+#include "asset_util.h"
 #include "../action_buffer.h"
 #include "../info_box.h"
 #include "../screen.h"
 #include "../tool.h"
 #include "../weather.h"
 #include <stdio.h>
+
+#define ASSET_LOADED() (!!asset.blocks)
 
 static void asset_brush(tool_brush_t brush, region_t region);
 static void asset_erase(tool_brush_t brush, region_t region);
@@ -18,7 +21,6 @@ static char directory[MAX_PATH];
 static asset_t asset;
 static int old_width, old_height;
 static bool is_layer;
-static sprite_t cache;
 
 static tool_brush_t tool_eraser;
 static tool_brush_t tool_brush;
@@ -35,9 +37,6 @@ static int scroll_x, scroll_y;
 
 static void asset_invalidate(void)
 {
-	screen_sprite_destroy(cache);
-	cache = game_spritify_asset(asset);
-	RUNTIME_ASSERT(cache);
 	screen_repaint();
 }
 
@@ -65,8 +64,6 @@ static void asset_handle_file_change(const char* _directory)
 {
 	screen_clear();
 
-	screen_sprite_destroy(cache);
-	cache = NULL;
 	file_asset_unload(&asset);
 
 	snprintf(directory, sizeof directory, "%s", _directory);
@@ -96,7 +93,7 @@ static void asset_handle_block_change(const region_t* region)
 static void asset_handle_tool_change(const info_tool_t* new_tool)
 {
 	tool_select_reset(tool_select);
-	if (cache)
+	if (ASSET_LOADED())
 	{
 		screen_repaint();
 	}
@@ -205,18 +202,12 @@ static void asset_render_tile_type_as(asset_tile_type_t type, char ch, attribute
 
 static void asset_handle_repaint(void)
 {
-	if (!cache)
+	if (!ASSET_LOADED())
 	{
 		return;
 	}
-
-	screen_change_dirt_color(screen_sprite_dirt_color(cache));
-	screen_sprite_render(scroll_x, scroll_y, cache);
-
-	asset_render_tile_type_as(TILE_TYPE_ENEMY_SPAWN, 'X', CREATE_ATTRIBUTE(LIGHT_RED, DARK_BLACK));
-	asset_render_tile_type_as(TILE_TYPE_LAVA, 'X', CREATE_ATTRIBUTE(DARK_RED, DARK_BLACK));
-	asset_render_tile_type_as(TILE_TYPE_WATER, 'X', CREATE_ATTRIBUTE(DARK_BLUE, DARK_BLACK));
-	asset_render_tile_type_as(TILE_TYPE_STALACTITE, 0x1F, CREATE_ATTRIBUTE(DARK_YELLOW, DARK_BLACK));
+	screen_change_dirt_color(asset.dirt_color);
+	asset_render(&asset, is_layer, scroll_x, scroll_y);
 
 	tool_select_render(tool_select, -scroll_x, -scroll_y);
 	char ch = ' ';
@@ -461,7 +452,6 @@ void asset_initialize(editor_state_t* state)
 void asset_destroy(void)
 {
 	file_asset_unload(&asset);
-	screen_sprite_destroy(cache);
 	tool_select_destroy(tool_select);
 	action_buffer_destroy(action_buffer);
 	free(clipboard_data);

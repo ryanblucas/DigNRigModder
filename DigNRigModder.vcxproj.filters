@@ -84,6 +84,9 @@
     <ClCompile Include="src\campaign_creator\campaign_info.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\asset_creator\asset_util.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\types.h">
@@ -156,6 +159,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\campaign_creator\campaign_info.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\asset_creator\asset_util.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

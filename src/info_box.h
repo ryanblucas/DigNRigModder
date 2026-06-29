@@ -29,6 +29,7 @@ typedef void (*info_handle_change_brush_block_t)(const complete_block_t* brush);
 typedef void (*info_handle_change_block_t)(const region_t* region);
 typedef void (*info_handle_change_global_field_t)(const void* field);
 typedef void (*info_handle_change_file_t)(const char* directory);
+typedef void (*info_handle_custom_event_t)(const int* property_id);
 
 typedef struct info_events
 {
@@ -38,6 +39,7 @@ typedef struct info_events
 	info_handle_change_block_t block_handler;
 	info_handle_change_global_field_t global_field_handler;
 	info_handle_change_file_t file_handler;
+	info_handle_custom_event_t custom_event_handler;
 } info_events_t;
 
 typedef struct info_internal

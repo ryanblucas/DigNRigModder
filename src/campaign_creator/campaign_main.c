@@ -15,6 +15,8 @@ static campaign_t* current_campaign;
 static int y_pos;
 static asset_t layers[14];
 
+static bool render_end_box;
+
 static bool campaign_try_load(const char* directory)
 {
 	file_campaign_unload(current_campaign);
@@ -77,6 +79,16 @@ static void campaign_handle_file_change(const char* directory)
 	campaign_try_load(directory);
 }
 
+static void campaign_handle_custom_event(const int* _id)
+{
+	campaign_property_id_t id = (campaign_property_id_t)_id;
+	if (id == CPI_ENABLE_END_BOX || id == CPI_DISABLE_END_BOX)
+	{
+		render_end_box = id == CPI_ENABLE_END_BOX;
+	}
+	screen_repaint();
+}
+
 static void campaign_move_window(int addend)
 {
 	y_pos -= addend;
@@ -92,6 +104,13 @@ static void campaign_handle_repaint(void)
 	int bottom = y_pos / TARGET_HEIGHT + 1;
 	asset_render(&layers[top], true, 0, -y_pos % TARGET_HEIGHT);
 	asset_render(&layers[bottom], true, 0, TARGET_HEIGHT - y_pos % TARGET_HEIGHT);
+	if (render_end_box)
+	{
+		region_t normalized = current_campaign->end_box;
+		normalized.y0 -= y_pos;
+		normalized.y1 -= y_pos;
+		screen_invert_region(normalized);
+	}
 }
 
 static void campaign_handle_keyboard(virtual_key_t key, keyboard_control_t ctr)
@@ -114,7 +133,8 @@ void campaign_start(void)
 {
 	info_events_t info_events =
 	{
-		.file_handler = campaign_handle_file_change
+		.file_handler = campaign_handle_file_change,
+		.custom_event_handler = campaign_handle_custom_event,
 	};
 	info_set_event_handlers(&info_events);
 	screen_events_t screen_events =

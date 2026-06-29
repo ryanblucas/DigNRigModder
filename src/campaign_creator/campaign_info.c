@@ -134,6 +134,27 @@ static void campaign_info_handle_double_click_listbox(HWND list_box, int index)
 	SendMessageA(list_box, LB_INSERTSTRING, (WPARAM)index, (LPARAM)buf);
 }
 
+static void campaign_info_handle_toggle_button(HWND wnd, const char* show, const char* hide, campaign_property_id_t show_id, campaign_property_id_t hide_id)
+{
+	char buf[20];
+	GetWindowTextA(wnd, buf, sizeof buf);
+	/* this is good enough */
+	if (strncmp(buf, show, sizeof buf) == 0)
+	{
+		SetWindowTextA(wnd, hide);
+		queue_add(internal.events->custom_event_handler, (const void*)show_id);
+	}
+	else if (strncmp(buf, hide, sizeof buf) == 0)
+	{
+		SetWindowTextA(wnd, show);
+		queue_add(internal.events->custom_event_handler, (const void*)hide_id);
+	}
+	else
+	{
+		RUNTIME_ASSERT(false);
+	}
+}
+
 static void campaign_info_dispatch_command(WPARAM wparam, LPARAM lparam)
 {
 	HWND wnd = (HWND)lparam;
@@ -148,6 +169,18 @@ static void campaign_info_dispatch_command(WPARAM wparam, LPARAM lparam)
 	else if (HIWORD(wparam) == EN_CHANGE && wnd == child_windows[CWI_TEXTBOX_TITLE])
 	{
 		GetWindowTextA(wnd, campaign->name, sizeof campaign->name);
+	}
+	else if (wnd == child_windows[CWI_BUTTON_SHOW_BINARY_TOGGLE])
+	{
+		campaign_info_handle_toggle_button(wnd, "Show binary", "Hide binary", CPI_ENABLE_SHOW_BINARY_MODE, CPI_DISABLE_SHOW_BINARY_MODE);
+	}
+	else if (wnd == child_windows[CWI_BUTTON_SHOW_ENDBOX_TOGGLE])
+	{
+		campaign_info_handle_toggle_button(wnd, "Show endbox", "Hide endbox", CPI_ENABLE_END_BOX, CPI_DISABLE_END_BOX);
+	}
+	else if (wnd == child_windows[CWI_BUTTON_WORK_BINARY_TOGGLE])
+	{
+		campaign_info_handle_toggle_button(wnd, "Work binary", "Work asset", CPI_CHANGE_TO_BINARY_MODE, CPI_CHANGE_TO_ASSET_MODE);
 	}
 }
 

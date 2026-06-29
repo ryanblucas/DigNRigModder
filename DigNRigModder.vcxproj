@@ -150,7 +150,6 @@
     <ClCompile Include="src\save_viewer\save_main.c" />
     <ClCompile Include="src\screen.c" />
     <ClCompile Include="src\serialize.c" />
-    <ClCompile Include="src\string_builder.c" />
     <ClCompile Include="src\tool.c" />
     <ClCompile Include="src\weather.c" />
   </ItemGroup>
@@ -176,7 +175,6 @@
     <ClInclude Include="src\save_viewer\save_main.h" />
     <ClInclude Include="src\screen.h" />
     <ClInclude Include="src\serialize.h" />
-    <ClInclude Include="src\string_builder.h" />
     <ClInclude Include="src\tool.h" />
     <ClInclude Include="src\types.h" />
     <ClInclude Include="src\weather.h" />

@@ -416,13 +416,13 @@ typedef struct editor_state
 
 typedef struct layer
 {
-	const char* name;
-	const char* directory;
+	char name[64];
+	char directory[MAX_PATH];
 } layer_t;
 
 typedef struct campaign
 {
-	const char* name;
+	char name[64];
 	int start_x, start_y;
 	region_t end_box;
 	layer_t layers[LAYER_COUNT];

@@ -10,7 +10,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "string_builder.h"
 
 #define DATA_STRING_MAX_SIZE 272
 
@@ -588,17 +587,15 @@ cleanup:
 
 campaign_t* file_campaign_blank(void)
 {
-	string_builder_t* builder = string_builder_create(1);
-	campaign_t* result = dig_malloc(sizeof * result + sizeof builder);
-	*(string_builder_t**)(result + 1) = builder;
+	campaign_t* result = dig_malloc(sizeof * result);
 
 	result->start_x = result->start_y = 0;
 	result->end_box = (region_t){ 0 };
-	result->name = "Blank";
+	strcpy(result->name, "Blank");
 	for (int i = 0; i < 14; i++)
 	{
-		result->layers[i].name = "Blank";
-		result->layers[i].directory = "blank.layer";
+		strcpy(result->layers[i].name, "Blank");
+		strcpy(result->layers[i].directory, "blank.layer");
 	}
 
 	return result;
@@ -613,9 +610,7 @@ campaign_t* file_campaign_load(const char* directory)
 		return NULL;
 	}
 
-	string_builder_t* builder = string_builder_create(512);
-	campaign_t* result = dig_malloc(sizeof * result + sizeof builder);
-	*(string_builder_t**)(result + 1) = builder;
+	campaign_t* result = dig_malloc(sizeof * result);
 	int layer_count = 0;
 
 	struct token curr;
@@ -629,7 +624,7 @@ campaign_t* file_campaign_load(const char* directory)
 			file_next(&file, &curr);
 			MATCH_AND_ADVANCE_TOKEN(&file, curr, TOKEN_NEWLINE);
 			MATCH_TOKEN(&file, curr, TOKEN_STRING);
-			result->name = (char*)string_builder_add(builder, curr.data.str);
+			strncpy(result->name, curr.data.str, min(sizeof result->name, sizeof curr.data.str));
 			file_next(&file, &curr);
 		}
 		else if (strncmp(curr.data.str, "StartX", DATA_STRING_MAX_SIZE) == 0)
@@ -662,12 +657,12 @@ campaign_t* file_campaign_load(const char* directory)
 				ENSURE_CONDITION(&file, layer_count < 14);
 
 				MATCH_TOKEN(&file, curr, TOKEN_STRING);
-				result->layers[layer_count].name = (char*)string_builder_add(builder, curr.data.str);
+				strncpy(result->layers[layer_count].name, curr.data.str, min(sizeof result->layers[layer_count].name, sizeof curr.data.str));
 				MATCH_AND_ADVANCE_TOKEN(&file, curr, TOKEN_STRING);
 				MATCH_AND_ADVANCE_TOKEN(&file, curr, TOKEN_NEWLINE);
 
 				MATCH_TOKEN(&file, curr, TOKEN_STRING);
-				result->layers[layer_count].directory = (char*)string_builder_add(builder, curr.data.str);
+				strncpy(result->layers[layer_count].directory, curr.data.str, min(sizeof result->layers[layer_count].directory, sizeof curr.data.str));
 				MATCH_AND_ADVANCE_TOKEN(&file, curr, TOKEN_STRING);
 				while (curr.type == TOKEN_NEWLINE)
 				{
@@ -681,17 +676,6 @@ campaign_t* file_campaign_load(const char* directory)
 		}
 	}
 	fclose(file.handle);
-	result->name += (size_t)builder->buf;
-	for (int i = 0; i < layer_count; i++)
-	{
-		result->layers[i].name += (size_t)builder->buf;
-		result->layers[i].directory += (size_t)builder->buf;
-	}
-	for (int i = layer_count; i < 14; i++)
-	{
-		result->layers[i].name = "Blank";
-		result->layers[i].directory = "blank.layer";
-	}
 	return result;
 cleanup:
 	fclose(file.handle);
@@ -701,11 +685,7 @@ cleanup:
 
 void file_campaign_unload(campaign_t* campaign)
 {
-	if (campaign)
-	{
-		string_builder_destroy(*(string_builder_t**)(campaign + 1));
-		free(campaign);
-	}
+	free(campaign);
 }
 
 bool file_campaign_save(const char* directory, const campaign_t* campaign)

@@ -75,9 +75,6 @@
     <ClCompile Include="src\event_queue.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\string_builder.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\campaign_creator\campaign_main.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -150,9 +147,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\event_queue.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\string_builder.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\campaign_creator\campaign_main.h">

@@ -166,7 +166,6 @@
     <ClCompile Include="..\src\game.c" />
     <ClCompile Include="..\src\path.c" />
     <ClCompile Include="..\src\screen.c" />
-    <ClCompile Include="..\src\string_builder.c" />
     <ClCompile Include="address.c" />
     <ClCompile Include="dllmain.c" />
     <ClCompile Include="select_campaign_state.c" />
@@ -180,7 +179,6 @@
     <ClInclude Include="..\src\game.h" />
     <ClInclude Include="..\src\path.h" />
     <ClInclude Include="..\src\screen.h" />
-    <ClInclude Include="..\src\string_builder.h" />
     <ClInclude Include="address.h" />
     <ClInclude Include="hook.h" />
     <ClInclude Include="select_campaign_state.h" />

@@ -4,7 +4,6 @@
 
 #include "campaign_info.h"
 #include "../path.h"
-#include "../string_builder.h"
 #include "../interface/change_field_modal.h"
 #include <stdio.h>
 #include <Windowsx.h>
@@ -37,8 +36,6 @@ enum child_window_index
 static LRESULT campaign_info_subclass_edit(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, UINT_PTR subclass_id, DWORD_PTR ref_data);
 
 static campaign_t* campaign;
-/* technically an infinite memory leak generator but it's probably fine */
-static string_builder_t* builder;
 static HWND child_windows[CWI_COUNT];
 static info_internal_t internal;
 
@@ -89,7 +86,6 @@ void campaign_info_initialize(info_internal_t* _internal)
 
 void campaign_info_destroy(void)
 {
-	string_builder_destroy(builder);
 	for (int i = 0; i < CWI_COUNT; i++)
 	{
 		DestroyWindow(child_windows[i]);
@@ -127,12 +123,12 @@ static void campaign_info_handle_double_click_listbox(HWND list_box, int index)
 				return;
 			}
 		}
-		campaign->layers[index].directory = builder->buf + string_builder_add(builder, buf);
+		strncpy(campaign->layers[index].directory, buf, MAX_PATH);
 		queue_add(internal.events->file_handler, (const void*)index);
 	}
 	else
 	{
-		campaign->layers[index].name = builder->buf + string_builder_add(builder, buf);
+		strncpy(campaign->layers[index].name, buf, sizeof campaign->layers[index].name);
 	}
 	ListBox_DeleteString(list_box, index);
 	SendMessageA(list_box, LB_INSERTSTRING, (WPARAM)index, (LPARAM)buf);
@@ -151,9 +147,7 @@ static void campaign_info_dispatch_command(WPARAM wparam, LPARAM lparam)
 	}
 	else if (HIWORD(wparam) == EN_CHANGE && wnd == child_windows[CWI_TEXTBOX_TITLE])
 	{
-		static char buf[128];
-		GetWindowTextA(wnd, buf, sizeof buf);
-		campaign->name = buf;
+		GetWindowTextA(wnd, campaign->name, sizeof campaign->name);
 	}
 }
 
@@ -200,9 +194,6 @@ static LRESULT campaign_info_subclass_edit(HWND hwnd, UINT msg, WPARAM wparam, L
 
 static void campaign_info_set_internal(const void* unused)
 {
-	string_builder_destroy(builder);
-	builder = string_builder_create(512);
-
 	SetWindowTextA(child_windows[CWI_TEXTBOX_TITLE], campaign->name);
 	for (int i = 0; i < 14; i++)
 	{

@@ -23,10 +23,7 @@ static bool campaign_try_load(const char* directory)
 	{
 		current_campaign = file_campaign_load(directory);
 		result = !!current_campaign;
-		if (result)
-		{
-			strncpy(editor_state->current_campaign_directory, directory, sizeof editor_state->current_campaign_directory);
-		}
+		strncpy(editor_state->current_campaign_directory, directory, result ? sizeof editor_state->current_campaign_directory : 1);
 	}
 	if (!result)
 	{
@@ -70,9 +67,29 @@ static void campaign_handle_file_change(const char* directory)
 	campaign_try_load(directory);
 }
 
+static void campaign_move_window(int addend)
+{
+	static int prev_mid = 0;
+	y_pos -= addend;
+	y_pos = min(y_pos, TARGET_HEIGHT * 13 - 1);
+	y_pos = max(y_pos, 0);
+	//weather_set_scroll(y_pos);
+	int mid = (y_pos + TARGET_HEIGHT / 2) / TARGET_HEIGHT;
+	if (prev_mid != mid)
+	{
+		screen_change_dirt_color(screen_sprite_dirt_color(cache[mid]));
+		//weather_start(save->layer_headers[mid].weather_type, save->layer_headers[mid].weather_particle_rate, save->layer_headers[mid].weather_speed);
+	}
+	prev_mid = mid;
+	screen_repaint();
+}
+
 static void campaign_handle_repaint(void)
 {
-
+	int top = y_pos / TARGET_HEIGHT;
+	int bottom = y_pos / TARGET_HEIGHT + 1;
+	screen_sprite_render(0, -y_pos % TARGET_HEIGHT, cache[top]);
+	screen_sprite_render(0, TARGET_HEIGHT - y_pos % TARGET_HEIGHT, cache[bottom]);
 }
 
 static void campaign_handle_keyboard(virtual_key_t key, keyboard_control_t ctr)
@@ -88,7 +105,7 @@ static void campaign_handle_keyboard(virtual_key_t key, keyboard_control_t ctr)
 
 static void campaign_handle_mouse_wheel(int delta)
 {
-	y_pos += delta;
+	campaign_move_window(delta * 10);
 }
 
 void campaign_start(void)

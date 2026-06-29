@@ -307,6 +307,19 @@ static INT_PTR cfm_text_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 	return 0;
 }
 
+void change_field_modal_string(HWND owner, char* buf, size_t size)
+{
+	WCHAR wbuf[32];
+	RUNTIME_ASSERT(MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, buf, -1, wbuf, sizeof wbuf / sizeof * wbuf));
+	struct modal_open_struct mos = { .title = L"Change string type", .choice_array = wbuf };
+	if (DialogBoxParamW(GetModuleHandleW(NULL), MAKEINTRESOURCEW(IDD_CHANGE_FIELD_TEXT), owner, cfm_text_proc, (LPARAM)&mos) == 1)
+	{
+		memset(buf, 0, size);
+		return;
+	}
+	RUNTIME_ASSERT(WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, mos.result, -1, buf, size, NULL, NULL));
+}
+
 void change_field_modal_integer(HWND owner, void* value, int bitmask_size)
 {
 	bool is_signed = bitmask_size & SIZE_IS_SIGNED;

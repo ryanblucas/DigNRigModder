@@ -35,6 +35,14 @@ char* path_find_dnr_main(char* buf, size_t buf_size, const char* subdirectory)
 	return path_find_internal(buf, buf_size, subdirectory, &FOLDERID_ProgramFilesX86);
 }
 
+char* path_find_dnr_main_chain(char* buf, size_t buf_size, const char* subdirectory1, const char* subdirectory2)
+{
+	char buf1[MAX_PATH];
+	path_find_dnr_main(buf1, sizeof buf1, subdirectory1);
+	snprintf(buf, buf_size, "%s\\%s", buf1, subdirectory2);
+	return buf;
+}
+
 char* path_find_dnr_docs(char* buf, size_t buf_size, const char* subdirectory)
 {
 	return path_find_internal(buf, buf_size, subdirectory, &FOLDERID_Documents);

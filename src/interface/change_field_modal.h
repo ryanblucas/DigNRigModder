@@ -15,6 +15,8 @@ void change_field_modal_mineral_spawn_rule(HWND owner, dnr_mineral_spawn_rule_t*
 void change_field_modal_weather_type(HWND owner, dnr_weather_type_t* value);
 void change_field_modal_asset_tile_type(HWND owner, asset_tile_type_t* value);
 
+void change_field_modal_string(HWND owner, char* buf, size_t size);
+
 #define SIZE_IS_SIGNED 0x80000000
 
 void change_field_modal_integer(HWND owner, void* value, int bitmask_size);

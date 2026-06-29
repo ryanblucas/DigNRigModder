@@ -5,6 +5,8 @@
 #pragma once
 
 #include "../info_box.h"
+#define CAMPAIGN_IS_LAYER_FILE_CHANGE(directory) ((directory) >= 0 && (directory) < 14)
+#define CAMPAIGN_CONVERT_FILE_CHANGE_PARAM(directory) (int)(directory)
 
 void campaign_info_initialize(info_internal_t* internal);
 void campaign_info_destroy(void);

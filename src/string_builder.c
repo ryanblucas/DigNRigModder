@@ -16,8 +16,11 @@ string_builder_t* string_builder_create(size_t start_capacity)
 
 void string_builder_destroy(string_builder_t* builder)
 {
-	free(builder->buf);
-	free(builder);
+	if (builder)
+	{
+		free(builder->buf);
+		free(builder);
+	}
 }
 
 size_t string_builder_add(string_builder_t* builder, const char* str)

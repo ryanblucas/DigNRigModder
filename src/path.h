@@ -11,6 +11,8 @@
 	if successful, NULL otherwise. If no subdirectory is specified, the result
 	will have no trailing backslash. */
 char* path_find_dnr_main(char* buf, size_t buf_size, const char* subdirectory);
+/* path_find_dnr_main, but subdirectory2 is appended after subdirectory1 after path of Dig-N-Rig in program files */
+char* path_find_dnr_main_chain(char* buf, size_t buf_size, const char* subdirectory1, const char* subdirectory2);
 /* Finds path of Dig-N-Rig in documents and appends subdirectory to it if not NULL.
 	This path contains saves and settings. Returns buf if successful, NULL otherwise.
 	If no subdirectory is specified, the result will have no trailing backslash*/

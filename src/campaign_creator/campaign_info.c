@@ -4,6 +4,10 @@
 
 #include "campaign_info.h"
 #include "../path.h"
+#include "../string_builder.h"
+#include "../interface/change_field_modal.h"
+#include <stdio.h>
+#include <Windowsx.h>
 
 enum child_window_index
 {
@@ -31,6 +35,8 @@ enum child_window_index
 };
 
 static campaign_t* campaign;
+/* technically an infinite memory leak generator but it's probably fine */
+static string_builder_t* builder;
 static HWND child_windows[CWI_COUNT];
 static info_internal_t internal;
 
@@ -72,6 +78,9 @@ void campaign_info_initialize(info_internal_t* _internal)
 	SendMessageW(child_windows[CWI_TREEVIEW], WM_SETFONT, (WPARAM)internal.font_text, (LPARAM)FALSE); 
 	SendMessageW(child_windows[CWI_CURRENT_TREEVIEW], WM_SETFONT, (WPARAM)internal.font_text, (LPARAM)FALSE);
 
+	_internal->global_treeview = child_windows[CWI_TREEVIEW];
+	_internal->current_treeview = child_windows[CWI_CURRENT_TREEVIEW];
+
 	campaign_info_show(false);
 }
 
@@ -91,8 +100,61 @@ void campaign_info_show(bool is_visible)
 	}
 }
 
+static void campaign_info_handle_double_click_listbox(HWND list_box, int index)
+{
+	char buf[MAX_PATH];
+	RUNTIME_ASSERT(ListBox_GetTextLen(list_box, index) < sizeof buf);
+	SendMessageA(list_box, LB_GETTEXT, (WPARAM)index, (LPARAM)buf);
+	change_field_modal_string(internal.window, buf, sizeof buf);
+	if (!*buf)
+	{
+		return;
+	}
+	if (list_box == child_windows[CWI_LISTBOX_LAYER_FILES])
+	{
+		char layer_path_buf[MAX_PATH];
+		path_find_dnr_main_chain(layer_path_buf, sizeof layer_path_buf, "Layers", buf);
+		if (!path_exists(layer_path_buf))
+		{
+			MessageBeep(MB_ICONERROR);
+			if (MessageBoxW(internal.window, L"That file doesn't exist.", L"Error", MB_ICONERROR | MB_OKCANCEL) != IDCANCEL)
+			{
+				campaign_info_handle_double_click_listbox(list_box, index);
+				return;
+			}
+		}
+		campaign->layers[index].directory = builder->buf + string_builder_add(builder, buf);
+		queue_add(internal.events->file_handler, (const void*)index);
+	}
+	else
+	{
+		campaign->layers[index].name = builder->buf + string_builder_add(builder, buf);
+	}
+	ListBox_DeleteString(list_box, index);
+	SendMessageA(list_box, LB_INSERTSTRING, (WPARAM)index, (LPARAM)buf);
+}
+
 bool campaign_info_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESULT* out)
 {
+	*out = 0;
+	switch (msg)
+	{
+	case WM_COMMAND:
+	{
+		if (HIWORD(wparam) != LBN_DBLCLK)
+		{
+			return true;
+		}
+		HWND list_box = (HWND)lparam;
+		int selected_index = ListBox_GetCurSel(list_box);
+		if (selected_index != LB_ERR)
+		{
+			campaign_info_handle_double_click_listbox(list_box, selected_index);
+		}
+		return true;
+	}
+	}
+
 	return false;
 }
 
@@ -103,7 +165,15 @@ bool campaign_info_handle_interact_tree_item(bool is_global, element_t element)
 
 static void campaign_info_set_internal(const void* unused)
 {
+	string_builder_destroy(builder);
+	builder = string_builder_create(512);
+
 	SetWindowTextA(child_windows[CWI_TEXTBOX_TITLE], campaign->name);
+	for (int i = 0; i < 14; i++)
+	{
+		SendMessageA(child_windows[CWI_LISTBOX_LAYER_FILES], LB_ADDSTRING, 0, (LPARAM)campaign->layers[i].directory);
+		SendMessageA(child_windows[CWI_LISTBOX_LAYER_NAMES], LB_ADDSTRING, 0, (LPARAM)campaign->layers[i].name);
+	}
 }
 
 void campaign_info_set(campaign_t* _campaign, const char* directory)
@@ -126,7 +196,7 @@ bool campaign_info_find_file(char* directory, size_t size)
 		.lStructSize = sizeof ofn,
 		.hwndOwner = internal.window,
 		.lpstrFilter = "Campaign files\0*.campaign",
-		.lpstrFile = directory, .nMaxFile = size,
+		.lpstrFile = directory, .nMaxFile = (DWORD)size,
 		.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST
 	};
 	bool result = !!GetOpenFileNameA(&ofn);

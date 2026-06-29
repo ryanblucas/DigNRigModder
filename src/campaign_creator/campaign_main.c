@@ -33,9 +33,9 @@ static bool campaign_try_load(const char* directory)
 	campaign_info_set(current_campaign, editor_state->current_campaign_directory);
 	for (int i = 0; i < 14; i++)
 	{
-		char sub_buf[MAX_PATH], abs_buf[MAX_PATH];
-		snprintf(sub_buf, sizeof sub_buf, "Layers\\%s", current_campaign->layers[i].directory);
-		layers[i] = file_asset_load(path_find_dnr_main(abs_buf, sizeof abs_buf, sub_buf));
+		char buf[MAX_PATH];
+		path_find_dnr_main_chain(buf, sizeof buf, "Layers", current_campaign->layers[i].directory);
+		layers[i] = file_asset_load(buf);
 	}
 	return result;
 }
@@ -63,6 +63,17 @@ void campaign_destroy(void)
 
 static void campaign_handle_file_change(const char* directory)
 {
+	if (CAMPAIGN_IS_LAYER_FILE_CHANGE(directory))
+	{
+		char buf[MAX_PATH];
+		int index = CAMPAIGN_CONVERT_FILE_CHANGE_PARAM(directory);
+		asset_t* asset = &layers[index];
+		file_asset_unload(asset);
+		path_find_dnr_main_chain(buf, sizeof buf, "Layers", current_campaign->layers[index].directory);
+		*asset = file_asset_load(buf);
+		screen_repaint();
+		return;
+	}
 	campaign_try_load(directory);
 }
 

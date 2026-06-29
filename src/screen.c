@@ -9,6 +9,7 @@
 #include "event_queue.h"
 #include "file.h"
 #include "types.h"
+#include "interface/resource.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -142,6 +143,10 @@ void screen_initialize(bool is_small_console)
 	{
 		debug_format("Failed to locate Dig-N-Rig's font!\n");
 	}
+
+	HICON icon = (HICON)LoadImage(GetModuleHandle(NULL), MAKEINTRESOURCE(IDI_ICON1), IMAGE_ICON, 32, 32, LR_DEFAULTCOLOR | LR_SHARED);
+	PostMessageW(GetConsoleWindow(), WM_SETICON, ICON_SMALL, (LPARAM)icon);
+	PostMessageW(GetConsoleWindow(), WM_SETICON, ICON_BIG, (LPARAM)icon);
 
 	used_period = timeBeginPeriod(1) == TIMERR_NOERROR;
 	if (!used_period)

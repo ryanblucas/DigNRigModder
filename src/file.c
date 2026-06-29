@@ -710,7 +710,31 @@ void file_campaign_unload(campaign_t* campaign)
 
 bool file_campaign_save(const char* directory, const campaign_t* campaign)
 {
-	return false;
+	struct file mfile = { 0 };
+	mfile.handle = fopen(directory, "w");
+	if (!mfile.handle)
+	{
+		return false;
+	}
+
+	struct file* file = &mfile;
+	bool result = false;
+	const char* fmt = 
+		"#Title\n%s\n"
+		"#StartX\n%i\n"
+		"#StartY\n%i\n"
+		"#EndBox\n%i %i %i %i\n";
+	ENSURE_CONDITION(file, file_fprintf(file, fmt, campaign->name, campaign->start_x, campaign->start_y, campaign->end_box.x0, campaign->end_box.y0, campaign->end_box.x1, campaign->end_box.y1) > 0);
+	ENSURE_CONDITION(file, file_fprintf(file, "#Layers\n") > 0);
+	for (int i = 0; i < 14; i++)
+	{
+		ENSURE_CONDITION(file, file_fprintf(file, "%s\n%s\n", campaign->layers[i].name, campaign->layers[i].directory) > 0);
+	}
+
+	result = true;
+cleanup:
+	fclose(file->handle);
+	return result;
 }
 
 static void file_state_load_shop_item(const uint32_t* arena, shop_item_t* item, int index)

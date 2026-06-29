@@ -34,6 +34,8 @@ enum child_window_index
 	CWI_COUNT
 };
 
+static LRESULT campaign_info_subclass_edit(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, UINT_PTR subclass_id, DWORD_PTR ref_data);
+
 static campaign_t* campaign;
 /* technically an infinite memory leak generator but it's probably fine */
 static string_builder_t* builder;
@@ -48,6 +50,7 @@ void campaign_info_initialize(info_internal_t* _internal)
 	child_windows[CWI_TEXTBOX_TITLE] = CreateWindowExW(0, L"EDIT", NULL, WS_CHILD | WS_OVERLAPPED | WS_VISIBLE | WS_BORDER, 112, 29, 102, 22, internal.window, NULL, NULL, NULL);
 	SendMessageW(child_windows[CWI_TEXT_TITLE], WM_SETFONT, (WPARAM)internal.font_caption, 0);
 	SendMessageW(child_windows[CWI_TEXTBOX_TITLE], WM_SETFONT, (WPARAM)internal.font_caption, 0);
+	SetWindowSubclass(child_windows[CWI_TEXTBOX_TITLE], campaign_info_subclass_edit, 0, 0);
 
 	child_windows[CWI_BUTTON_FILE_SELECTER] = CreateWindowExW(0, L"BUTTON", L"Find file", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, 8, 29, 62, 22, internal.window, NULL, NULL, NULL);
 	SendMessageW(child_windows[CWI_BUTTON_FILE_SELECTER], WM_SETFONT, (WPARAM)internal.font_text, 0);
@@ -145,7 +148,6 @@ static void campaign_info_dispatch_command(WPARAM wparam, LPARAM lparam)
 		{
 			campaign_info_handle_double_click_listbox(wnd, selected_index);
 		}
-		return true;
 	}
 	else if (HIWORD(wparam) == EN_CHANGE && wnd == child_windows[CWI_TEXTBOX_TITLE])
 	{
@@ -173,6 +175,27 @@ bool campaign_info_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESU
 bool campaign_info_handle_interact_tree_item(bool is_global, element_t element)
 {
 	return false;
+}
+
+static LRESULT campaign_info_subclass_edit(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, UINT_PTR subclass_id, DWORD_PTR ref_data)
+{
+	switch (msg)
+	{
+	case WM_LBUTTONDOWN:
+	{
+		if (GetFocus() == hwnd)
+		{
+			HWND parent = GetParent(hwnd);
+			SetFocus(parent);
+			return 0;
+		}
+		break;
+	}
+	case WM_NCDESTROY:
+		RemoveWindowSubclass(hwnd, campaign_info_subclass_edit, subclass_id);
+		break;
+	}
+	return DefSubclassProc(hwnd, msg, wparam, lparam);
 }
 
 static void campaign_info_set_internal(const void* unused)

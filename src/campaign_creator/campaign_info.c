@@ -5,6 +5,7 @@
 #include "campaign_info.h"
 #include "../path.h"
 #include "../interface/change_field_modal.h"
+#include "../interface/mineral_palette.h"
 #include <stdio.h>
 #include <Windowsx.h>
 
@@ -30,6 +31,8 @@ enum child_window_index
 	CWI_TREEVIEW,
 	CWI_CURRENT_TREEVIEW,
 
+	CWI_PALETTE,
+
 	CWI_COUNT
 };
 
@@ -40,6 +43,7 @@ static HWND child_windows[CWI_COUNT];
 static info_internal_t internal;
 
 static info_tool_t current_tool;
+static int brush_size;
 
 void campaign_info_initialize(info_internal_t* _internal)
 {
@@ -59,16 +63,16 @@ void campaign_info_initialize(info_internal_t* _internal)
 	SendMessageW(child_windows[CWI_LISTBOX_LAYER_FILES], WM_SETFONT, (WPARAM)internal.font_text, (LPARAM)FALSE);
 	SendMessageW(child_windows[CWI_LISTBOX_LAYER_NAMES], WM_SETFONT, (WPARAM)internal.font_text, (LPARAM)FALSE);
 
-	child_windows[CWI_BUTTON_ERASER] = CreateWindowExW(0, L"BUTTON", L"Erase", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 3, 75, 72, 22, internal.window, NULL, NULL, NULL);
-	child_windows[CWI_BUTTON_SELECT] = CreateWindowExW(0, L"BUTTON", L"Select", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 3, 98, 72, 22, internal.window, NULL, NULL, NULL);
-	child_windows[CWI_BUTTON_BRUSH] = CreateWindowExW(0, L"BUTTON", L"Brush", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 3, 121, 72, 22, internal.window, NULL, NULL, NULL);
-	child_windows[CWI_THUMB_BRUSH_SIZE] = CreateWindowExW(0, TRACKBAR_CLASSW, L"Brush size", WS_VISIBLE | WS_CHILD | TBS_AUTOTICKS | TBS_ENABLESELRANGE, 3, 144, 72, 22, internal.window, NULL, NULL, NULL);
+	child_windows[CWI_BUTTON_ERASER] = CreateWindowExW(0, L"BUTTON", L"Erase", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 3, 55, 72, 22, internal.window, NULL, NULL, NULL);
+	child_windows[CWI_BUTTON_SELECT] = CreateWindowExW(0, L"BUTTON", L"Select", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 3, 78, 72, 22, internal.window, NULL, NULL, NULL);
+	child_windows[CWI_BUTTON_BRUSH] = CreateWindowExW(0, L"BUTTON", L"Brush", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 3, 101, 72, 22, internal.window, NULL, NULL, NULL);
+	child_windows[CWI_THUMB_BRUSH_SIZE] = CreateWindowExW(0, TRACKBAR_CLASSW, L"Brush size", WS_VISIBLE | WS_CHILD | TBS_AUTOTICKS | TBS_ENABLESELRANGE, 3, 124, 72, 22, internal.window, NULL, NULL, NULL);
 	SendMessageW(child_windows[CWI_THUMB_BRUSH_SIZE], TBM_SETRANGE, TRUE, MAKELONG(INFO_BRUSH_MIN_SIZE, INFO_BRUSH_MAX_SIZE));
-	child_windows[CWI_BUTTON_RECTANGLE] = CreateWindowExW(0, L"BUTTON", L"Set end box", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 3, 167, 72, 22, internal.window, NULL, NULL, NULL);
+	child_windows[CWI_BUTTON_RECTANGLE] = CreateWindowExW(0, L"BUTTON", L"Set end box", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 3, 147, 72, 22, internal.window, NULL, NULL, NULL);
 
-	child_windows[CWI_BUTTON_SHOW_ENDBOX_TOGGLE] = CreateWindowExW(0, L"BUTTON", L"Show endbox", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 82, 75, 132, 22, internal.window, NULL, NULL, NULL);
-	child_windows[CWI_BUTTON_SHOW_BINARY_TOGGLE] = CreateWindowExW(0, L"BUTTON", L"Show binary", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 82, 98, 132, 22, internal.window, NULL, NULL, NULL);
-	child_windows[CWI_BUTTON_WORK_BINARY_TOGGLE] = CreateWindowExW(0, L"BUTTON", L"Work binary", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 82, 121, 132, 22, internal.window, NULL, NULL, NULL);
+	child_windows[CWI_BUTTON_SHOW_ENDBOX_TOGGLE] = CreateWindowExW(0, L"BUTTON", L"Show endbox", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 82, 55, 132, 22, internal.window, NULL, NULL, NULL);
+	child_windows[CWI_BUTTON_SHOW_BINARY_TOGGLE] = CreateWindowExW(0, L"BUTTON", L"Show binary", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 82, 78, 132, 22, internal.window, NULL, NULL, NULL);
+	child_windows[CWI_BUTTON_WORK_BINARY_TOGGLE] = CreateWindowExW(0, L"BUTTON", L"Work binary", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 82, 101, 132, 22, internal.window, NULL, NULL, NULL);
 
 	for (int i = CWI_BUTTON_SHOW_ENDBOX_TOGGLE; i <= CWI_BUTTON_RECTANGLE; i++)
 	{
@@ -79,6 +83,9 @@ void campaign_info_initialize(info_internal_t* _internal)
 	child_windows[CWI_CURRENT_TREEVIEW] = CreateWindowExW(0, WC_TREEVIEWW, NULL, WS_VISIBLE | WS_CHILD | WS_BORDER | TVS_HASLINES | TVS_LINESATROOT | TVS_HASBUTTONS, INFO_BOX_CLIENT_WIDTH / 2, 190, INFO_BOX_CLIENT_WIDTH / 2 - 2, 200, internal.window, NULL, NULL, NULL);
 	SendMessageW(child_windows[CWI_TREEVIEW], WM_SETFONT, (WPARAM)internal.font_text, (LPARAM)FALSE); 
 	SendMessageW(child_windows[CWI_CURRENT_TREEVIEW], WM_SETFONT, (WPARAM)internal.font_text, (LPARAM)FALSE);
+
+	mineral_palette_initialize();
+	child_windows[CWI_PALETTE] = CreateWindowExW(0, MINERAL_PALETTE_CLASS_NAME, NULL, WS_VISIBLE | WS_CHILD, 84, 124, 32 * 4, 32 * 2, internal.window, NULL, NULL, NULL);
 
 	_internal->global_treeview = child_windows[CWI_TREEVIEW];
 	_internal->current_treeview = child_windows[CWI_CURRENT_TREEVIEW];
@@ -226,6 +233,16 @@ bool campaign_info_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESU
 	case WM_COMMAND:
 	{
 		campaign_info_dispatch_command(wparam, lparam);
+		return true;
+	}
+	case WM_HSCROLL:
+	{
+		if ((HWND)lparam != child_windows[CWI_THUMB_BRUSH_SIZE] || LOWORD(wparam) != SB_ENDSCROLL)
+		{
+			return true;
+		}
+		brush_size = (int)SendMessageW(child_windows[CWI_THUMB_BRUSH_SIZE], TBM_GETPOS, 0, 0);
+		queue_add(internal.events->brush_size_handler, &brush_size);
 		return true;
 	}
 	}

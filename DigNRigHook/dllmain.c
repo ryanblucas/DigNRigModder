@@ -297,7 +297,7 @@ static DWORD WINAPI hook_initialize(LPVOID param)
 	default_campaign.end_box.y0 = 1392;
 	default_campaign.end_box.x1 = 150;
 	default_campaign.end_box.y1 = 1400;
-	default_campaign.name = "Dig-N-Rig";
+	strncpy(default_campaign.name, "Dig-N-Rig", sizeof default_campaign.name);
 	default_campaign.start_x = 46;
 	default_campaign.start_y = 450;
 
@@ -306,8 +306,8 @@ static DWORD WINAPI hook_initialize(LPVOID param)
 
 	for (int i = 0; i < 14; i++)
 	{
-		default_campaign.layers[i].name = address_layer_name_get(i);
-		default_campaign.layers[i].directory = address_layer_filename_get(i);
+		strncpy(default_campaign.layers[i].name, address_layer_name_get(i), sizeof default_campaign.layers[i].name);
+		strncpy(default_campaign.layers[i].directory, address_layer_filename_get(i), sizeof default_campaign.layers[i].directory);
 	}
 	for (int i = 0; i < 3; i++)
 	{

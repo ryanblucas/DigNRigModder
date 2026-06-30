@@ -24,13 +24,7 @@ Asset creator
 	Add prefabs
 
 Campaign creator
-	Puts all layers in there
 	Allows for editing of these layers in the creator that when saved, saves to their respective files
-	Starts at all blank.layers, listbox on the side allows for you to open up an existing layer. When you edit a layer 
-		from blank.layer, it is renamed to {campaign name}_{layer index}.layer and placed in the game's asset folder.
-	Another listbox adjacent to the directories that has the layer names
-	Textbox for changing title
 	Allows for editing of dnr_block_t's. Some sort of toggle for binary mode/asset mode
-	Rectangle tool to create "end box"
 	Patches game's binary files to support custom campaigns
 		The rig blocks that connect to the factory in the actual game are hardcoded in, this can be changed

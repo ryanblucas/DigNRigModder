@@ -184,6 +184,15 @@ static void campaign_info_dispatch_command(WPARAM wparam, LPARAM lparam)
 			campaign_info_handle_double_click_listbox(wnd, selected_index);
 		}
 	}
+	else if (HIWORD(wparam) == LBN_SELCHANGE)
+	{
+		int selected_index = ListBox_GetCurSel(wnd);
+		if (selected_index == LB_ERR)
+		{
+			return;
+		}
+		ListBox_SetCurSel(child_windows[!index], selected_index);
+	}
 	else if (HIWORD(wparam) == EN_CHANGE && wnd == child_windows[CWI_TEXTBOX_TITLE])
 	{
 		GetWindowTextA(wnd, campaign->name, sizeof campaign->name);

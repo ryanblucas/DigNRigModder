@@ -23,8 +23,8 @@ enum child_window_index
 	CWI_BUTTON_ERASER,
 	CWI_BUTTON_SELECT,
 	CWI_BUTTON_BRUSH,
-	CWI_THUMB_BRUSH_SIZE,
 	CWI_BUTTON_RECTANGLE,
+	CWI_THUMB_BRUSH_SIZE,
 
 	CWI_BUTTON_FILE_SELECTER,
 	CWI_TREEVIEW,
@@ -38,6 +38,8 @@ static LRESULT campaign_info_subclass_edit(HWND hwnd, UINT msg, WPARAM wparam, L
 static campaign_t* campaign;
 static HWND child_windows[CWI_COUNT];
 static info_internal_t internal;
+
+static info_tool_t current_tool;
 
 void campaign_info_initialize(info_internal_t* _internal)
 {
@@ -80,6 +82,9 @@ void campaign_info_initialize(info_internal_t* _internal)
 
 	_internal->global_treeview = child_windows[CWI_TREEVIEW];
 	_internal->current_treeview = child_windows[CWI_CURRENT_TREEVIEW];
+
+	current_tool = TOOL_SELECT;
+	EnableWindow(child_windows[CWI_BUTTON_SELECT], FALSE);
 
 	campaign_info_show(false);
 }
@@ -155,9 +160,22 @@ static void campaign_info_handle_toggle_button(HWND wnd, const char* show, const
 	}
 }
 
+static enum child_window_index campaign_info_child_window_from_handle(HWND hwnd)
+{
+	for (int i = 0; i < CWI_COUNT; i++)
+	{
+		if (child_windows[i] == hwnd)
+		{
+			return i;
+		}
+	}
+	return -1;
+}
+
 static void campaign_info_dispatch_command(WPARAM wparam, LPARAM lparam)
 {
 	HWND wnd = (HWND)lparam;
+	int index = campaign_info_child_window_from_handle(wnd);
 	if (HIWORD(wparam) == LBN_DBLCLK)
 	{
 		int selected_index = ListBox_GetCurSel(wnd);
@@ -181,6 +199,13 @@ static void campaign_info_dispatch_command(WPARAM wparam, LPARAM lparam)
 	else if (wnd == child_windows[CWI_BUTTON_WORK_BINARY_TOGGLE])
 	{
 		campaign_info_handle_toggle_button(wnd, "Work binary", "Work asset", CPI_CHANGE_TO_BINARY_MODE, CPI_CHANGE_TO_ASSET_MODE);
+	}
+	else if (index >= CWI_BUTTON_ERASER && index <= CWI_BUTTON_RECTANGLE)
+	{
+		EnableWindow(child_windows[CWI_BUTTON_ERASER + current_tool], TRUE);
+		current_tool = index - CWI_BUTTON_ERASER;
+		queue_add(internal.events->tool_handler, &current_tool);
+		EnableWindow(child_windows[CWI_BUTTON_ERASER + current_tool], FALSE);
 	}
 }
 
@@ -264,4 +289,9 @@ bool campaign_info_find_file(char* directory, size_t size)
 		info_set_caption(path_get_file_name(directory));
 	}
 	return result;
+}
+
+info_tool_t campaign_info_get_tool(void)
+{
+	return current_tool;
 }

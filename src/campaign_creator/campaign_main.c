@@ -16,6 +16,8 @@ static int y_pos;
 static asset_t layers[14];
 
 static bool render_end_box;
+static bool dragging_end_box;
+static region_t temp_end_box;
 
 static bool campaign_try_load(const char* directory)
 {
@@ -89,6 +91,11 @@ static void campaign_handle_custom_event(const int* _id)
 	screen_repaint();
 }
 
+static void campaign_handle_tool_change(const info_tool_t* tool)
+{
+	dragging_end_box = false;
+}
+
 static void campaign_move_window(int addend)
 {
 	y_pos -= addend;
@@ -106,7 +113,7 @@ static void campaign_handle_repaint(void)
 	asset_render(&layers[bottom], true, 0, TARGET_HEIGHT - y_pos % TARGET_HEIGHT);
 	if (render_end_box)
 	{
-		region_t normalized = current_campaign->end_box;
+		region_t normalized = dragging_end_box ? region_validate(temp_end_box) : current_campaign->end_box;
 		normalized.y0 -= y_pos;
 		normalized.y1 -= y_pos;
 		screen_invert_region(normalized);
@@ -124,6 +131,40 @@ static void campaign_handle_keyboard(virtual_key_t key, keyboard_control_t ctr)
 	}
 }
 
+static void campaign_handle_mouse_button(bool m1_down, int x, int y)
+{
+	if (campaign_info_get_tool() == TOOL_ENDBOX)
+	{
+		dragging_end_box = m1_down;
+		if (dragging_end_box)
+		{
+			temp_end_box.x0 = x;
+			temp_end_box.y0 = y + y_pos;
+			temp_end_box.x1 = x;
+			temp_end_box.y1 = y + y_pos;
+		}
+		else
+		{
+			current_campaign->end_box = region_validate(temp_end_box);
+		}
+		screen_repaint();
+	}
+}
+
+static void campaign_handle_mouse_move(bool m1_down, int x, int y)
+{
+	if (campaign_info_get_tool() == TOOL_ENDBOX && m1_down)
+	{
+		int new_selected_y = y + y_pos;
+		temp_end_box.x1 = min(x, temp_end_box.x0 + 80 - 1);
+		temp_end_box.y1 = min(new_selected_y, temp_end_box.y0 + 80 - 1);
+		temp_end_box.x1 = max(temp_end_box.x1, temp_end_box.x0 - 80 + 1);
+		temp_end_box.y1 = max(temp_end_box.y1, temp_end_box.y0 - 80 + 1);
+		temp_end_box = region_keep_inside((region_t){ 0, 0, WORLD_WIDTH, WORLD_HEIGHT }, temp_end_box);
+		screen_repaint();
+	}
+}
+
 static void campaign_handle_mouse_wheel(int delta)
 {
 	campaign_move_window(delta * 10);
@@ -135,18 +176,22 @@ void campaign_start(void)
 	{
 		.file_handler = campaign_handle_file_change,
 		.custom_event_handler = campaign_handle_custom_event,
+		.tool_handler = campaign_handle_tool_change,
 	};
 	info_set_event_handlers(&info_events);
 	screen_events_t screen_events =
 	{
 		.repaint = campaign_handle_repaint,
 		.keyboard = campaign_handle_keyboard,
+		.mouse_button = campaign_handle_mouse_button,
+		.mouse_move = campaign_handle_mouse_move,
 		.mouse_wheel = campaign_handle_mouse_wheel,
 	};
 	screen_set_event_handlers(&screen_events);
 
 	campaign_try_load(editor_state->current_campaign_directory);
 	screen_change_dirt_color(layers[(y_pos + TARGET_HEIGHT / 2) / TARGET_HEIGHT].dirt_color);
+	screen_repaint();
 }
 
 void campaign_end(void)

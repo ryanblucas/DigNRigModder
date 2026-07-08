@@ -18,6 +18,12 @@ enum campaign_property_id
 /* needs to be cast from void* to this, so better typedef this instead of the actual enum */
 typedef uintptr_t campaign_property_id_t;
 
+typedef enum campaign_mode
+{
+	CAMPAIGN_MODE_ASSET,
+	CAMPAIGN_MODE_BINARY,
+} campaign_mode_t;
+
 void campaign_initialize(editor_state_t* state);
 void campaign_destroy(void);
 void campaign_start(void);

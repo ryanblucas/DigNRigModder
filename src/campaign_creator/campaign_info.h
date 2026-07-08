@@ -6,9 +6,11 @@
 
 #include "../info_box.h"
 #include "campaign_main.h"
+#include <stdint.h>
 
-#define CAMPAIGN_IS_LAYER_FILE_CHANGE(directory) ((directory) >= 0 && (directory) < 14)
-#define CAMPAIGN_CONVERT_FILE_CHANGE_PARAM(directory) (int)(directory)
+#define CAMPAIGN_IS_LAYER_FILE_CHANGE(directory) ((uintptr_t)(directory) >= 0 && (uintptr_t)(directory) < 14)
+#define CAMPAIGN_CONVERT_FILE_CHANGE_PARAM(directory) ((int)((uintptr_t)(directory)))
+#define CAMPAIGN_CONVERT_FILE_CHANGE_PARAM_INFO(index) ((const void*)((uintptr_t)(index)))
 
 void campaign_info_initialize(info_internal_t* internal);
 void campaign_info_destroy(void);
@@ -21,3 +23,4 @@ void campaign_info_set(campaign_t* campaign, const char* directory);
 bool campaign_info_find_file(char* directory, size_t size);
 
 info_tool_t campaign_info_get_tool(void);
+campaign_mode_t campaign_mode(void);

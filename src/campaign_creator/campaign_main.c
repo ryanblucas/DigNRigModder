@@ -6,6 +6,7 @@
 #include "campaign_info.h"
 #include "../info_box.h"
 #include "../path.h"
+#include "../tool.h"
 #include "../screen.h"
 #include "../asset_creator/asset_util.h"
 #include <stdio.h>
@@ -18,6 +19,12 @@ static asset_t layers[14];
 static bool render_end_box;
 static bool dragging_end_box;
 static region_t temp_end_box;
+
+static tool_brush_t asset_brush;
+static tool_brush_t asset_erase;
+static tool_brush_t binary_brush;
+static tool_brush_t binary_erase;
+static tool_select_t tool_select;
 
 static bool campaign_try_load(const char* directory)
 {
@@ -44,6 +51,16 @@ static bool campaign_try_load(const char* directory)
 	return result;
 }
 
+static void campaign_asset_brush(tool_brush_t brush, region_t region)
+{
+
+}
+
+static void campaign_binary_brush(tool_brush_t brush, region_t region)
+{
+
+}
+
 void campaign_initialize(editor_state_t* state)
 {
 	editor_state = state;
@@ -58,10 +75,22 @@ void campaign_initialize(editor_state_t* state)
 		.interact_tree_item = campaign_info_handle_interact_tree_item
 	};
 	info_add_class(&class);
+
+	asset_brush = tool_brush_create(campaign_asset_brush, BRUSH_TYPE_ASSET_BLOCK, WORLD_WIDTH, WORLD_HEIGHT);
+	asset_erase = tool_brush_create(campaign_asset_brush, BRUSH_TYPE_ASSET_BLOCK, WORLD_WIDTH, WORLD_HEIGHT);
+	binary_brush = tool_brush_create(campaign_binary_brush, BRUSH_TYPE_COMPLETE_BLOCK, WORLD_WIDTH, WORLD_HEIGHT);
+	binary_erase = tool_brush_create(campaign_binary_brush, BRUSH_TYPE_COMPLETE_BLOCK, WORLD_WIDTH, WORLD_HEIGHT);
+	tool_select = tool_select_create(WORLD_WIDTH, WORLD_HEIGHT);
 }
 
 void campaign_destroy(void)
 {
+	tool_brush_destroy(asset_brush);
+	tool_brush_destroy(asset_erase);
+	tool_brush_destroy(binary_brush);
+	tool_brush_destroy(binary_erase);
+	tool_select_destroy(tool_select);
+
 	file_campaign_unload(current_campaign);
 }
 
@@ -111,6 +140,7 @@ static void campaign_handle_repaint(void)
 	int bottom = y_pos / TARGET_HEIGHT + 1;
 	asset_render(&layers[top], true, 0, -y_pos % TARGET_HEIGHT);
 	asset_render(&layers[bottom], true, 0, TARGET_HEIGHT - y_pos % TARGET_HEIGHT);
+	tool_select_render(tool_select, 0, y_pos);
 	if (render_end_box)
 	{
 		region_t normalized = dragging_end_box ? region_validate(temp_end_box) : current_campaign->end_box;
@@ -122,6 +152,10 @@ static void campaign_handle_repaint(void)
 
 static void campaign_handle_keyboard(virtual_key_t key, keyboard_control_t ctr)
 {
+	if (key == VK_UP || key == VK_DOWN)
+	{
+		y_pos += key - VK_DOWN + 1;
+	}
 	if (ctr == CTRL_LEFT_PRESSED && key == 'S')
 	{
 		if (*editor_state->current_campaign_directory || campaign_info_find_file(editor_state->current_campaign_directory, sizeof editor_state->current_campaign_directory))
@@ -133,7 +167,9 @@ static void campaign_handle_keyboard(virtual_key_t key, keyboard_control_t ctr)
 
 static void campaign_handle_mouse_button(bool m1_down, int x, int y)
 {
-	if (campaign_info_get_tool() == TOOL_ENDBOX)
+	info_tool_t tool = campaign_info_get_tool();
+	campaign_mode_t mode = campaign_mode();
+	if (tool == TOOL_ENDBOX)
 	{
 		dragging_end_box = m1_down;
 		if (dragging_end_box)
@@ -149,11 +185,38 @@ static void campaign_handle_mouse_button(bool m1_down, int x, int y)
 		}
 		screen_repaint();
 	}
+	/*else if (tool == TOOL_SELECT)
+	{
+		tool_select_handle_mouse_button(tool_select, m1_down, x, y + y_pos);
+	}
+	else if (mode == CAMPAIGN_MODE_ASSET)
+	{
+		if (tool == TOOL_BRUSH)
+		{
+			tool_brush_handle_mouse_button(asset_brush, m1_down, x, y + y_pos);
+		}
+		else if (tool == TOOL_ERASER)
+		{
+			tool_brush_handle_mouse_button(asset_erase, m1_down, x, y + y_pos);
+		}
+	}
+	else if (mode == CAMPAIGN_MODE_BINARY)
+	{
+		if (tool == TOOL_BRUSH)
+		{
+			tool_brush_handle_mouse_button(binary_brush, m1_down, x, y + y_pos);
+		}
+		else if (tool == TOOL_ERASER)
+		{
+			tool_brush_handle_mouse_button(binary_erase, m1_down, x, y + y_pos);
+		}
+	}*/
 }
 
 static void campaign_handle_mouse_move(bool m1_down, int x, int y)
 {
-	if (campaign_info_get_tool() == TOOL_ENDBOX && m1_down)
+	info_tool_t tool = campaign_info_get_tool();
+	if (tool == TOOL_ENDBOX && m1_down)
 	{
 		int new_selected_y = y + y_pos;
 		temp_end_box.x1 = min(x, temp_end_box.x0 + 80 - 1);

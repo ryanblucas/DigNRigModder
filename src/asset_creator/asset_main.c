@@ -37,7 +37,6 @@ static void asset_brush(tool_brush_t brush, region_t region)
 static void asset_erase(tool_brush_t brush, region_t region)
 {
 	RUNTIME_ASSERT(brush == suite.tool_eraser);
-	debug_format("Hello\n");
 	asset_handle_erase(&suite, region);
 }
 

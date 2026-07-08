@@ -45,6 +45,8 @@ static info_internal_t internal;
 static info_tool_t current_tool;
 static int brush_size;
 
+static campaign_mode_t mode;
+
 void campaign_info_initialize(info_internal_t* _internal)
 {
 	internal = *_internal;
@@ -64,7 +66,7 @@ void campaign_info_initialize(info_internal_t* _internal)
 	SendMessageW(child_windows[CWI_LISTBOX_LAYER_NAMES], WM_SETFONT, (WPARAM)internal.font_text, (LPARAM)FALSE);
 
 	child_windows[CWI_BUTTON_ERASER] = CreateWindowExW(0, L"BUTTON", L"Erase", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 3, 55, 72, 22, internal.window, NULL, NULL, NULL);
-	child_windows[CWI_BUTTON_SELECT] = CreateWindowExW(0, L"BUTTON", L"Select", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 3, 78, 72, 22, internal.window, NULL, NULL, NULL);
+	child_windows[CWI_BUTTON_SELECT] = CreateWindowExW(0, L"BUTTON", L"tool_select", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 3, 78, 72, 22, internal.window, NULL, NULL, NULL);
 	child_windows[CWI_BUTTON_BRUSH] = CreateWindowExW(0, L"BUTTON", L"Brush", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 3, 101, 72, 22, internal.window, NULL, NULL, NULL);
 	child_windows[CWI_THUMB_BRUSH_SIZE] = CreateWindowExW(0, TRACKBAR_CLASSW, L"Brush size", WS_VISIBLE | WS_CHILD | TBS_AUTOTICKS | TBS_ENABLESELRANGE, 3, 124, 72, 22, internal.window, NULL, NULL, NULL);
 	SendMessageW(child_windows[CWI_THUMB_BRUSH_SIZE], TBM_SETRANGE, TRUE, MAKELONG(INFO_BRUSH_MIN_SIZE, INFO_BRUSH_MAX_SIZE));
@@ -136,7 +138,7 @@ static void campaign_info_handle_double_click_listbox(HWND list_box, int index)
 			}
 		}
 		strncpy(campaign->layers[index].directory, buf, MAX_PATH);
-		queue_add(internal.events->file_handler, (const void*)index);
+		queue_add(internal.events->file_handler, CAMPAIGN_CONVERT_FILE_CHANGE_PARAM_INFO(index));
 	}
 	else
 	{
@@ -146,7 +148,7 @@ static void campaign_info_handle_double_click_listbox(HWND list_box, int index)
 	SendMessageA(list_box, LB_INSERTSTRING, (WPARAM)index, (LPARAM)buf);
 }
 
-static void campaign_info_handle_toggle_button(HWND wnd, const char* show, const char* hide, campaign_property_id_t show_id, campaign_property_id_t hide_id)
+static bool campaign_info_handle_toggle_button(HWND wnd, const char* show, const char* hide, campaign_property_id_t show_id, campaign_property_id_t hide_id)
 {
 	char buf[20];
 	GetWindowTextA(wnd, buf, sizeof buf);
@@ -155,16 +157,16 @@ static void campaign_info_handle_toggle_button(HWND wnd, const char* show, const
 	{
 		SetWindowTextA(wnd, hide);
 		queue_add(internal.events->custom_event_handler, (const void*)show_id);
+		return true;
 	}
 	else if (strncmp(buf, hide, sizeof buf) == 0)
 	{
 		SetWindowTextA(wnd, show);
 		queue_add(internal.events->custom_event_handler, (const void*)hide_id);
+		return false;
 	}
-	else
-	{
-		RUNTIME_ASSERT(false);
-	}
+	RUNTIME_ASSERT(false);
+	return false;
 }
 
 static enum child_window_index campaign_info_child_window_from_handle(HWND hwnd)
@@ -214,7 +216,7 @@ static void campaign_info_dispatch_command(WPARAM wparam, LPARAM lparam)
 	}
 	else if (wnd == child_windows[CWI_BUTTON_WORK_BINARY_TOGGLE])
 	{
-		campaign_info_handle_toggle_button(wnd, "Work binary", "Work asset", CPI_CHANGE_TO_BINARY_MODE, CPI_CHANGE_TO_ASSET_MODE);
+		mode = campaign_info_handle_toggle_button(wnd, "Work binary", "Work asset", CPI_CHANGE_TO_BINARY_MODE, CPI_CHANGE_TO_ASSET_MODE) ? CAMPAIGN_MODE_ASSET : CAMPAIGN_MODE_BINARY;
 	}
 	else if (index >= CWI_BUTTON_ERASER && index <= CWI_BUTTON_RECTANGLE)
 	{
@@ -320,4 +322,9 @@ bool campaign_info_find_file(char* directory, size_t size)
 info_tool_t campaign_info_get_tool(void)
 {
 	return current_tool;
+}
+
+campaign_mode_t campaign_mode(void)
+{
+	return mode;
 }

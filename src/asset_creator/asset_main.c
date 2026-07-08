@@ -12,64 +12,65 @@
 #include "../weather.h"
 #include <stdio.h>
 
-#define ASSET_LOADED() (!!asset.blocks)
-
-static void asset_brush(tool_brush_t brush, region_t region);
-static void asset_erase(tool_brush_t brush, region_t region);
+#define ASSET_LOADED() (!!suite.asset.blocks)
 
 static char directory[MAX_PATH];
-static asset_t asset;
 static int old_width, old_height;
 static bool is_layer;
 
-static tool_brush_t tool_eraser;
-static tool_brush_t tool_brush;
-static tool_select_t tool_select;
-
-static action_buffer_t action_buffer;
-
-static region_t clipboard_region;
-static asset_block_t* clipboard_data;
-
 static editor_state_t* editor_state;
-
-static int scroll_x, scroll_y;
+static asset_suite_t suite;
 
 static void asset_invalidate(void)
 {
 	screen_repaint();
 }
 
+static void asset_brush(tool_brush_t brush, region_t region)
+{
+	RUNTIME_ASSERT(brush == suite.tool_brush);
+	asset_block_t block;
+	asset_info_get_current_brush_block(&block);
+	asset_handle_brush(&suite, region, block);
+}
+
+static void asset_erase(tool_brush_t brush, region_t region)
+{
+	RUNTIME_ASSERT(brush == suite.tool_eraser);
+	debug_format("Hello\n");
+	asset_handle_erase(&suite, region);
+}
+
 static void asset_refresh(void)
 {
-	old_width = asset.width;
-	old_height = asset.height;
+	old_width = suite.asset.width;
+	old_height = suite.asset.height;
 
-	asset_info_set(&asset);
-	weather_set_asset(&asset);
+	asset_info_set(&suite.asset);
+	weather_set_asset(&suite.asset);
 
-	scroll_x = TARGET_WIDTH / 2 - asset.width / 2;
-	scroll_y = TARGET_HEIGHT / 2 - asset.height / 2;
+	suite.scroll_x = TARGET_WIDTH / 2 - suite.asset.width / 2;
+	suite.scroll_y = TARGET_HEIGHT / 2 - suite.asset.height / 2;
 
-	tool_brush_destroy(tool_eraser);
-	tool_brush_destroy(tool_brush);
-	tool_select_destroy(tool_select);
+	tool_brush_destroy(suite.tool_eraser);
+	tool_brush_destroy(suite.tool_brush);
+	tool_select_destroy(suite.tool_select);
 
-	tool_eraser = tool_brush_create(asset_erase, BRUSH_TYPE_ASSET_BLOCK, asset.width, asset.height);
-	tool_brush = tool_brush_create(asset_brush, BRUSH_TYPE_ASSET_BLOCK, asset.width, asset.height);
-	tool_select = tool_select_create(asset.width, asset.height);
+	suite.tool_brush = tool_brush_create(asset_brush, BRUSH_TYPE_ASSET_BLOCK, suite.asset.width, suite.asset.height);
+	suite.tool_eraser = tool_brush_create(asset_erase, BRUSH_TYPE_ASSET_BLOCK, suite.asset.width, suite.asset.height);
+	suite.tool_select = tool_select_create(suite.asset.width, suite.asset.height);
 }
 
 static void asset_handle_file_change(const char* _directory)
 {
 	screen_clear();
 
-	file_asset_unload(&asset);
+	file_asset_unload(&suite.asset);
 
 	snprintf(directory, sizeof directory, "%s", _directory);
 	snprintf(editor_state->current_asset_directory, sizeof editor_state->current_asset_directory, "%s", _directory);
-	asset = file_asset_load(directory);
-	RUNTIME_ASSERT(asset.blocks);
+	suite.asset = file_asset_load(directory);
+	RUNTIME_ASSERT(suite.asset.blocks);
 
 	is_layer = false;
 	char* end = strrchr(directory, '.');
@@ -82,7 +83,7 @@ static void asset_handle_file_change(const char* _directory)
 	asset_invalidate();
 
 	weather_force_end();
-	weather_start(asset.weather_type, asset.weather_particle_rate, asset.weather_speed);
+	weather_start(suite.asset.weather_type, suite.asset.weather_particle_rate, suite.asset.weather_speed);
 }
 
 static void asset_handle_block_change(const region_t* region)
@@ -92,7 +93,7 @@ static void asset_handle_block_change(const region_t* region)
 
 static void asset_handle_tool_change(const info_tool_t* new_tool)
 {
-	tool_select_reset(tool_select);
+	tool_select_reset(suite.tool_select);
 	if (ASSET_LOADED())
 	{
 		screen_repaint();
@@ -101,8 +102,8 @@ static void asset_handle_tool_change(const info_tool_t* new_tool)
 
 static void asset_handle_brush_size_change(const int* new_size)
 {
-	tool_brush_set_size(tool_brush, *new_size);
-	tool_brush_set_size(tool_eraser, *new_size);
+	tool_brush_set_size(suite.tool_brush, *new_size);
+	tool_brush_set_size(suite.tool_eraser, *new_size);
 }
 
 static bool asset_change_dimensions(asset_t* copy, int* field, int max)
@@ -113,91 +114,38 @@ static bool asset_change_dimensions(asset_t* copy, int* field, int max)
 		return false;
 	}
 	*field = min(max(1, *field), max);
-	*copy = asset;
-	copy->blocks = dig_malloc(sizeof * copy->blocks * asset.width * asset.height);
-	memset(copy->blocks, 0, sizeof * copy->blocks * asset.width * asset.height);
+	*copy = suite.asset;
+	copy->blocks = dig_malloc(sizeof * copy->blocks * suite.asset.width * suite.asset.height);
+	memset(copy->blocks, 0, sizeof * copy->blocks * suite.asset.width * suite.asset.height);
 	return true;
 }
 
 static void asset_handle_global_field_change(const void* field)
 {
-	if (field == &asset.weather_type || field == &asset.weather_particle_rate || field == &asset.weather_speed)
+	if (field == &suite.asset.weather_type || field == &suite.asset.weather_particle_rate || field == &suite.asset.weather_speed)
 	{
 		weather_force_end();
-		weather_start(asset.weather_type, asset.weather_particle_rate, asset.weather_speed);
+		weather_start(suite.asset.weather_type, suite.asset.weather_particle_rate, suite.asset.weather_speed);
 	}
 	asset_t copy;
-	if (field == &asset.width && asset_change_dimensions(&copy, &asset.width, TARGET_WIDTH))
+	if (field == &suite.asset.width && asset_change_dimensions(&copy, &suite.asset.width, TARGET_WIDTH))
 	{
-		for (int i = 0; i < asset.height; i++)
+		for (int i = 0; i < suite.asset.height; i++)
 		{
-			memcpy(copy.blocks + i * asset.width, asset.blocks + i * old_width, sizeof * copy.blocks * min(old_width, asset.width));
+			memcpy(copy.blocks + i * suite.asset.width, suite.asset.blocks + i * old_width, sizeof * copy.blocks * min(old_width, suite.asset.width));
 		}
-		file_asset_unload(&asset);
-		asset = copy;
+		file_asset_unload(&suite.asset);
+		suite.asset = copy;
 		asset_refresh();
 	}
-	if (field == &asset.height && asset_change_dimensions(&copy, &asset.height, TARGET_HEIGHT))
+	if (field == &suite.asset.height && asset_change_dimensions(&copy, &suite.asset.height, TARGET_HEIGHT))
 	{
-		memcpy(copy.blocks, asset.blocks, sizeof * copy.blocks * asset.width * min(old_height, asset.height));
-		file_asset_unload(&asset);
-		asset = copy;
+		memcpy(copy.blocks, suite.asset.blocks, sizeof * copy.blocks * suite.asset.width * min(old_height, suite.asset.height));
+		file_asset_unload(&suite.asset);
+		suite.asset = copy;
 		asset_refresh();
 	}
 	asset_invalidate();
-}
-
-static void asset_erase(tool_brush_t brush, region_t region)
-{
-	RUNTIME_ASSERT(brush == tool_eraser);
-
-	asset_block_t* temp = dig_malloc(sizeof * temp * region_size(region));
-	game_asset_copy(&asset, region, temp);
-
-	game_asset_delete(&asset, region);
-
-	for (int i = 0; i < region_size(region); i++)
-	{
-		tool_brush_add_to_before_list_ab(brush, &temp[i], region.x0 + i % region_width(region), region.y0 + i / region_width(region));
-	}
-	free(temp);
-}
-
-static void asset_brush(tool_brush_t brush, region_t region)
-{
-	RUNTIME_ASSERT(brush == tool_brush);
-
-	asset_block_t* temp = dig_malloc(sizeof * temp * region_size(region));
-	game_asset_copy(&asset, region, temp);
-
-	asset_block_t block;
-	asset_info_get_current_brush_block(&block);
-	for (int y = 0; y < region_width(region); y++)
-	{
-		for (int x = 0; x < region_height(region); x++)
-		{
-			tool_brush_add_to_before_list_ab(brush, &temp[x + y * region_width(region)], x + region.x0, y + region.y0);
-			game_asset_paste(&asset, (region_t) { x + region.x0, y + region.y0, x + region.x0, y + region.y0 }, & block);
-		}
-	}
-
-	free(temp);
-}
-
-static void asset_render_tile_type_as(asset_tile_type_t type, char ch, attribute_t attrib)
-{
-	for (int y = 0; y < asset.height; y++)
-	{
-		for (int x = 0; x < asset.width; x++)
-		{
-			asset_block_t* block = &asset.blocks[y * asset.width + x];
-			if (block->tile_type == type && (is_layer || block->transparency))
-			{
-				screen_set_attrib_region(&attrib, (region_t) { scroll_x + x, scroll_y + y, scroll_x + x, scroll_y + y });
-				screen_set_char_region(&ch, (region_t) { scroll_x + x, scroll_y + y, scroll_x + x, scroll_y + y });
-			}
-		}
-	}
 }
 
 static void asset_handle_repaint(void)
@@ -206,17 +154,17 @@ static void asset_handle_repaint(void)
 	{
 		return;
 	}
-	screen_change_dirt_color(asset.dirt_color);
-	asset_render(&asset, is_layer, scroll_x, scroll_y);
+	screen_change_dirt_color(suite.asset.dirt_color);
+	asset_render(&suite.asset, is_layer, suite.scroll_x, suite.scroll_y);
 
-	tool_select_render(tool_select, -scroll_x, -scroll_y);
+	tool_select_render(suite.tool_select, -suite.scroll_x, -suite.scroll_y);
 	char ch = ' ';
 	attribute_t attrib = 0;
 	for (int y = 0; y < TARGET_HEIGHT; y++)
 	{
 		for (int x = 0; x < TARGET_WIDTH; x++)
 		{
-			if (x < scroll_x || x >= scroll_x + asset.width || y < scroll_y || y >= scroll_y + asset.height)
+			if (x < suite.scroll_x || x >= suite.scroll_x + suite.asset.width || y < suite.scroll_y || y >= suite.scroll_y + suite.asset.height)
 			{
 				screen_set_attrib_region(&attrib, (region_t) { x, y, x, y });
 				screen_set_char_region(&ch, (region_t) { x, y, x, y });
@@ -225,54 +173,36 @@ static void asset_handle_repaint(void)
 	}
 }
 
-static void asset_select_handle_mouse_button(bool m1_down, int x, int y)
+static void asset_handle_mouse_button(bool m1_down, int x, int y)
 {
-	tool_event_t event = tool_select_handle_mouse_click(tool_select, m1_down, x, y, -scroll_x, -scroll_y);
-	switch (event)
+	info_tool_t current = asset_info_get_current_tool();
+	if (current == TOOL_SELECT)
 	{
-	case EVENT_SELECTION_MOVE_STOP:
-	{
-		region_t src = tool_select_region(tool_select);
-		region_t dest = tool_select_move_region(tool_select);
-		region_t total = region_keep_inside(region_merge(src, dest), (region_t){ .x1 = asset.width - 1, .y1 = asset.height - 1 });
-
-		action_buffer_pre_add_asset_block(action_buffer, &asset, total);
-
-		asset_block_t* arr = dig_malloc(region_size(src) * sizeof * arr);
-		game_asset_copy(&asset, src, arr);
-		game_asset_delete(&asset, src);
-		game_asset_paste(&asset, dest, arr);
-		free(arr);
-
-		action_buffer_post_add_asset_block(action_buffer, &asset);
-
-		asset_invalidate();
-		asset_info_set_current(INVALID_REGION);
-		break;
+		tool_event_t event = asset_select_handle_mouse_button(&suite, m1_down, x, y);
+		if (event == EVENT_SELECTION_MOVE_STOP)
+		{
+			asset_invalidate();
+			asset_info_set_current(INVALID_REGION);
+		}
+		else if (event == EVENT_SELECTION_RESIZE_STOP)
+		{
+			asset_info_set_current(tool_select_region(suite.tool_select));
+		}
+		return;
 	}
-	case EVENT_SELECTION_RESIZE_STOP:
+	x -= suite.scroll_x;
+	y -= suite.scroll_y;
+	if (x >= suite.asset.width || y >= suite.asset.height || x < 0 || y < 0)
 	{
-		asset_info_set_current(tool_select_region(tool_select));
-		break;
+		return;
 	}
-	}
-	screen_repaint();
-}
-
-static void asset_brush_handle_mouse_button(tool_brush_t brush, bool m1_down, int x, int y)
-{
-	tool_event_t result = tool_brush_handle_mouse_click(brush, m1_down, x, y, 0);
-	if (result == EVENT_BRUSH_END)
+	if (current == TOOL_BRUSH)
 	{
-		region_t region = tool_brush_region(brush);
-		asset_block_t* temp = dig_malloc(region_size(region) * sizeof * temp * 2);
-
-		tool_brush_copy_before_ab(brush, &asset, temp);
-		game_asset_copy(&asset, region, temp + region_size(region));
-
-		action_buffer_add_asset_block(action_buffer, temp, temp + region_size(region), region);
-
-		free(temp);
+		asset_brush_handle_mouse_button(&suite, false, m1_down, x, y);
+	}
+	else if (current == TOOL_ERASER)
+	{
+		asset_brush_handle_mouse_button(&suite, true, m1_down, x, y);
 	}
 }
 
@@ -285,52 +215,28 @@ static void asset_brush_handle_mouse_move(tool_brush_t brush, bool m1_down, int 
 	}
 }
 
-static void asset_handle_mouse_button(bool m1_down, int x, int y)
-{
-	info_tool_t current = asset_info_get_current_tool();
-	if (current == TOOL_SELECT)
-	{
-		asset_select_handle_mouse_button(m1_down, x, y);
-		return;
-	}
-	x -= scroll_x;
-	y -= scroll_y;
-	if (x >= asset.width || y >= asset.height || x < 0 || y < 0)
-	{
-		return;
-	}
-	if (current == TOOL_BRUSH)
-	{
-		asset_brush_handle_mouse_button(tool_brush, m1_down, x, y);
-	}
-	else if (current == TOOL_ERASER)
-	{
-		asset_brush_handle_mouse_button(tool_eraser, m1_down, x, y);
-	}
-}
-
 static void asset_handle_mouse_move(bool m1_down, int x, int y)
 {
 	info_tool_t current = asset_info_get_current_tool();
 	if (current == TOOL_SELECT)
 	{
-		tool_select_handle_mouse_move(tool_select, m1_down, x, y, -scroll_x, -scroll_y);
+		tool_select_handle_mouse_move(suite.tool_select, m1_down, x, y, -suite.scroll_x, -suite.scroll_y);
 		asset_invalidate();
 		return;
 	}
-	x -= scroll_x;
-	y -= scroll_y;
-	if (x >= asset.width || y >= asset.height || x < 0 || y < 0)
+	x -= suite.scroll_x;
+	y -= suite.scroll_y;
+	if (x >= suite.asset.width || y >= suite.asset.height || x < 0 || y < 0)
 	{
 		return;
 	}
 	if (current == TOOL_BRUSH)
 	{
-		asset_brush_handle_mouse_move(tool_brush, m1_down, x, y);
+		asset_brush_handle_mouse_move(suite.tool_brush, m1_down, x, y);
 	}
 	else if (current == TOOL_ERASER)
 	{
-		asset_brush_handle_mouse_move(tool_eraser, m1_down, x, y);
+		asset_brush_handle_mouse_move(suite.tool_eraser, m1_down, x, y);
 	}
 }
 
@@ -346,52 +252,9 @@ static void asset_do_action(action_t* act)
 		asset_handle_global_field_change(serialize_element_get_value(act->sub.field.element));
 		return;
 	}
-	action_buffer_reverse_asset_block(&asset, act);
+	action_buffer_reverse_asset_block(&suite.asset, act);
 	asset_invalidate();
-	asset_info_set_current(tool_select_region(tool_select));
-}
-
-static void asset_copy(void)
-{
-	if (region_is_invalid(tool_select_region(tool_select)))
-	{
-		return;
-	}
-
-	if (clipboard_data)
-	{
-		free(clipboard_data);
-	}
-
-	clipboard_region = tool_select_region(tool_select);
-	clipboard_data = dig_malloc(region_size(clipboard_region) * sizeof * clipboard_data);
-	game_asset_copy(&asset, clipboard_region, clipboard_data);
-}
-
-static void asset_paste(void)
-{
-	region_t region = tool_select_region(tool_select);
-	if (!clipboard_data || region_is_invalid(region))
-	{
-		return;
-	}
-
-	region_t dest = { region.x0, region.y0, region.x0 + region_width(clipboard_region) - 1, region.y0 + region_height(clipboard_region) - 1 };
-	region_t asset_region = { 0, 0, asset.width - 1, asset.height - 1 };
-	if (!region_is_inside(asset_region, dest.x0, dest.y0) || !region_is_inside(asset_region, dest.x1, dest.y1))
-	{
-		return;
-	}
-
-	action_buffer_pre_add_asset_block(action_buffer, &asset, dest);
-
-	game_asset_delete(&asset, region);
-	game_asset_paste(&asset, dest, clipboard_data);
-
-	action_buffer_post_add_asset_block(action_buffer, &asset);
-
-	tool_select_set_region(tool_select, dest);
-	asset_invalidate();
+	asset_info_set_current(tool_select_region(suite.tool_select));
 }
 
 static void asset_handle_keyboard(virtual_key_t key, keyboard_control_t ctrl)
@@ -404,23 +267,24 @@ static void asset_handle_keyboard(virtual_key_t key, keyboard_control_t ctrl)
 	switch (key)
 	{
 	case 'Z':
-		asset_do_action(action_buffer_back(action_buffer));
+		asset_do_action(action_buffer_back(suite.buffer));
 		break;
 	case 'Y':
-		asset_do_action(action_buffer_forward(action_buffer));
+		asset_do_action(action_buffer_forward(suite.buffer));
 		break;
 	case 'S':
 		debug_format("Saving to disk...\n");
-		if (!file_asset_save(directory, &asset))
+		if (!file_asset_save(directory, &suite.asset))
 		{
 			MessageBoxW(NULL, L"Failed to save file, maybe run in admin mode?", L"Dig-N-Rig Modder - Error!", MB_OK | MB_ICONERROR);
 		}
 		break;
 	case 'C':
-		asset_copy();
+		asset_handle_copy(&suite);
 		break;
 	case 'V':
-		asset_paste();
+		asset_handle_paste(&suite);
+		asset_invalidate();
 		break;
 	}
 }
@@ -441,20 +305,20 @@ void asset_initialize(editor_state_t* state)
 	};
 	info_add_class(&class);
 
-	tool_eraser = tool_brush_create(asset_erase, BRUSH_TYPE_ASSET_BLOCK, TARGET_WIDTH, TARGET_HEIGHT);
-	tool_brush = tool_brush_create(asset_brush, BRUSH_TYPE_ASSET_BLOCK, TARGET_WIDTH, TARGET_HEIGHT);
-	tool_select = tool_select_create(TARGET_WIDTH, TARGET_HEIGHT);
+	suite.tool_eraser = tool_brush_create(asset_erase, BRUSH_TYPE_ASSET_BLOCK, TARGET_WIDTH, TARGET_HEIGHT);
+	suite.tool_brush = tool_brush_create(asset_brush, BRUSH_TYPE_ASSET_BLOCK, TARGET_WIDTH, TARGET_HEIGHT);
+	suite.tool_select = tool_select_create(TARGET_WIDTH, TARGET_HEIGHT);
+	suite.buffer = action_buffer_initialize();
 
-	action_buffer = action_buffer_initialize();
-	asset_info_action_buffer_set(action_buffer);
+	asset_info_action_buffer_set(suite.buffer);
 }
 
 void asset_destroy(void)
 {
-	file_asset_unload(&asset);
-	tool_select_destroy(tool_select);
-	action_buffer_destroy(action_buffer);
-	free(clipboard_data);
+	file_asset_unload(&suite.asset);
+	tool_select_destroy(suite.tool_select);
+	action_buffer_destroy(suite.buffer);
+	free(suite.clipboard_data);
 }
 
 void asset_start(void)
@@ -489,11 +353,11 @@ void asset_start(void)
 void asset_end(void)
 {
 	weather_force_end();
-	tool_select_reset(tool_select);
+	tool_select_reset(suite.tool_select);
 	asset_info_palette_save(editor_state->asset_palette, sizeof editor_state->asset_palette / sizeof * editor_state->asset_palette);
 }
 
 bool asset_can_change_field(const void* field)
 {
-	return !is_layer || (field != &asset.width && field != &asset.height);
+	return !is_layer || (field != &suite.asset.width && field != &suite.asset.height);
 }

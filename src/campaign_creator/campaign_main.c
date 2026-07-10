@@ -4,6 +4,7 @@
 
 #include "campaign_main.h"
 #include "campaign_info.h"
+#include "../action_buffer.h"
 #include "../info_box.h"
 #include "../path.h"
 #include "../tool.h"
@@ -11,20 +12,27 @@
 #include "../asset_creator/asset_util.h"
 #include <stdio.h>
 
+static void campaign_move_window(int addend);
+
 static editor_state_t* editor_state;
 static campaign_t* current_campaign;
 static int y_pos;
+static asset_t master_asset;
 static asset_t layers[14];
 
 static bool render_end_box;
 static bool dragging_end_box;
 static region_t temp_end_box;
 
-static tool_brush_t asset_brush;
-static tool_brush_t asset_erase;
-static tool_brush_t binary_brush;
-static tool_brush_t binary_erase;
 static tool_select_t tool_select;
+static action_buffer_t action_buffer;
+
+static asset_suite_t asset_suite;
+
+static inline asset_t* campaign_get_current_asset(void)
+{
+	return &layers[(y_pos + TARGET_HEIGHT / 2) / TARGET_HEIGHT];
+}
 
 static bool campaign_try_load(const char* directory)
 {
@@ -42,23 +50,28 @@ static bool campaign_try_load(const char* directory)
 		current_campaign = file_campaign_blank();
 	}
 	campaign_info_set(current_campaign, editor_state->current_campaign_directory);
-	for (int i = 0; i < 14; i++)
-	{
-		char buf[MAX_PATH];
-		path_find_dnr_main_chain(buf, sizeof buf, "Layers", current_campaign->layers[i].directory);
-		layers[i] = file_asset_load(buf);
-	}
+
+	file_campaign_load_layers(current_campaign, &master_asset, layers);
+	asset_suite.asset = &master_asset;
+
+	asset_t* current = campaign_get_current_asset();
+	screen_change_dirt_color(current->dirt_color);
+	campaign_set_current_layer(current);
 	return result;
 }
 
 static void campaign_asset_brush(tool_brush_t brush, region_t region)
 {
+	if (brush == asset_suite.tool_brush)
+	{
+		/*asset_block_t block;
+		asset_info_get_current_brush_block(&block);
+		asset_handle_brush(&asset_suite, region, block);*/
+	}
+	else if (brush == asset_suite.tool_eraser)
+	{
 
-}
-
-static void campaign_binary_brush(tool_brush_t brush, region_t region)
-{
-
+	}
 }
 
 void campaign_initialize(editor_state_t* state)
@@ -76,34 +89,35 @@ void campaign_initialize(editor_state_t* state)
 	};
 	info_add_class(&class);
 
-	asset_brush = tool_brush_create(campaign_asset_brush, BRUSH_TYPE_ASSET_BLOCK, WORLD_WIDTH, WORLD_HEIGHT);
-	asset_erase = tool_brush_create(campaign_asset_brush, BRUSH_TYPE_ASSET_BLOCK, WORLD_WIDTH, WORLD_HEIGHT);
-	binary_brush = tool_brush_create(campaign_binary_brush, BRUSH_TYPE_COMPLETE_BLOCK, WORLD_WIDTH, WORLD_HEIGHT);
-	binary_erase = tool_brush_create(campaign_binary_brush, BRUSH_TYPE_COMPLETE_BLOCK, WORLD_WIDTH, WORLD_HEIGHT);
 	tool_select = tool_select_create(WORLD_WIDTH, WORLD_HEIGHT);
+	action_buffer = action_buffer_initialize();
+
+	asset_suite.tool_brush = tool_brush_create(campaign_asset_brush, BRUSH_TYPE_ASSET_BLOCK, WORLD_WIDTH, WORLD_HEIGHT);
+	asset_suite.tool_eraser = tool_brush_create(campaign_asset_brush, BRUSH_TYPE_ASSET_BLOCK, WORLD_WIDTH, WORLD_HEIGHT);
+	asset_suite.tool_select = tool_select;
+	asset_suite.buffer = action_buffer;
+
+	campaign_info_action_buffer_set(action_buffer);
 }
 
 void campaign_destroy(void)
 {
-	tool_brush_destroy(asset_brush);
-	tool_brush_destroy(asset_erase);
-	tool_brush_destroy(binary_brush);
-	tool_brush_destroy(binary_erase);
-	tool_select_destroy(tool_select);
+	tool_brush_destroy(asset_suite.tool_brush);
+	tool_brush_destroy(asset_suite.tool_eraser);
+	tool_select_destroy(asset_suite.tool_select);
 
 	file_campaign_unload(current_campaign);
+	file_campaign_unload_layers(&master_asset, layers);
+	action_buffer_destroy(action_buffer);
 }
 
 static void campaign_handle_file_change(const char* directory)
 {
 	if (CAMPAIGN_IS_LAYER_FILE_CHANGE(directory))
 	{
-		char buf[MAX_PATH];
-		int index = CAMPAIGN_CONVERT_FILE_CHANGE_PARAM(directory);
-		asset_t* asset = &layers[index];
-		file_asset_unload(asset);
-		path_find_dnr_main_chain(buf, sizeof buf, "Layers", current_campaign->layers[index].directory);
-		*asset = file_asset_load(buf);
+		file_campaign_unload_layers(&master_asset, layers);
+		file_campaign_load_layers(current_campaign, &master_asset, layers);
+		asset_suite.asset = &master_asset;
 		screen_repaint();
 		return;
 	}
@@ -127,10 +141,16 @@ static void campaign_handle_tool_change(const info_tool_t* tool)
 
 static void campaign_move_window(int addend)
 {
+	int prev = y_pos;
 	y_pos -= addend;
 	y_pos = min(y_pos, TARGET_HEIGHT * 13 - 1);
 	y_pos = max(y_pos, 0);
-	screen_change_dirt_color(layers[(y_pos + TARGET_HEIGHT / 2) / TARGET_HEIGHT].dirt_color);
+	int index = (y_pos + TARGET_HEIGHT / 2) / TARGET_HEIGHT;
+	if (index != (prev + TARGET_HEIGHT / 2) / TARGET_HEIGHT)
+	{
+		screen_change_dirt_color(layers[index].dirt_color);
+		campaign_set_current_layer(&layers[index]);
+	}
 	screen_repaint();
 }
 
@@ -185,45 +205,43 @@ static void campaign_handle_mouse_button(bool m1_down, int x, int y)
 		}
 		screen_repaint();
 	}
-	/*else if (tool == TOOL_SELECT)
+	else if (tool == TOOL_SELECT)
 	{
-		tool_select_handle_mouse_button(tool_select, m1_down, x, y + y_pos);
+		asset_suite.scroll_y = -y_pos;
+		tool_event_t event = asset_select_handle_mouse_button(&asset_suite, m1_down, x, y);
+		if (event == EVENT_SELECTION_MOVE_STOP)
+		{
+			screen_repaint();
+			//asset_info_set_current(INVALID_REGION);
+		}
+		else if (event == EVENT_SELECTION_RESIZE_STOP)
+		{
+			//asset_info_set_current(tool_select_region(suite.tool_select));
+		}
+		return;
 	}
-	else if (mode == CAMPAIGN_MODE_ASSET)
-	{
-		if (tool == TOOL_BRUSH)
-		{
-			tool_brush_handle_mouse_button(asset_brush, m1_down, x, y + y_pos);
-		}
-		else if (tool == TOOL_ERASER)
-		{
-			tool_brush_handle_mouse_button(asset_erase, m1_down, x, y + y_pos);
-		}
-	}
-	else if (mode == CAMPAIGN_MODE_BINARY)
-	{
-		if (tool == TOOL_BRUSH)
-		{
-			tool_brush_handle_mouse_button(binary_brush, m1_down, x, y + y_pos);
-		}
-		else if (tool == TOOL_ERASER)
-		{
-			tool_brush_handle_mouse_button(binary_erase, m1_down, x, y + y_pos);
-		}
-	}*/
 }
 
 static void campaign_handle_mouse_move(bool m1_down, int x, int y)
 {
 	info_tool_t tool = campaign_info_get_tool();
-	if (tool == TOOL_ENDBOX && m1_down)
+	if (tool == TOOL_ENDBOX)
 	{
+		if (!m1_down)
+		{
+			return;
+		}
 		int new_selected_y = y + y_pos;
 		temp_end_box.x1 = min(x, temp_end_box.x0 + 80 - 1);
 		temp_end_box.y1 = min(new_selected_y, temp_end_box.y0 + 80 - 1);
 		temp_end_box.x1 = max(temp_end_box.x1, temp_end_box.x0 - 80 + 1);
 		temp_end_box.y1 = max(temp_end_box.y1, temp_end_box.y0 - 80 + 1);
 		temp_end_box = region_keep_inside((region_t){ 0, 0, WORLD_WIDTH, WORLD_HEIGHT }, temp_end_box);
+		screen_repaint();
+	}
+	else if (tool == TOOL_SELECT)
+	{
+		tool_select_handle_mouse_move(tool_select, m1_down, x, y, 0, y_pos);
 		screen_repaint();
 	}
 }
@@ -253,11 +271,16 @@ void campaign_start(void)
 	screen_set_event_handlers(&screen_events);
 
 	campaign_try_load(editor_state->current_campaign_directory);
-	screen_change_dirt_color(layers[(y_pos + TARGET_HEIGHT / 2) / TARGET_HEIGHT].dirt_color);
+	screen_change_dirt_color(campaign_get_current_asset()->dirt_color);
 	screen_repaint();
 }
 
 void campaign_end(void)
 {
 
+}
+
+bool campaign_can_change_field(const void* field)
+{
+	return field != &campaign_get_current_asset()->width && field != &campaign_get_current_asset()->height;
 }

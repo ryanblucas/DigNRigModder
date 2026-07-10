@@ -3,6 +3,7 @@
 */
 
 #include "asset_info.h"
+#include "asset_util.h"
 #include "asset_main.h"
 #include "../path.h"
 #include "../interface/mineral_palette.h"
@@ -44,34 +45,9 @@ static int brush_size = 1;
 
 static char directory[MAX_PATH];
 
-enum asset_info_current_field
+static inline void asset_set_current_treeview_from_block(asset_info_current_field_t settings)
 {
-	AICF_TILE_TYPE = 1 << 0,
-	AICF_VISUAL = 1 << 1,
-	AICF_TRANSPARENCY = 1 << 2
-};
-
-static inline void asset_info_asset_set_treeview(enum asset_info_current_field mask)
-{
-	TreeView_DeleteAllItems(child_windows[CWI_ASSET_CURRENT_TREEVIEW]);
-#define ADD_SERIALIZABLE(type, name) element_t name = serialize_single(#type, &blocks[current_tool].name, #name, child_windows[CWI_ASSET_CURRENT_TREEVIEW], NULL);
-#define ADD_SERIALIZABLE_ARRAY(type, name, count) element_t name = serialize_array(#type, &blocks[current_tool].name, count, #name, child_windows[CWI_ASSET_CURRENT_TREEVIEW], NULL);
-	SERIALIZABLE_ASSET_BLOCK
-#undef ADD_SERIALIZABLE
-#undef ADD_SERIALIZABLE_ARRAY
-
-	if (mask & AICF_TILE_TYPE)
-	{
-		serialize_element_enable(tile_type, false);
-	}
-	if (mask & AICF_VISUAL)
-	{
-		serialize_element_enable(visual, false);
-	}
-	if (mask & AICF_TRANSPARENCY)
-	{
-		serialize_element_enable(transparency, false);
-	}
+	asset_set_current_treeview(child_windows[CWI_ASSET_CURRENT_TREEVIEW], &blocks[current_tool], settings);
 }
 
 void asset_info_initialize(info_internal_t* _internal)
@@ -207,7 +183,7 @@ static void asset_info_handle_command(HWND window, WPARAM wparam)
 			blocks[TOOL_BRUSH] = block;
 			if (current_tool == TOOL_BRUSH)
 			{
-				asset_info_asset_set_treeview(0);
+				asset_set_current_treeview_from_block(0);
 			}
 		}
 	}
@@ -219,7 +195,7 @@ static void asset_info_handle_command(HWND window, WPARAM wparam)
 		region = INVALID_REGION;
 		if (current_tool != TOOL_ERASER)
 		{
-			asset_info_asset_set_treeview(0);
+			asset_set_current_treeview_from_block(0);
 		}
 		queue_add(internal.events->tool_handler, &current_tool);
 		EnableWindow(child_windows[CWI_ASSET_ERASER_BUTTON + current_tool], FALSE);
@@ -230,7 +206,7 @@ static void asset_info_handle_command(HWND window, WPARAM wparam)
 		MINERAL_PALETTE_SET_CELL(child_windows[CWI_ASSET_PALETTE], MINERAL_PALETTE_GET_SELECTED_CELL(child_windows[CWI_ASSET_PALETTE]), &blocks[TOOL_BRUSH]);
 		if (current_tool == TOOL_BRUSH)
 		{
-			asset_info_asset_set_treeview(0);
+			asset_set_current_treeview_from_block(0);
 		}
 	}
 }
@@ -340,39 +316,8 @@ void asset_info_set(asset_t* _asset)
 
 void asset_info_set_current(region_t _region)
 {
-	if (region_is_invalid(_region))
-	{
-		TreeView_DeleteAllItems(child_windows[CWI_ASSET_CURRENT_TREEVIEW]);
-		region = _region;
-		return;
-	}
-	region = region_validate(_region);
-	blocks[current_tool] = asset->blocks[region.x0 + region.y0 * asset->width];
-	enum asset_info_current_field mask = 0;
-	for (int y = 0; y < region_height(region); y++)
-	{
-		for (int x = 0; x < region_width(region); x++)
-		{
-			asset_block_t* curr = &asset->blocks[(region.x0 + x) + (region.y0 + y) * asset->width];
-			if (~mask & AICF_TILE_TYPE && blocks[current_tool].tile_type != curr->tile_type)
-			{
-				blocks[current_tool].tile_type = 0;
-				mask |= AICF_TILE_TYPE;
-			}
-			else if (~mask & AICF_VISUAL && blocks[current_tool].visual.Attributes != curr->visual.Attributes || blocks[current_tool].visual.Char.AsciiChar != curr->visual.Char.AsciiChar)
-			{
-				blocks[current_tool].visual = (CHAR_INFO){ 0 };
-				mask |= AICF_VISUAL;
-			}
-			else if (~mask & AICF_TILE_TYPE && blocks[current_tool].transparency != curr->transparency)
-			{
-				blocks[current_tool].transparency = false;
-				mask |= AICF_TRANSPARENCY;
-			}
-		}
-	}
-
-	asset_info_asset_set_treeview(mask);
+	region = region_is_invalid(_region) ? _region : region_validate(_region);
+	blocks[current_tool] = asset_set_current_treeview_from_region(child_windows[CWI_ASSET_CURRENT_TREEVIEW], asset, region);
 }
 
 action_buffer_t asset_info_action_buffer_get(void)

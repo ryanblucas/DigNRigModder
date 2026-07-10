@@ -422,7 +422,7 @@ static inline void file_asset_layer_color_correct(asset_t* res)
 	}
 }
 
-asset_t file_asset_load(const char* directory)
+static asset_t file_asset_load_internal(const char* directory, asset_block_t* array, int expected_width, int expected_height)
 {
 	asset_t res = { .blocks = NULL, .dirt_color = DNR_DEFAULT_DIRT_COLOR };
 	struct file file;
@@ -467,6 +467,12 @@ asset_t file_asset_load(const char* directory)
 		else if (strncmp(curr.data.str, "Height", DATA_STRING_MAX_SIZE) == 0)
 		{
 			ENSURE_CONDITION(pfile, file_asset_parse_attribute_single(directory, pfile, &curr, (int*)&res.height));
+			if (array)
+			{
+				res.blocks = array;
+				ENSURE_CONDITION(pfile, res.width == expected_width && res.height == expected_height);
+				continue;
+			}
 			res.blocks = dig_malloc(res.width * res.height * sizeof * res.blocks);
 			memset(res.blocks, 0, res.width * res.height * sizeof * res.blocks);
 		}
@@ -521,6 +527,11 @@ asset_t file_asset_load(const char* directory)
 cleanup:
 	fclose(file.handle);
 	return res;
+}
+
+asset_t file_asset_load(const char* directory)
+{
+	return file_asset_load_internal(directory, NULL, -1, -1);
 }
 
 void file_asset_unload(asset_t* asset)
@@ -715,6 +726,30 @@ bool file_campaign_save(const char* directory, const campaign_t* campaign)
 cleanup:
 	fclose(file->handle);
 	return result;
+}
+
+void file_campaign_load_layers(const campaign_t* campaign, asset_t* master, asset_t* layers)
+{
+	asset_block_t* blocks = dig_malloc(sizeof * blocks * WORLD_WIDTH * WORLD_HEIGHT);
+	for (int i = 0; i < 14; i++)
+	{
+		char buf[MAX_PATH];
+		path_find_dnr_main_chain(buf, sizeof buf, "Layers", campaign->layers[i].directory);
+		layers[i] = file_asset_load_internal(buf, blocks + (i * TARGET_WIDTH * TARGET_HEIGHT), TARGET_WIDTH, TARGET_HEIGHT);
+	}
+	*master = (asset_t)
+	{
+		.blocks = blocks,
+		.width = WORLD_WIDTH,
+		.height = WORLD_HEIGHT
+	};
+}
+
+void file_campaign_unload_layers(asset_t* master, asset_t* layers)
+{
+	free(master->blocks);
+	memset(master, 0, sizeof * master);
+	memset(layers, 0, sizeof * layers * 14);
 }
 
 static void file_state_load_shop_item(const uint32_t* arena, shop_item_t* item, int index)

@@ -3,6 +3,7 @@
 */
 
 #include "campaign_info.h"
+#include "../asset_creator/asset_util.h"
 #include "../path.h"
 #include "../interface/change_field_modal.h"
 #include "../interface/mineral_palette.h"
@@ -43,9 +44,19 @@ static HWND child_windows[CWI_COUNT];
 static info_internal_t internal;
 
 static info_tool_t current_tool;
+static asset_block_t asset_palette[3];
 static int brush_size;
 
+static asset_t* current_asset;
+
+static region_t region;
 static campaign_mode_t mode;
+static action_buffer_t action_buffer;
+
+static inline void campaign_set_current_treeview_from_block(asset_info_current_field_t settings)
+{
+	asset_set_current_treeview(child_windows[CWI_CURRENT_TREEVIEW], &asset_palette[current_tool], settings);
+}
 
 void campaign_info_initialize(info_internal_t* _internal)
 {
@@ -66,7 +77,7 @@ void campaign_info_initialize(info_internal_t* _internal)
 	SendMessageW(child_windows[CWI_LISTBOX_LAYER_NAMES], WM_SETFONT, (WPARAM)internal.font_text, (LPARAM)FALSE);
 
 	child_windows[CWI_BUTTON_ERASER] = CreateWindowExW(0, L"BUTTON", L"Erase", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 3, 55, 72, 22, internal.window, NULL, NULL, NULL);
-	child_windows[CWI_BUTTON_SELECT] = CreateWindowExW(0, L"BUTTON", L"tool_select", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 3, 78, 72, 22, internal.window, NULL, NULL, NULL);
+	child_windows[CWI_BUTTON_SELECT] = CreateWindowExW(0, L"BUTTON", L"Select", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 3, 78, 72, 22, internal.window, NULL, NULL, NULL);
 	child_windows[CWI_BUTTON_BRUSH] = CreateWindowExW(0, L"BUTTON", L"Brush", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 3, 101, 72, 22, internal.window, NULL, NULL, NULL);
 	child_windows[CWI_THUMB_BRUSH_SIZE] = CreateWindowExW(0, TRACKBAR_CLASSW, L"Brush size", WS_VISIBLE | WS_CHILD | TBS_AUTOTICKS | TBS_ENABLESELRANGE, 3, 124, 72, 22, internal.window, NULL, NULL, NULL);
 	SendMessageW(child_windows[CWI_THUMB_BRUSH_SIZE], TBM_SETRANGE, TRUE, MAKELONG(INFO_BRUSH_MIN_SIZE, INFO_BRUSH_MAX_SIZE));
@@ -104,6 +115,7 @@ void campaign_info_destroy(void)
 	{
 		DestroyWindow(child_windows[i]);
 	}
+	mineral_palette_destroy();
 }
 
 void campaign_info_show(bool is_visible)
@@ -224,6 +236,11 @@ static void campaign_info_dispatch_command(WPARAM wparam, LPARAM lparam)
 		current_tool = index - CWI_BUTTON_ERASER;
 		queue_add(internal.events->tool_handler, &current_tool);
 		EnableWindow(child_windows[CWI_BUTTON_ERASER + current_tool], FALSE);
+		TreeView_DeleteAllItems(child_windows[CWI_CURRENT_TREEVIEW]);
+		if (current_tool != TOOL_ERASER)
+		{
+			campaign_set_current_treeview_from_block(0);
+		}
 	}
 }
 
@@ -254,7 +271,41 @@ bool campaign_info_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESU
 
 bool campaign_info_handle_interact_tree_item(bool is_global, element_t element)
 {
-	return false;
+	/* only should change elementary fields */
+	if (serialize_element_get_size(element) > 4 || serialize_element_get_count(element) > 1)
+	{
+		return true;
+	}
+
+	if (!campaign_can_change_field(serialize_element_get_value(element)))
+	{
+		return false;
+	}
+
+	if (is_global)
+	{
+		field_t begin_copy = field_create(serialize_element_get_value(element), serialize_element_get_size(element));
+		if (!serialize_on_change_field(element))
+		{
+			return false;
+		}
+		if (begin_copy != field_create(serialize_element_get_value(element), serialize_element_get_size(element)))
+		{
+			queue_add(internal.events->global_field_handler, serialize_element_get_value(element));
+			action_buffer_add_field(action_buffer, element, begin_copy);
+		}
+	}
+	return true;
+}
+
+action_buffer_t campaign_info_action_buffer_get(void)
+{
+	return action_buffer;
+}
+
+void campaign_info_action_buffer_set(action_buffer_t _action_buffer)
+{
+	action_buffer = _action_buffer;
 }
 
 static LRESULT campaign_info_subclass_edit(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, UINT_PTR subclass_id, DWORD_PTR ref_data)
@@ -280,6 +331,8 @@ static LRESULT campaign_info_subclass_edit(HWND hwnd, UINT msg, WPARAM wparam, L
 
 static void campaign_info_set_internal(const void* unused)
 {
+	TreeView_DeleteAllItems(child_windows[CWI_TREEVIEW]);
+	TreeView_DeleteAllItems(child_windows[CWI_CURRENT_TREEVIEW]);
 	SetWindowTextA(child_windows[CWI_TEXTBOX_TITLE], campaign->name);
 	for (int i = 0; i < 14; i++)
 	{
@@ -327,4 +380,25 @@ info_tool_t campaign_info_get_tool(void)
 campaign_mode_t campaign_mode(void)
 {
 	return mode;
+}
+
+void campaign_set_current_layer(asset_t* asset)
+{
+	current_asset = asset;
+	TreeView_DeleteAllItems(child_windows[CWI_TREEVIEW]);
+	if (!current_asset)
+	{
+		return;
+	}
+#define ADD_SERIALIZABLE(type, name) serialize_single(#type, &current_asset->name, #name, child_windows[CWI_TREEVIEW], NULL);
+#define ADD_SERIALIZABLE_ARRAY(type, name, count) serialize_array(#type, &current_asset->name, count, #name, child_windows[CWI_TREEVIEW], NULL);
+	SERIALIZABLE_ASSET
+#undef ADD_SERIALIZABLE
+#undef ADD_SERIALIZABLE_ARRAY
+}
+
+void campaign_set_current_region(region_t _region)
+{
+	region = region_is_invalid(_region) ? _region : region_validate(_region);
+	asset_palette[current_tool] = asset_set_current_treeview_from_region(child_windows[CWI_CURRENT_TREEVIEW], current_asset, region);
 }

@@ -12,13 +12,14 @@
 #include "../weather.h"
 #include <stdio.h>
 
-#define ASSET_LOADED() (!!suite.asset.blocks)
+#define ASSET_LOADED() (!!suite.asset->blocks)
 
 static char directory[MAX_PATH];
 static int old_width, old_height;
 static bool is_layer;
 
 static editor_state_t* editor_state;
+static asset_t static_asset;
 static asset_suite_t suite;
 
 static void asset_invalidate(void)
@@ -42,34 +43,34 @@ static void asset_erase(tool_brush_t brush, region_t region)
 
 static void asset_refresh(void)
 {
-	old_width = suite.asset.width;
-	old_height = suite.asset.height;
+	old_width = suite.asset->width;
+	old_height = suite.asset->height;
 
-	asset_info_set(&suite.asset);
-	weather_set_asset(&suite.asset);
+	asset_info_set(suite.asset);
+	weather_set_asset(suite.asset);
 
-	suite.scroll_x = TARGET_WIDTH / 2 - suite.asset.width / 2;
-	suite.scroll_y = TARGET_HEIGHT / 2 - suite.asset.height / 2;
+	suite.scroll_x = TARGET_WIDTH / 2 - suite.asset->width / 2;
+	suite.scroll_y = TARGET_HEIGHT / 2 - suite.asset->height / 2;
 
 	tool_brush_destroy(suite.tool_eraser);
 	tool_brush_destroy(suite.tool_brush);
 	tool_select_destroy(suite.tool_select);
 
-	suite.tool_brush = tool_brush_create(asset_brush, BRUSH_TYPE_ASSET_BLOCK, suite.asset.width, suite.asset.height);
-	suite.tool_eraser = tool_brush_create(asset_erase, BRUSH_TYPE_ASSET_BLOCK, suite.asset.width, suite.asset.height);
-	suite.tool_select = tool_select_create(suite.asset.width, suite.asset.height);
+	suite.tool_brush = tool_brush_create(asset_brush, BRUSH_TYPE_ASSET_BLOCK, suite.asset->width, suite.asset->height);
+	suite.tool_eraser = tool_brush_create(asset_erase, BRUSH_TYPE_ASSET_BLOCK, suite.asset->width, suite.asset->height);
+	suite.tool_select = tool_select_create(suite.asset->width, suite.asset->height);
 }
 
 static void asset_handle_file_change(const char* _directory)
 {
 	screen_clear();
 
-	file_asset_unload(&suite.asset);
+	file_asset_unload(suite.asset);
 
 	snprintf(directory, sizeof directory, "%s", _directory);
 	snprintf(editor_state->current_asset_directory, sizeof editor_state->current_asset_directory, "%s", _directory);
-	suite.asset = file_asset_load(directory);
-	RUNTIME_ASSERT(suite.asset.blocks);
+	static_asset = file_asset_load(directory);
+	RUNTIME_ASSERT(suite.asset->blocks);
 
 	is_layer = false;
 	char* end = strrchr(directory, '.');
@@ -82,7 +83,7 @@ static void asset_handle_file_change(const char* _directory)
 	asset_invalidate();
 
 	weather_force_end();
-	weather_start(suite.asset.weather_type, suite.asset.weather_particle_rate, suite.asset.weather_speed);
+	weather_start(suite.asset->weather_type, suite.asset->weather_particle_rate, suite.asset->weather_speed);
 }
 
 static void asset_handle_block_change(const region_t* region)
@@ -113,35 +114,35 @@ static bool asset_change_dimensions(asset_t* copy, int* field, int max)
 		return false;
 	}
 	*field = min(max(1, *field), max);
-	*copy = suite.asset;
-	copy->blocks = dig_malloc(sizeof * copy->blocks * suite.asset.width * suite.asset.height);
-	memset(copy->blocks, 0, sizeof * copy->blocks * suite.asset.width * suite.asset.height);
+	*copy = static_asset;
+	copy->blocks = dig_malloc(sizeof * copy->blocks * suite.asset->width * suite.asset->height);
+	memset(copy->blocks, 0, sizeof * copy->blocks * suite.asset->width * suite.asset->height);
 	return true;
 }
 
 static void asset_handle_global_field_change(const void* field)
 {
-	if (field == &suite.asset.weather_type || field == &suite.asset.weather_particle_rate || field == &suite.asset.weather_speed)
+	if (field == &suite.asset->weather_type || field == &suite.asset->weather_particle_rate || field == &suite.asset->weather_speed)
 	{
 		weather_force_end();
-		weather_start(suite.asset.weather_type, suite.asset.weather_particle_rate, suite.asset.weather_speed);
+		weather_start(suite.asset->weather_type, suite.asset->weather_particle_rate, suite.asset->weather_speed);
 	}
 	asset_t copy;
-	if (field == &suite.asset.width && asset_change_dimensions(&copy, &suite.asset.width, TARGET_WIDTH))
+	if (field == &suite.asset->width && asset_change_dimensions(&copy, &suite.asset->width, TARGET_WIDTH))
 	{
-		for (int i = 0; i < suite.asset.height; i++)
+		for (int i = 0; i < suite.asset->height; i++)
 		{
-			memcpy(copy.blocks + i * suite.asset.width, suite.asset.blocks + i * old_width, sizeof * copy.blocks * min(old_width, suite.asset.width));
+			memcpy(copy.blocks + i * suite.asset->width, suite.asset->blocks + i * old_width, sizeof * copy.blocks * min(old_width, suite.asset->width));
 		}
-		file_asset_unload(&suite.asset);
-		suite.asset = copy;
+		file_asset_unload(suite.asset);
+		static_asset = copy;
 		asset_refresh();
 	}
-	if (field == &suite.asset.height && asset_change_dimensions(&copy, &suite.asset.height, TARGET_HEIGHT))
+	if (field == &suite.asset->height && asset_change_dimensions(&copy, &suite.asset->height, TARGET_HEIGHT))
 	{
-		memcpy(copy.blocks, suite.asset.blocks, sizeof * copy.blocks * suite.asset.width * min(old_height, suite.asset.height));
-		file_asset_unload(&suite.asset);
-		suite.asset = copy;
+		memcpy(copy.blocks, suite.asset->blocks, sizeof * copy.blocks * suite.asset->width * min(old_height, suite.asset->height));
+		file_asset_unload(suite.asset);
+		static_asset = copy;
 		asset_refresh();
 	}
 	asset_invalidate();
@@ -153,8 +154,8 @@ static void asset_handle_repaint(void)
 	{
 		return;
 	}
-	screen_change_dirt_color(suite.asset.dirt_color);
-	asset_render(&suite.asset, is_layer, suite.scroll_x, suite.scroll_y);
+	screen_change_dirt_color(suite.asset->dirt_color);
+	asset_render(suite.asset, is_layer, suite.scroll_x, suite.scroll_y);
 
 	tool_select_render(suite.tool_select, -suite.scroll_x, -suite.scroll_y);
 	char ch = ' ';
@@ -163,7 +164,7 @@ static void asset_handle_repaint(void)
 	{
 		for (int x = 0; x < TARGET_WIDTH; x++)
 		{
-			if (x < suite.scroll_x || x >= suite.scroll_x + suite.asset.width || y < suite.scroll_y || y >= suite.scroll_y + suite.asset.height)
+			if (x < suite.scroll_x || x >= suite.scroll_x + suite.asset->width || y < suite.scroll_y || y >= suite.scroll_y + suite.asset->height)
 			{
 				screen_set_attrib_region(&attrib, (region_t) { x, y, x, y });
 				screen_set_char_region(&ch, (region_t) { x, y, x, y });
@@ -191,7 +192,7 @@ static void asset_handle_mouse_button(bool m1_down, int x, int y)
 	}
 	x -= suite.scroll_x;
 	y -= suite.scroll_y;
-	if (x >= suite.asset.width || y >= suite.asset.height || x < 0 || y < 0)
+	if (x >= suite.asset->width || y >= suite.asset->height || x < 0 || y < 0)
 	{
 		return;
 	}
@@ -225,7 +226,7 @@ static void asset_handle_mouse_move(bool m1_down, int x, int y)
 	}
 	x -= suite.scroll_x;
 	y -= suite.scroll_y;
-	if (x >= suite.asset.width || y >= suite.asset.height || x < 0 || y < 0)
+	if (x >= suite.asset->width || y >= suite.asset->height || x < 0 || y < 0)
 	{
 		return;
 	}
@@ -251,7 +252,7 @@ static void asset_do_action(action_t* act)
 		asset_handle_global_field_change(serialize_element_get_value(act->sub.field.element));
 		return;
 	}
-	action_buffer_reverse_asset_block(&suite.asset, act);
+	action_buffer_reverse_asset_block(suite.asset, act);
 	asset_invalidate();
 	asset_info_set_current(tool_select_region(suite.tool_select));
 }
@@ -273,7 +274,7 @@ static void asset_handle_keyboard(virtual_key_t key, keyboard_control_t ctrl)
 		break;
 	case 'S':
 		debug_format("Saving to disk...\n");
-		if (!file_asset_save(directory, &suite.asset))
+		if (!file_asset_save(directory, suite.asset))
 		{
 			MessageBoxW(NULL, L"Failed to save file, maybe run in admin mode?", L"Dig-N-Rig Modder - Error!", MB_OK | MB_ICONERROR);
 		}
@@ -304,6 +305,7 @@ void asset_initialize(editor_state_t* state)
 	};
 	info_add_class(&class);
 
+	suite.asset = &static_asset;
 	suite.tool_eraser = tool_brush_create(asset_erase, BRUSH_TYPE_ASSET_BLOCK, TARGET_WIDTH, TARGET_HEIGHT);
 	suite.tool_brush = tool_brush_create(asset_brush, BRUSH_TYPE_ASSET_BLOCK, TARGET_WIDTH, TARGET_HEIGHT);
 	suite.tool_select = tool_select_create(TARGET_WIDTH, TARGET_HEIGHT);
@@ -314,7 +316,7 @@ void asset_initialize(editor_state_t* state)
 
 void asset_destroy(void)
 {
-	file_asset_unload(&suite.asset);
+	file_asset_unload(suite.asset);
 	tool_select_destroy(suite.tool_select);
 	action_buffer_destroy(suite.buffer);
 	free(suite.clipboard_data);
@@ -358,5 +360,5 @@ void asset_end(void)
 
 bool asset_can_change_field(const void* field)
 {
-	return !is_layer || (field != &suite.asset.width && field != &suite.asset.height);
+	return !is_layer || (field != &suite.asset->width && field != &suite.asset->height);
 }

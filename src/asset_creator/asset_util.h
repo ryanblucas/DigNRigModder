@@ -11,7 +11,7 @@
 
 typedef struct asset_suite
 {
-	asset_t asset;
+	asset_t* asset;
 	tool_select_t tool_select;
 	tool_brush_t tool_eraser;
 	tool_brush_t tool_brush;
@@ -21,11 +21,20 @@ typedef struct asset_suite
 	asset_block_t* clipboard_data;
 } asset_suite_t;
 
-void asset_render(const asset_t* asset, bool is_layer, int x, int y);
+typedef enum asset_info_current_field
+{
+	AICF_TILE_TYPE = 1 << 0,
+	AICF_VISUAL = 1 << 1,
+	AICF_TRANSPARENCY = 1 << 2
+} asset_info_current_field_t;
 
+void asset_render(const asset_t* asset, bool is_layer, int x, int y);
 tool_event_t asset_select_handle_mouse_button(asset_suite_t* suite, bool m1_down, int x, int y);
 tool_event_t asset_brush_handle_mouse_button(asset_suite_t* suite, bool is_eraser, bool m1_down, int x, int y);
 void asset_handle_brush(asset_suite_t* suite, region_t region, asset_block_t block);
 void asset_handle_erase(asset_suite_t* suite, region_t region);
 void asset_handle_copy(asset_suite_t* suite);
 void asset_handle_paste(asset_suite_t* suite);
+
+void asset_set_current_treeview(HWND treeview, asset_block_t* block, asset_info_current_field_t settings);
+asset_block_t asset_set_current_treeview_from_region(HWND treeview, asset_t* asset, region_t region);

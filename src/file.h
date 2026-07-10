@@ -439,6 +439,11 @@ campaign_t* file_campaign_blank(void);
 campaign_t* file_campaign_load(const char* directory);
 void file_campaign_unload(campaign_t* campaign);
 bool file_campaign_save(const char* directory, const campaign_t* campaign);
+/* Loads layers from a campaign into assets. "layers" must be 14 assets long, and "master" is the merged campaign 150x1400 asset. 
+   The data for each assets's blocks are contingous--meaning tools and other copying/deleting/pasting can work "interlayer." */
+void file_campaign_load_layers(const campaign_t* campaign, asset_t* master, asset_t* layers);
+/* Unloads the layers loaded by file_campaign_load_layers. */
+void file_campaign_unload_layers(asset_t* master, asset_t* layers);
 
 dnr_state_t* file_state_load(const char* directory);
 void file_state_unload(dnr_state_t* save);

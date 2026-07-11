@@ -49,10 +49,10 @@ static bool campaign_try_load(const char* directory)
 		debug_format("Failed to load campaign file (%s).\n", directory);
 		current_campaign = file_campaign_blank();
 	}
-	campaign_info_set(current_campaign, editor_state->current_campaign_directory);
 
 	file_campaign_load_layers(current_campaign, &master_asset, layers);
 	asset_suite.asset = &master_asset;
+	campaign_info_set(current_campaign, &master_asset, editor_state->current_campaign_directory);
 
 	asset_t* current = campaign_get_current_asset();
 	screen_change_dirt_color(current->dirt_color);
@@ -191,7 +191,7 @@ static void campaign_do_action(action_t* act)
 		//action_buffer_reverse_block(, act);
 	}
 	screen_repaint();
-	//asset_info_set_current(tool_select_region(suite.tool_select));
+	campaign_set_current_region(tool_select_region(tool_select));
 }
 
 static void campaign_handle_keyboard(virtual_key_t key, keyboard_control_t ctr)
@@ -248,11 +248,11 @@ static void campaign_handle_mouse_button(bool m1_down, int x, int y)
 		if (event == EVENT_SELECTION_MOVE_STOP)
 		{
 			screen_repaint();
-			//asset_info_set_current(INVALID_REGION);
+			campaign_set_current_region(INVALID_REGION);
 		}
 		else if (event == EVENT_SELECTION_RESIZE_STOP)
 		{
-			//asset_info_set_current(tool_select_region(suite.tool_select));
+			campaign_set_current_region(tool_select_region(tool_select));
 		}
 		return;
 	}

@@ -731,6 +731,7 @@ cleanup:
 void file_campaign_load_layers(const campaign_t* campaign, asset_t* master, asset_t* layers)
 {
 	asset_block_t* blocks = dig_malloc(sizeof * blocks * WORLD_WIDTH * WORLD_HEIGHT);
+	memset(blocks, 0, WORLD_WIDTH * WORLD_HEIGHT * sizeof * blocks);
 	for (int i = 0; i < 14; i++)
 	{
 		char buf[MAX_PATH];

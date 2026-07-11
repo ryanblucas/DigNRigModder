@@ -47,6 +47,7 @@ static info_tool_t current_tool;
 static asset_block_t asset_palette[3];
 static int brush_size;
 
+static asset_t* master_asset;
 static asset_t* current_asset;
 
 static region_t region;
@@ -341,9 +342,10 @@ static void campaign_info_set_internal(const void* unused)
 	}
 }
 
-void campaign_info_set(campaign_t* _campaign, const char* directory)
+void campaign_info_set(campaign_t* _campaign, asset_t* master, const char* directory)
 {
 	campaign = _campaign;
+	master_asset = master;
 	/* i do not like this */
 	for (int i = 0; i < 100 && !internal.window; i++)
 	{
@@ -400,5 +402,5 @@ void campaign_set_current_layer(asset_t* asset)
 void campaign_set_current_region(region_t _region)
 {
 	region = region_is_invalid(_region) ? _region : region_validate(_region);
-	asset_palette[current_tool] = asset_set_current_treeview_from_region(child_windows[CWI_CURRENT_TREEVIEW], current_asset, region);
+	asset_palette[current_tool] = asset_set_current_treeview_from_region(child_windows[CWI_CURRENT_TREEVIEW], master_asset, region);
 }

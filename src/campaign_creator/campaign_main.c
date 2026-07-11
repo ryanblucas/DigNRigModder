@@ -170,18 +170,54 @@ static void campaign_handle_repaint(void)
 	}
 }
 
+static void campaign_do_action(action_t* act)
+{
+	if (!act)
+	{
+		return;
+	}
+	if (act->type == ACTION_FIELD)
+	{
+		action_buffer_reverse_field(act);
+		//asset_handle_global_field_change(serialize_element_get_value(act->sub.field.element));
+		return;
+	}
+	else if (act->type == ACTION_ASSET_BLOCK)
+	{
+		action_buffer_reverse_asset_block(&master_asset, act);
+	}
+	else if (act->type == ACTION_BLOCK)
+	{
+		//action_buffer_reverse_block(, act);
+	}
+	screen_repaint();
+	//asset_info_set_current(tool_select_region(suite.tool_select));
+}
+
 static void campaign_handle_keyboard(virtual_key_t key, keyboard_control_t ctr)
 {
 	if (key == VK_UP || key == VK_DOWN)
 	{
 		y_pos += key - VK_DOWN + 1;
 	}
-	if (ctr == CTRL_LEFT_PRESSED && key == 'S')
+	if (ctr != CTRL_LEFT_PRESSED)
 	{
+		return;
+	}
+	switch (key)
+	{
+	case 'S':
 		if (*editor_state->current_campaign_directory || campaign_info_find_file(editor_state->current_campaign_directory, sizeof editor_state->current_campaign_directory))
 		{
 			file_campaign_save(editor_state->current_campaign_directory, current_campaign);
 		}
+		break;
+	case 'Z':
+		campaign_do_action(action_buffer_back(action_buffer));
+		break;
+	case 'Y':
+		campaign_do_action(action_buffer_forward(action_buffer));
+		break;
 	}
 }
 

@@ -190,9 +190,9 @@ static void asset_handle_mouse_button(bool m1_down, int x, int y)
 		}
 		return;
 	}
-	x -= suite.scroll_x;
-	y -= suite.scroll_y;
-	if (x >= suite.asset->width || y >= suite.asset->height || x < 0 || y < 0)
+	int tx = x - suite.scroll_x;
+	int ty = y - suite.scroll_y;
+	if (tx >= suite.asset->width || ty >= suite.asset->height || tx < 0 || ty < 0)
 	{
 		return;
 	}
@@ -208,7 +208,7 @@ static void asset_handle_mouse_button(bool m1_down, int x, int y)
 
 static void asset_brush_handle_mouse_move(tool_brush_t brush, bool m1_down, int x, int y)
 {
-	tool_event_t result = tool_brush_handle_mouse_move(brush, m1_down, x, y, 0);
+	tool_event_t result = tool_brush_handle_mouse_move(brush, m1_down, x - suite.scroll_x, y, -suite.scroll_y);
 	if (!region_is_invalid(tool_brush_region(brush)))
 	{
 		asset_invalidate();
@@ -224,9 +224,9 @@ static void asset_handle_mouse_move(bool m1_down, int x, int y)
 		asset_invalidate();
 		return;
 	}
-	x -= suite.scroll_x;
-	y -= suite.scroll_y;
-	if (x >= suite.asset->width || y >= suite.asset->height || x < 0 || y < 0)
+	int tx = x - suite.scroll_x;
+	int ty = y - suite.scroll_y;
+	if (tx >= suite.asset->width || ty >= suite.asset->height || tx < 0 || ty < 0)
 	{
 		return;
 	}

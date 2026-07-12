@@ -244,62 +244,21 @@ bool asset_info_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESULT*
 
 bool asset_info_handle_interact_tree_item(bool is_global, element_t element)
 {
-	/* only should change elementary fields */
-	if (serialize_element_get_size(element) > 4 || serialize_element_get_count(element) > 1)
+	if (asset_can_change_field(serialize_element_get_value(element)))
 	{
-		return true;
-	}
-
-	if (!asset_can_change_field(serialize_element_get_value(element)))
-	{
-		return false;
-	}
-
-	if (is_global)
-	{
-		field_t begin_copy = field_create(serialize_element_get_value(element), serialize_element_get_size(element));
-		if (!serialize_on_change_field(element))
+		asset_info_suite_t suite =
 		{
-			return false;
-		}
-		if (begin_copy != field_create(serialize_element_get_value(element), serialize_element_get_size(element)))
-		{
-			queue_add(internal.events->global_field_handler, serialize_element_get_value(element));
-			action_buffer_add_field(action_buffer, element, begin_copy);
-		}
-		return true;
+			.internal = internal,
+			.asset = asset,
+			.action_buffer = action_buffer,
+			.current_tool = current_tool,
+			.palette_window = child_windows[CWI_ASSET_PALETTE],
+			.tool_blocks = blocks,
+			.selection_region = region
+		};
+		return asset_handle_interact_treeview(&suite, is_global, element);
 	}
-
-	field_t previous = field_create(serialize_element_get_value(element), serialize_element_get_size(element));
-	if (!serialize_on_change_field(element))
-	{
-		return false;
-	}
-	if (previous == field_create(serialize_element_get_value(element), serialize_element_get_size(element)))
-	{
-		return true;
-	}
-	if (current_tool == TOOL_BRUSH && MINERAL_PALETTE_GET_SELECTED_CELL(child_windows[CWI_ASSET_PALETTE]) != -1)
-	{
-		MINERAL_PALETTE_SET_CELL(child_windows[CWI_ASSET_PALETTE], MINERAL_PALETTE_GET_SELECTED_CELL(child_windows[CWI_ASSET_PALETTE]), &blocks[TOOL_BRUSH]);
-		return true;
-	}
-	if (region_is_invalid(region))
-	{
-		return true;
-	}
-	action_buffer_pre_add_asset_block(action_buffer, asset, region);
-	for (int y = region.y0; y <= region.y1; y++)
-	{
-		for (int x = region.x0; x <= region.x1; x++)
-		{
-			uint8_t* current = (uint8_t*)serialize_element_get_value(element);
-			memcpy((uint8_t*)&asset->blocks[x + y * asset->width] + (current - (uint8_t*)&blocks[current_tool]), current, serialize_element_get_size(element));
-		}
-	}
-	queue_add(internal.events->block_handler, &region);
-	action_buffer_post_add_asset_block(action_buffer, asset);
-	return true;
+	return false;
 }
 
 void asset_info_set(asset_t* _asset)
@@ -317,7 +276,7 @@ void asset_info_set(asset_t* _asset)
 void asset_info_set_current(region_t _region)
 {
 	region = region_is_invalid(_region) ? _region : region_validate(_region);
-	blocks[current_tool] = asset_set_current_treeview_from_region(child_windows[CWI_ASSET_CURRENT_TREEVIEW], asset, region);
+	asset_set_current_treeview_from_region(child_windows[CWI_ASSET_CURRENT_TREEVIEW], asset, region, &blocks[current_tool]);
 }
 
 action_buffer_t asset_info_action_buffer_get(void)

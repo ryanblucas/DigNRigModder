@@ -64,13 +64,13 @@ static void campaign_asset_brush(tool_brush_t brush, region_t region)
 {
 	if (brush == asset_suite.tool_brush)
 	{
-		/*asset_block_t block;
-		asset_info_get_current_brush_block(&block);
-		asset_handle_brush(&asset_suite, region, block);*/
+		asset_block_t block;
+		campaign_info_get_current_brush_block(&block);
+		asset_handle_brush(&asset_suite, region, block);
 	}
 	else if (brush == asset_suite.tool_eraser)
 	{
-
+		asset_handle_erase(&asset_suite, region);
 	}
 }
 
@@ -137,6 +137,32 @@ static void campaign_handle_custom_event(const int* _id)
 static void campaign_handle_tool_change(const info_tool_t* tool)
 {
 	dragging_end_box = false;
+	tool_select_reset(tool_select);
+	screen_repaint();
+}
+
+static void campaign_handle_global_field_change(const void* field)
+{
+	for (int i = 0; i < LAYER_COUNT; i++)
+	{
+		if (field == &layers[i].dirt_color && i == (y_pos + TARGET_HEIGHT / 2) / TARGET_HEIGHT)
+		{
+			screen_change_dirt_color(layers[i].dirt_color);
+			screen_repaint();
+			return;
+		}
+	}
+}
+
+static void campaign_handle_block_change(const region_t* region)
+{
+	screen_repaint();
+}
+
+static void campaign_handle_brush_size_change(const int* new_size)
+{
+	tool_brush_set_size(asset_suite.tool_brush, *new_size);
+	tool_brush_set_size(asset_suite.tool_eraser, *new_size);
 }
 
 static void campaign_move_window(int addend)
@@ -151,6 +177,7 @@ static void campaign_move_window(int addend)
 		screen_change_dirt_color(layers[index].dirt_color);
 		campaign_set_current_layer(&layers[index]);
 	}
+	asset_suite.scroll_y = -y_pos;
 	screen_repaint();
 }
 
@@ -179,7 +206,7 @@ static void campaign_do_action(action_t* act)
 	if (act->type == ACTION_FIELD)
 	{
 		action_buffer_reverse_field(act);
-		//asset_handle_global_field_change(serialize_element_get_value(act->sub.field.element));
+		campaign_handle_global_field_change(serialize_element_get_value(act->sub.field.element));
 		return;
 	}
 	else if (act->type == ACTION_ASSET_BLOCK)
@@ -207,6 +234,7 @@ static void campaign_handle_keyboard(virtual_key_t key, keyboard_control_t ctr)
 	switch (key)
 	{
 	case 'S':
+		debug_format("Saving to disk...\n");
 		if (*editor_state->current_campaign_directory || campaign_info_find_file(editor_state->current_campaign_directory, sizeof editor_state->current_campaign_directory))
 		{
 			file_campaign_save(editor_state->current_campaign_directory, current_campaign);
@@ -243,7 +271,6 @@ static void campaign_handle_mouse_button(bool m1_down, int x, int y)
 	}
 	else if (tool == TOOL_SELECT)
 	{
-		asset_suite.scroll_y = -y_pos;
 		tool_event_t event = asset_select_handle_mouse_button(&asset_suite, m1_down, x, y);
 		if (event == EVENT_SELECTION_MOVE_STOP)
 		{
@@ -255,6 +282,23 @@ static void campaign_handle_mouse_button(bool m1_down, int x, int y)
 			campaign_set_current_region(tool_select_region(tool_select));
 		}
 		return;
+	}
+	else if (tool == TOOL_BRUSH)
+	{
+		asset_brush_handle_mouse_button(&asset_suite, false, m1_down, x, y);
+	}
+	else if (tool == TOOL_ERASER)
+	{
+		asset_brush_handle_mouse_button(&asset_suite, true, m1_down, x, y);
+	}
+}
+
+static void campaign_brush_handle_mouse_move(tool_brush_t brush, bool m1_down, int x, int y)
+{
+	tool_event_t result = tool_brush_handle_mouse_move(brush, m1_down, x, y, y_pos);
+	if (!region_is_invalid(tool_brush_region(brush)))
+	{
+		screen_repaint();
 	}
 }
 
@@ -280,6 +324,14 @@ static void campaign_handle_mouse_move(bool m1_down, int x, int y)
 		tool_select_handle_mouse_move(tool_select, m1_down, x, y, 0, y_pos);
 		screen_repaint();
 	}
+	else if (tool == TOOL_BRUSH)
+	{
+		campaign_brush_handle_mouse_move(asset_suite.tool_brush, m1_down, x, y);
+	}
+	else if (tool == TOOL_ERASER)
+	{
+		campaign_brush_handle_mouse_move(asset_suite.tool_eraser, m1_down, x, y);
+	}
 }
 
 static void campaign_handle_mouse_wheel(int delta)
@@ -294,6 +346,9 @@ void campaign_start(void)
 		.file_handler = campaign_handle_file_change,
 		.custom_event_handler = campaign_handle_custom_event,
 		.tool_handler = campaign_handle_tool_change,
+		.global_field_handler = campaign_handle_global_field_change,
+		.block_handler = campaign_handle_block_change,
+		.brush_size_handler = campaign_handle_brush_size_change
 	};
 	info_set_event_handlers(&info_events);
 	screen_events_t screen_events =

@@ -4,6 +4,7 @@
 
 #include "asset_util.h"
 #include "../game.h"
+#include "../interface/mineral_palette.h"
 
 static void asset_render_tile_type_as(const asset_t* asset, bool is_layer, asset_tile_type_t type, char ch, attribute_t attrib, int sx, int sy)
 {
@@ -59,6 +60,8 @@ tool_event_t asset_select_handle_mouse_button(asset_suite_t* suite, bool m1_down
 
 tool_event_t asset_brush_handle_mouse_button(asset_suite_t* suite, bool is_eraser, bool m1_down, int x, int y)
 {
+	x -= suite->scroll_x;
+	y -= suite->scroll_y;
 	tool_brush_t brush = is_eraser ? suite->tool_eraser : suite->tool_brush;
 	tool_event_t result = tool_brush_handle_mouse_click(brush, m1_down, x, y, 0);
 	if (result == EVENT_BRUSH_END)
@@ -170,39 +173,92 @@ void asset_set_current_treeview(HWND treeview, asset_block_t* block, asset_info_
 	}
 }
 
-asset_block_t asset_set_current_treeview_from_region(HWND treeview, asset_t* asset, region_t region)
+void asset_set_current_treeview_from_region(HWND treeview, asset_t* asset, region_t region, asset_block_t* result)
 {
 	if (region_is_invalid(region))
 	{
 		TreeView_DeleteAllItems(treeview);
-		return (asset_block_t){ 0 };
+		return;
 	}
 	region = region_validate(region);
-	asset_block_t result = asset->blocks[region.x0 + region.y0 * asset->width];
+	*result = asset->blocks[region.x0 + region.y0 * asset->width];
 	enum asset_info_current_field mask = 0;
 	for (int y = 0; y < region_height(region); y++)
 	{
 		for (int x = 0; x < region_width(region); x++)
 		{
 			asset_block_t* curr = &asset->blocks[(region.x0 + x) + (region.y0 + y) * asset->width];
-			if (~mask & AICF_TILE_TYPE && result.tile_type != curr->tile_type)
+			if (~mask & AICF_TILE_TYPE && result->tile_type != curr->tile_type)
 			{
-				result.tile_type = 0;
+				result->tile_type = 0;
 				mask |= AICF_TILE_TYPE;
 			}
-			else if (~mask & AICF_VISUAL && result.visual.Attributes != curr->visual.Attributes || result.visual.Char.AsciiChar != curr->visual.Char.AsciiChar)
+			else if (~mask & AICF_VISUAL && result->visual.Attributes != curr->visual.Attributes || result->visual.Char.AsciiChar != curr->visual.Char.AsciiChar)
 			{
-				result.visual = (CHAR_INFO){ 0 };
+				result->visual = (CHAR_INFO){ 0 };
 				mask |= AICF_VISUAL;
 			}
-			else if (~mask & AICF_TILE_TYPE && result.transparency != curr->transparency)
+			else if (~mask & AICF_TILE_TYPE && result->transparency != curr->transparency)
 			{
-				result.transparency = false;
+				result->transparency = false;
 				mask |= AICF_TRANSPARENCY;
 			}
 		}
 	}
 
-	asset_set_current_treeview(treeview, &result, mask);
-	return result;
+	asset_set_current_treeview(treeview, result, mask);
+}
+
+bool asset_handle_interact_treeview(asset_info_suite_t* suite, bool is_global, element_t element)
+{
+	/* only should change elementary fields */
+	if (serialize_element_get_size(element) > 4 || serialize_element_get_count(element) > 1)
+	{
+		return true;
+	}
+	if (is_global)
+	{
+		field_t begin_copy = field_create(serialize_element_get_value(element), serialize_element_get_size(element));
+		if (!serialize_on_change_field(element))
+		{
+			return false;
+		}
+		if (begin_copy != field_create(serialize_element_get_value(element), serialize_element_get_size(element)))
+		{
+			queue_add(suite->internal.events->global_field_handler, serialize_element_get_value(element));
+			action_buffer_add_field(suite->action_buffer, element, begin_copy);
+		}
+		return true;
+	}
+
+	field_t previous = field_create(serialize_element_get_value(element), serialize_element_get_size(element));
+	if (!serialize_on_change_field(element))
+	{
+		return false;
+	}
+	if (previous == field_create(serialize_element_get_value(element), serialize_element_get_size(element)))
+	{
+		return true;
+	}
+	if (suite->current_tool == TOOL_BRUSH && MINERAL_PALETTE_GET_SELECTED_CELL(suite->palette_window) != -1)
+	{
+		MINERAL_PALETTE_SET_CELL(suite->palette_window, MINERAL_PALETTE_GET_SELECTED_CELL(suite->palette_window), &suite->tool_blocks[TOOL_BRUSH]);
+		return true;
+	}
+	if (region_is_invalid(suite->selection_region))
+	{
+		return true;
+	}
+	action_buffer_pre_add_asset_block(suite->action_buffer, suite->asset, suite->selection_region);
+	for (int y = suite->selection_region.y0; y <= suite->selection_region.y1; y++)
+	{
+		for (int x = suite->selection_region.x0; x <= suite->selection_region.x1; x++)
+		{
+			uint8_t* current = (uint8_t*)serialize_element_get_value(element);
+			memcpy((uint8_t*)&suite->asset->blocks[x + y * suite->asset->width] + (current - (uint8_t*)&suite->tool_blocks[suite->current_tool]), current, serialize_element_get_size(element));
+		}
+	}
+	queue_add(suite->internal.events->block_handler, &suite->selection_region);
+	action_buffer_post_add_asset_block(suite->action_buffer, suite->asset);
+	return true;
 }

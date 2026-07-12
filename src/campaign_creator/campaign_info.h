@@ -26,6 +26,8 @@ void campaign_info_set(campaign_t* campaign, asset_t* master, const char* direct
 /* returns false if user cancels, true otherwise. this will set the caption of the window */
 bool campaign_info_find_file(char* directory, size_t size);
 
+void campaign_info_get_current_brush_block(asset_block_t* res);
+int campaign_info_get_current_brush_size(void);
 info_tool_t campaign_info_get_tool(void);
 campaign_mode_t campaign_mode(void);
 

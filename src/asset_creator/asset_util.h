@@ -6,6 +6,7 @@
 
 #include "../action_buffer.h"
 #include "../file.h"
+#include "../info_box.h"
 #include "../screen.h"
 #include "../tool.h"
 
@@ -20,6 +21,17 @@ typedef struct asset_suite
 	region_t clipboard_region;
 	asset_block_t* clipboard_data;
 } asset_suite_t;
+
+typedef struct asset_info_suite
+{
+	info_tool_t current_tool;
+	action_buffer_t action_buffer;
+	HWND palette_window;
+	region_t selection_region;
+	asset_t* asset;
+	asset_block_t* tool_blocks;
+	info_internal_t internal;
+} asset_info_suite_t;
 
 typedef enum asset_info_current_field
 {
@@ -37,4 +49,5 @@ void asset_handle_copy(asset_suite_t* suite);
 void asset_handle_paste(asset_suite_t* suite);
 
 void asset_set_current_treeview(HWND treeview, asset_block_t* block, asset_info_current_field_t settings);
-asset_block_t asset_set_current_treeview_from_region(HWND treeview, asset_t* asset, region_t region);
+void asset_set_current_treeview_from_region(HWND treeview, asset_t* asset, region_t region, asset_block_t* result);
+bool asset_handle_interact_treeview(asset_info_suite_t* suite, bool is_global, element_t element);

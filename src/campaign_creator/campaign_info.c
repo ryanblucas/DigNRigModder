@@ -272,31 +272,21 @@ bool campaign_info_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, LRESU
 
 bool campaign_info_handle_interact_tree_item(bool is_global, element_t element)
 {
-	/* only should change elementary fields */
-	if (serialize_element_get_size(element) > 4 || serialize_element_get_count(element) > 1)
+	if (campaign_can_change_field(serialize_element_get_value(element)))
 	{
-		return true;
-	}
-
-	if (!campaign_can_change_field(serialize_element_get_value(element)))
-	{
-		return false;
-	}
-
-	if (is_global)
-	{
-		field_t begin_copy = field_create(serialize_element_get_value(element), serialize_element_get_size(element));
-		if (!serialize_on_change_field(element))
+		asset_info_suite_t suite =
 		{
-			return false;
-		}
-		if (begin_copy != field_create(serialize_element_get_value(element), serialize_element_get_size(element)))
-		{
-			queue_add(internal.events->global_field_handler, serialize_element_get_value(element));
-			action_buffer_add_field(action_buffer, element, begin_copy);
-		}
+			.internal = internal,
+			.asset = master_asset,
+			.action_buffer = action_buffer,
+			.current_tool = current_tool,
+			.palette_window = child_windows[CWI_PALETTE],
+			.tool_blocks = asset_palette,
+			.selection_region = region
+		};
+		return asset_handle_interact_treeview(&suite, is_global, element);
 	}
-	return true;
+	return false;
 }
 
 action_buffer_t campaign_info_action_buffer_get(void)
@@ -374,6 +364,16 @@ bool campaign_info_find_file(char* directory, size_t size)
 	return result;
 }
 
+void campaign_info_get_current_brush_block(asset_block_t* res)
+{
+	*res = asset_palette[TOOL_BRUSH];
+}
+
+int campaign_info_get_current_brush_size(void)
+{
+	return brush_size;
+}
+
 info_tool_t campaign_info_get_tool(void)
 {
 	return current_tool;
@@ -402,5 +402,5 @@ void campaign_set_current_layer(asset_t* asset)
 void campaign_set_current_region(region_t _region)
 {
 	region = region_is_invalid(_region) ? _region : region_validate(_region);
-	asset_palette[current_tool] = asset_set_current_treeview_from_region(child_windows[CWI_CURRENT_TREEVIEW], master_asset, region);
+	asset_set_current_treeview_from_region(child_windows[CWI_CURRENT_TREEVIEW], master_asset, region, &asset_palette[current_tool]);
 }

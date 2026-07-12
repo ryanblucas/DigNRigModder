@@ -9,6 +9,7 @@
 #include "../path.h"
 #include "../tool.h"
 #include "../screen.h"
+#include "../weather.h"
 #include "../asset_creator/asset_util.h"
 #include <stdio.h>
 
@@ -57,6 +58,11 @@ static bool campaign_try_load(const char* directory)
 	asset_t* current = campaign_get_current_asset();
 	screen_change_dirt_color(current->dirt_color);
 	campaign_set_current_layer(current);
+
+	weather_force_end();
+	weather_set_asset(&master_asset);
+	weather_start(current->weather_type, current->weather_particle_rate, current->weather_speed);
+
 	return result;
 }
 
@@ -143,6 +149,11 @@ static void campaign_handle_tool_change(const info_tool_t* tool)
 
 static void campaign_handle_global_field_change(const void* field)
 {
+	if (field == &asset_suite.asset->weather_type || field == &asset_suite.asset->weather_particle_rate || field == &asset_suite.asset->weather_speed)
+	{
+		weather_force_end();
+		weather_start(asset_suite.asset->weather_type, asset_suite.asset->weather_particle_rate, asset_suite.asset->weather_speed);
+	}
 	for (int i = 0; i < LAYER_COUNT; i++)
 	{
 		if (field == &layers[i].dirt_color && i == (y_pos + TARGET_HEIGHT / 2) / TARGET_HEIGHT)
@@ -176,8 +187,10 @@ static void campaign_move_window(int addend)
 	{
 		screen_change_dirt_color(layers[index].dirt_color);
 		campaign_set_current_layer(&layers[index]);
+		weather_start(layers[index].weather_type, layers[index].weather_particle_rate, layers[index].weather_speed);
 	}
 	asset_suite.scroll_y = -y_pos;
+	weather_set_scroll(y_pos);
 	screen_repaint();
 }
 
@@ -348,9 +361,10 @@ void campaign_start(void)
 		.tool_handler = campaign_handle_tool_change,
 		.global_field_handler = campaign_handle_global_field_change,
 		.block_handler = campaign_handle_block_change,
-		.brush_size_handler = campaign_handle_brush_size_change
+		.brush_size_handler = campaign_handle_brush_size_change,
 	};
 	info_set_event_handlers(&info_events);
+	screen_simulator_t simulators[] = { weather_simulate, NULL };
 	screen_events_t screen_events =
 	{
 		.repaint = campaign_handle_repaint,
@@ -358,6 +372,7 @@ void campaign_start(void)
 		.mouse_button = campaign_handle_mouse_button,
 		.mouse_move = campaign_handle_mouse_move,
 		.mouse_wheel = campaign_handle_mouse_wheel,
+		.simulators = simulators
 	};
 	screen_set_event_handlers(&screen_events);
 

@@ -89,6 +89,37 @@ extern inline bool dig_inside_bounds(int x, int y)
 	return x >= 0 && y >= 0 && x < WORLD_WIDTH && y < WORLD_HEIGHT;
 }
 
+extern inline uint64_t dig_hash(const char* str)
+{
+	uint64_t hash = 5381;
+	do
+	{
+		hash = ((hash << 5) + hash) ^ *str;
+	} while (*++str);
+	return hash;
+}
+
+extern inline uint64_t dig_hash_buf(const void* buf, size_t len)
+{
+	uint64_t hash = 5381;
+	const uint8_t* str = (const uint8_t*)buf;
+	for (size_t i = 0; i < len; i++)
+	{
+		hash = ((hash << 5) + hash) ^ str[i];
+	}
+	return hash;
+}
+
+extern inline uint64_t dig_hash_update_buf(uint64_t hash, const void* buf, size_t len)
+{
+	const uint8_t* str = (const uint8_t*)buf;
+	for (size_t i = 0; i < len; i++)
+	{
+		hash = ((hash << 5) + hash) ^ str[i];
+	}
+	return hash;
+}
+
 /* not a fan... */
 #define INVALID_REGION ((region_t) { INT_MIN, INT_MIN, INT_MIN, INT_MIN })
 

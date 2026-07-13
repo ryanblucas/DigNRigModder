@@ -22,7 +22,7 @@ struct element
 static void serialize_redo_basic(element_t element);
 static void serialize_element_delete_internal(element_t element);
 
-static size_t serialize_hash_get_size(uint64_t type_hash)
+static size_t dig_hash_get_size(uint64_t type_hash)
 {
 	switch (type_hash)
 	{
@@ -67,7 +67,7 @@ static size_t serialize_hash_get_size(uint64_t type_hash)
 
 size_t serialize_element_get_size(const element_t element)
 {
-	return serialize_hash_get_size(element->type_hash);
+	return dig_hash_get_size(element->type_hash);
 }
 
 void serialize_element_get_name(const element_t element, char* buf, size_t buf_size)
@@ -102,7 +102,7 @@ bool serialize_element_is_enabled(element_t element)
 
 void serialize_element_set_value(element_t element, const void* value)
 {
-	size_t size = serialize_hash_get_size(element->type_hash);
+	size_t size = dig_hash_get_size(element->type_hash);
 	if (size == 4)
 	{
 		*(uint32_t*)element->value = *(uint32_t*)value;
@@ -412,7 +412,7 @@ static void serialize_redo_basic(element_t element)
 
 static void serialize_array_internal(uint64_t type_hash, void* value, int start, int end, WCHAR* wname, HWND tree_window, HTREEITEM tree_item)
 {
-	size_t elem_size = serialize_hash_get_size(type_hash);
+	size_t elem_size = dig_hash_get_size(type_hash);
 	value = (uint8_t*)value + elem_size * (end - 1);
 	for (int i = end - 1; i >= start; i--)
 	{
@@ -451,19 +451,9 @@ static void serialize_array_internal(uint64_t type_hash, void* value, int start,
 	}
 }
 
-static inline uint64_t serialize_hash(const char* str)
-{
-	uint64_t hash = 5381;
-	do
-	{
-		hash = ((hash << 5) + hash) ^ *str;
-	} while (*++str);
-	return hash;
-}
-
 element_t serialize_single(const char* type, void* value, const char* name, HWND tree_window, HTREEITEM tree_item)
 {
-	uint64_t type_hash = serialize_hash(type);
+	uint64_t type_hash = dig_hash(type);
 	WCHAR wname[64];
 	RUNTIME_ASSERT(MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, name, -1, wname, sizeof wname / sizeof * wname));
 
@@ -500,7 +490,7 @@ element_t serialize_single(const char* type, void* value, const char* name, HWND
 
 element_t serialize_array(const char* type, void* value, int count, const char* name, HWND tree_window, HTREEITEM tree_item)
 {
-	uint64_t type_hash = serialize_hash(type);
+	uint64_t type_hash = dig_hash(type);
 	WCHAR wname[64];
 	RUNTIME_ASSERT(MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, name, -1, wname, sizeof wname / sizeof * wname));
 

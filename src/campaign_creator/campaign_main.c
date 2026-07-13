@@ -19,7 +19,9 @@ static editor_state_t* editor_state;
 static campaign_t* current_campaign;
 static int y_pos;
 static asset_t master_asset;
-static asset_t layers[14];
+static asset_t layers[LAYER_COUNT];
+static uint64_t layer_hashes[LAYER_COUNT];
+static bool dont_ask_save_asset;
 
 static bool render_end_box;
 static bool dragging_end_box;
@@ -33,6 +35,15 @@ static asset_suite_t asset_suite;
 static inline asset_t* campaign_get_current_asset(void)
 {
 	return &layers[(y_pos + TARGET_HEIGHT / 2) / TARGET_HEIGHT];
+}
+
+static void campaign_hash_layers(uint64_t* hashes)
+{
+	for (int i = 0; i < LAYER_COUNT; i++)
+	{
+		hashes[i] = dig_hash_buf(layers[i].blocks, TARGET_WIDTH * TARGET_HEIGHT * sizeof * layers[i].blocks);
+		hashes[i] = dig_hash_update_buf(hashes[i], &layers[i], sizeof layers[i]);
+	}
 }
 
 static bool campaign_try_load(const char* directory)
@@ -54,6 +65,7 @@ static bool campaign_try_load(const char* directory)
 	file_campaign_load_layers(current_campaign, &master_asset, layers);
 	asset_suite.asset = &master_asset;
 	campaign_info_set(current_campaign, &master_asset, editor_state->current_campaign_directory);
+	campaign_hash_layers(layer_hashes);
 
 	asset_t* current = campaign_get_current_asset();
 	screen_change_dirt_color(current->dirt_color);
@@ -234,24 +246,53 @@ static void campaign_do_action(action_t* act)
 	campaign_set_current_region(tool_select_region(tool_select));
 }
 
+static void campaign_handle_save(void)
+{
+	debug_format("Saving to disk...\n");
+	if (*editor_state->current_campaign_directory || campaign_info_find_file(editor_state->current_campaign_directory, sizeof editor_state->current_campaign_directory))
+	{
+		file_campaign_save(editor_state->current_campaign_directory, current_campaign);
+	}
+	uint64_t new_hashes[LAYER_COUNT];
+	campaign_hash_layers(new_hashes);
+	for (int i = 0; i < LAYER_COUNT; i++)
+	{
+		if (new_hashes[i] == layer_hashes[i])
+		{
+			continue;
+		}
+		layer_hashes[i] = new_hashes[i];
+		if (!dont_ask_save_asset)
+		{
+			if (MessageBoxA(NULL, "Save this and future layer changes to their respective source files during this session?\nIf you say yes, you can see this menu again by doing CTRL-SHIFT-S instead.", "Save Changes", MB_YESNO | MB_ICONQUESTION) == IDNO)
+			{
+				continue;
+			}
+			dont_ask_save_asset = true;
+		}
+		debug_format("Saving layer (%s, %i) to disk...\n", current_campaign->layers[i].directory, i);
+		file_asset_save(current_campaign->layers[i].directory, &layers[i]);
+	}
+}
+
 static void campaign_handle_keyboard(virtual_key_t key, keyboard_control_t ctr)
 {
 	if (key == VK_UP || key == VK_DOWN)
 	{
 		y_pos += key - VK_DOWN + 1;
 	}
-	if (ctr != CTRL_LEFT_PRESSED)
+	if (!(ctr & CTRL_LEFT_PRESSED))
 	{
 		return;
 	}
 	switch (key)
 	{
 	case 'S':
-		debug_format("Saving to disk...\n");
-		if (*editor_state->current_campaign_directory || campaign_info_find_file(editor_state->current_campaign_directory, sizeof editor_state->current_campaign_directory))
+		if (ctr & CTRL_SHIFT_PRESSED)
 		{
-			file_campaign_save(editor_state->current_campaign_directory, current_campaign);
+			dont_ask_save_asset = false;
 		}
+		campaign_handle_save();
 		break;
 	case 'Z':
 		campaign_do_action(action_buffer_back(action_buffer));

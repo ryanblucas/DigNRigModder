@@ -23,7 +23,8 @@ static asset_t layers[LAYER_COUNT];
 static uint64_t layer_hashes[LAYER_COUNT];
 static bool dont_ask_save_asset;
 
-static bool render_end_box;
+static bool render_start_and_end;
+static bool moving_flag;
 static bool dragging_end_box;
 static region_t temp_end_box;
 
@@ -31,6 +32,8 @@ static tool_select_t tool_select;
 static action_buffer_t action_buffer;
 
 static asset_suite_t asset_suite;
+
+static sprite_t flag;
 
 static inline asset_t* campaign_get_current_asset(void)
 {
@@ -116,6 +119,12 @@ void campaign_initialize(editor_state_t* state)
 	asset_suite.buffer = action_buffer;
 
 	campaign_info_action_buffer_set(action_buffer);
+
+	char buf[MAX_PATH];
+	asset_t asset = file_asset_load(path_find_dnr_main(buf, sizeof buf, "Sprites\\Checkpoint.sprite"));
+	flag = game_spritify_asset(asset);
+	file_asset_unload(&asset);
+	RUNTIME_ASSERT(flag);
 }
 
 void campaign_destroy(void)
@@ -147,7 +156,7 @@ static void campaign_handle_custom_event(const int* _id)
 	campaign_property_id_t id = (campaign_property_id_t)_id;
 	if (id == CPI_ENABLE_END_BOX || id == CPI_DISABLE_END_BOX)
 	{
-		render_end_box = id == CPI_ENABLE_END_BOX;
+		render_start_and_end = id == CPI_ENABLE_END_BOX;
 	}
 	screen_repaint();
 }
@@ -172,7 +181,7 @@ static void campaign_handle_global_field_change(const void* field)
 		screen_change_dirt_color(curr->dirt_color);
 		screen_repaint();
 	}
-	int index = ((uintptr_t)curr - (uintptr_t)layers) / sizeof(asset_t);
+	int index = (int)(((uintptr_t)curr - (uintptr_t)layers) / sizeof(asset_t));
 	for (int i = 0; i < LAYER_COUNT; i++)
 	{
 		if (index != i && strncmp(current_campaign->layers[i].directory, current_campaign->layers[index].directory, MAX_PATH) == 0)
@@ -235,14 +244,18 @@ static void campaign_handle_repaint(void)
 	int bottom = y_pos / TARGET_HEIGHT + 1;
 	asset_render(&layers[top], true, 0, -y_pos % TARGET_HEIGHT);
 	asset_render(&layers[bottom], true, 0, TARGET_HEIGHT - y_pos % TARGET_HEIGHT);
-	tool_select_render(tool_select, 0, y_pos);
-	if (render_end_box)
+	if (render_start_and_end)
 	{
+		if (current_campaign->start_y > top * TARGET_HEIGHT && current_campaign->start_y < (bottom + 1) * TARGET_HEIGHT)
+		{
+			screen_sprite_render(current_campaign->start_x, current_campaign->start_y - y_pos, flag);
+		}
 		region_t normalized = dragging_end_box ? region_validate(temp_end_box) : current_campaign->end_box;
 		normalized.y0 -= y_pos;
 		normalized.y1 -= y_pos;
 		screen_invert_region(normalized);
 	}
+	tool_select_render(tool_select, 0, y_pos);
 }
 
 static void campaign_do_action(action_t* act)
@@ -327,25 +340,39 @@ static void campaign_handle_keyboard(virtual_key_t key, keyboard_control_t ctr)
 	}
 }
 
+static void campaign_end_box_handle_mouse_button(bool m1_down, int x, int y)
+{
+	if (!m1_down)
+	{
+		if (dragging_end_box)
+		{
+			current_campaign->end_box = region_validate(temp_end_box);
+		}
+		moving_flag = false;
+		dragging_end_box = false;
+		return;
+	}
+	region_t flag_region = { current_campaign->start_x, current_campaign->start_y, current_campaign->start_x + screen_sprite_width(flag), current_campaign->start_y + screen_sprite_height(flag) };
+	if (region_is_inside(flag_region, x, y + y_pos))
+	{
+		moving_flag = true;
+		return;
+	}
+	dragging_end_box = true;
+	temp_end_box.x0 = x;
+	temp_end_box.y0 = y + y_pos;
+	temp_end_box.x1 = x;
+	temp_end_box.y1 = y + y_pos;
+	screen_repaint();
+}
+
 static void campaign_handle_mouse_button(bool m1_down, int x, int y)
 {
 	info_tool_t tool = campaign_info_get_tool();
 	campaign_mode_t mode = campaign_mode();
 	if (tool == TOOL_ENDBOX)
 	{
-		dragging_end_box = m1_down;
-		if (dragging_end_box)
-		{
-			temp_end_box.x0 = x;
-			temp_end_box.y0 = y + y_pos;
-			temp_end_box.x1 = x;
-			temp_end_box.y1 = y + y_pos;
-		}
-		else
-		{
-			current_campaign->end_box = region_validate(temp_end_box);
-		}
-		screen_repaint();
+		campaign_end_box_handle_mouse_button(m1_down, x, y);
 	}
 	else if (tool == TOOL_SELECT)
 	{
@@ -390,22 +417,34 @@ static void campaign_brush_handle_mouse_move(tool_brush_t brush, bool m1_down, i
 	}
 }
 
+static void campaign_end_box_handle_mouse_move(bool m1_down, int x, int y)
+{
+	if (!m1_down)
+	{
+		return;
+	}
+	if (moving_flag)
+	{
+		current_campaign->start_x = x;
+		current_campaign->start_y = y + y_pos;
+		screen_repaint();
+		return;
+	}
+	int new_selected_y = y + y_pos;
+	temp_end_box.x1 = min(x, temp_end_box.x0 + 80 - 1);
+	temp_end_box.y1 = min(new_selected_y, temp_end_box.y0 + 80 - 1);
+	temp_end_box.x1 = max(temp_end_box.x1, temp_end_box.x0 - 80 + 1);
+	temp_end_box.y1 = max(temp_end_box.y1, temp_end_box.y0 - 80 + 1);
+	temp_end_box = region_keep_inside((region_t) { 0, 0, WORLD_WIDTH, WORLD_HEIGHT }, temp_end_box);
+	screen_repaint();
+}
+
 static void campaign_handle_mouse_move(bool m1_down, int x, int y)
 {
 	info_tool_t tool = campaign_info_get_tool();
 	if (tool == TOOL_ENDBOX)
 	{
-		if (!m1_down)
-		{
-			return;
-		}
-		int new_selected_y = y + y_pos;
-		temp_end_box.x1 = min(x, temp_end_box.x0 + 80 - 1);
-		temp_end_box.y1 = min(new_selected_y, temp_end_box.y0 + 80 - 1);
-		temp_end_box.x1 = max(temp_end_box.x1, temp_end_box.x0 - 80 + 1);
-		temp_end_box.y1 = max(temp_end_box.y1, temp_end_box.y0 - 80 + 1);
-		temp_end_box = region_keep_inside((region_t){ 0, 0, WORLD_WIDTH, WORLD_HEIGHT }, temp_end_box);
-		screen_repaint();
+		campaign_end_box_handle_mouse_move(m1_down, x, y);
 	}
 	else if (tool == TOOL_SELECT)
 	{

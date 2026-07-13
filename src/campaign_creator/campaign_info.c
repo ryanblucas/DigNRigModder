@@ -84,7 +84,7 @@ void campaign_info_initialize(info_internal_t* _internal)
 	SendMessageW(child_windows[CWI_THUMB_BRUSH_SIZE], TBM_SETRANGE, TRUE, MAKELONG(INFO_BRUSH_MIN_SIZE, INFO_BRUSH_MAX_SIZE));
 	child_windows[CWI_BUTTON_RECTANGLE] = CreateWindowExW(0, L"BUTTON", L"Set end box", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 3, 147, 72, 22, internal.window, NULL, NULL, NULL);
 
-	child_windows[CWI_BUTTON_SHOW_ENDBOX_TOGGLE] = CreateWindowExW(0, L"BUTTON", L"Show endbox", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 82, 55, 132, 22, internal.window, NULL, NULL, NULL);
+	child_windows[CWI_BUTTON_SHOW_ENDBOX_TOGGLE] = CreateWindowExW(0, L"BUTTON", L"Show start and end", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 82, 55, 132, 22, internal.window, NULL, NULL, NULL);
 	child_windows[CWI_BUTTON_SHOW_BINARY_TOGGLE] = CreateWindowExW(0, L"BUTTON", L"Show binary", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 82, 78, 132, 22, internal.window, NULL, NULL, NULL);
 	child_windows[CWI_BUTTON_WORK_BINARY_TOGGLE] = CreateWindowExW(0, L"BUTTON", L"Work binary", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 82, 101, 132, 22, internal.window, NULL, NULL, NULL);
 
@@ -225,7 +225,7 @@ static void campaign_info_dispatch_command(WPARAM wparam, LPARAM lparam)
 	}
 	else if (wnd == child_windows[CWI_BUTTON_SHOW_ENDBOX_TOGGLE])
 	{
-		campaign_info_handle_toggle_button(wnd, "Show endbox", "Hide endbox", CPI_ENABLE_END_BOX, CPI_DISABLE_END_BOX);
+		campaign_info_handle_toggle_button(wnd, "Show start and end", "Hide start and end", CPI_ENABLE_END_BOX, CPI_DISABLE_END_BOX);
 	}
 	else if (wnd == child_windows[CWI_BUTTON_WORK_BINARY_TOGGLE])
 	{

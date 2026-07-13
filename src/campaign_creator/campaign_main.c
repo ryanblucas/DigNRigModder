@@ -161,24 +161,47 @@ static void campaign_handle_tool_change(const info_tool_t* tool)
 
 static void campaign_handle_global_field_change(const void* field)
 {
-	if (field == &asset_suite.asset->weather_type || field == &asset_suite.asset->weather_particle_rate || field == &asset_suite.asset->weather_speed)
+	asset_t* curr = campaign_get_current_asset();
+	if (field == &curr->weather_type || field == &curr->weather_particle_rate || field == &curr->weather_speed)
 	{
 		weather_force_end();
-		weather_start(asset_suite.asset->weather_type, asset_suite.asset->weather_particle_rate, asset_suite.asset->weather_speed);
+		weather_start(curr->weather_type, curr->weather_particle_rate, curr->weather_speed);
 	}
+	else if (field == &curr->dirt_color)
+	{
+		screen_change_dirt_color(curr->dirt_color);
+		screen_repaint();
+	}
+	int index = ((uintptr_t)curr - (uintptr_t)layers) / sizeof(asset_t);
 	for (int i = 0; i < LAYER_COUNT; i++)
 	{
-		if (field == &layers[i].dirt_color && i == (y_pos + TARGET_HEIGHT / 2) / TARGET_HEIGHT)
+		if (index != i && strncmp(current_campaign->layers[i].directory, current_campaign->layers[index].directory, MAX_PATH) == 0)
 		{
-			screen_change_dirt_color(layers[i].dirt_color);
-			screen_repaint();
-			return;
+			asset_block_t* original = layers[i].blocks;
+			layers[i] = layers[index];
+			layers[i].blocks = original;
 		}
 	}
 }
 
 static void campaign_handle_block_change(const region_t* region)
 {
+	int index = region->y0 / TARGET_HEIGHT;
+	int layer2 = region->y1 / TARGET_HEIGHT;
+	asset_block_t* blocks = dig_malloc(sizeof * blocks * TARGET_WIDTH * TARGET_HEIGHT);
+	while (index <= layer2)
+	{
+		game_asset_copy(&master_asset, (region_t) { 0, index * TARGET_HEIGHT, TARGET_WIDTH - 1, (index + 1) * TARGET_HEIGHT - 1 }, blocks);
+		for (int i = 0; i < LAYER_COUNT; i++)
+		{
+			if (i != index && strncmp(current_campaign->layers[i].directory, current_campaign->layers[index].directory, MAX_PATH) == 0)
+			{
+				game_asset_paste(&master_asset, (region_t) { 0, i * TARGET_HEIGHT, TARGET_WIDTH - 1, (i + 1) * TARGET_HEIGHT - 1 }, blocks);
+			}
+		}
+		index++;
+	}
+	free(blocks);
 	screen_repaint();
 }
 
@@ -237,6 +260,7 @@ static void campaign_do_action(action_t* act)
 	else if (act->type == ACTION_ASSET_BLOCK)
 	{
 		action_buffer_reverse_asset_block(&master_asset, act);
+		campaign_handle_block_change(&act->sub.asset.region);
 	}
 	else if (act->type == ACTION_BLOCK)
 	{
@@ -328,6 +352,8 @@ static void campaign_handle_mouse_button(bool m1_down, int x, int y)
 		tool_event_t event = asset_select_handle_mouse_button(&asset_suite, m1_down, x, y);
 		if (event == EVENT_SELECTION_MOVE_STOP)
 		{
+			region_t temp = region_merge(tool_select_move_region(tool_select), tool_select_region(tool_select));
+			campaign_handle_block_change(&temp);
 			screen_repaint();
 			campaign_set_current_region(INVALID_REGION);
 		}
@@ -339,11 +365,19 @@ static void campaign_handle_mouse_button(bool m1_down, int x, int y)
 	}
 	else if (tool == TOOL_BRUSH)
 	{
-		asset_brush_handle_mouse_button(&asset_suite, false, m1_down, x, y);
+		if (asset_brush_handle_mouse_button(&asset_suite, false, m1_down, x, y) == EVENT_BRUSH_END)
+		{
+			region_t temp = tool_brush_region(asset_suite.tool_brush);
+			campaign_handle_block_change(&temp);
+		}
 	}
 	else if (tool == TOOL_ERASER)
 	{
-		asset_brush_handle_mouse_button(&asset_suite, true, m1_down, x, y);
+		if (asset_brush_handle_mouse_button(&asset_suite, true, m1_down, x, y) == EVENT_BRUSH_END)
+		{
+			region_t temp = tool_brush_region(asset_suite.tool_brush);
+			campaign_handle_block_change(&temp);
+		}
 	}
 }
 

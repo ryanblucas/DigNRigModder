@@ -37,6 +37,8 @@ static asset_suite_t asset_suite;
 
 static sprite_t flag;
 
+static dnr_state_t* binary;
+
 static inline asset_t* campaign_get_current_asset(void)
 {
 	return &layers[(y_pos + TARGET_HEIGHT / 2) / TARGET_HEIGHT];
@@ -434,7 +436,7 @@ static void campaign_handle_mouse_button(bool m1_down, int x, int y)
 	{
 		campaign_end_box_handle_mouse_button(m1_down, x, y);
 	}
-	else if (mode == MODE_ASSET)
+	else if (mode == CAMPAIGN_MODE_ASSET)
 	{
 		campaign_asset_handle_mouse_button(tool, m1_down, x, y);
 	}
@@ -496,7 +498,7 @@ static void campaign_handle_mouse_move(bool m1_down, int x, int y)
 	{
 		campaign_end_box_handle_mouse_move(m1_down, x, y);
 	}
-	else if (mode == MODE_ASSET)
+	else if (mode == CAMPAIGN_MODE_ASSET)
 	{
 		campaign_asset_handle_mouse_move(tool, m1_down, x, y);
 	}

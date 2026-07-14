@@ -391,15 +391,9 @@ static void campaign_end_box_handle_mouse_button(bool m1_down, int x, int y)
 	screen_repaint();
 }
 
-static void campaign_handle_mouse_button(bool m1_down, int x, int y)
+static void campaign_asset_handle_mouse_button(info_tool_t tool, bool m1_down, int x, int y)
 {
-	info_tool_t tool = campaign_info_get_tool();
-	campaign_mode_t mode = campaign_mode();
-	if (tool == TOOL_ENDBOX)
-	{
-		campaign_end_box_handle_mouse_button(m1_down, x, y);
-	}
-	else if (tool == TOOL_SELECT)
+	if (tool == TOOL_SELECT)
 	{
 		tool_event_t event = asset_select_handle_mouse_button(&asset_suite, m1_down, x, y);
 		if (event == EVENT_SELECTION_MOVE_STOP)
@@ -413,7 +407,6 @@ static void campaign_handle_mouse_button(bool m1_down, int x, int y)
 		{
 			campaign_set_current_region(tool_select_region(tool_select));
 		}
-		return;
 	}
 	else if (tool == TOOL_BRUSH)
 	{
@@ -427,9 +420,23 @@ static void campaign_handle_mouse_button(bool m1_down, int x, int y)
 	{
 		if (asset_brush_handle_mouse_button(&asset_suite, true, m1_down, x, y) == EVENT_BRUSH_END)
 		{
-			region_t temp = tool_brush_region(asset_suite.tool_brush);
+			region_t temp = tool_brush_region(asset_suite.tool_eraser);
 			campaign_handle_block_change(&temp);
 		}
+	}
+}
+
+static void campaign_handle_mouse_button(bool m1_down, int x, int y)
+{
+	info_tool_t tool = campaign_info_get_tool();
+	campaign_mode_t mode = campaign_mode();
+	if (tool == TOOL_ENDBOX)
+	{
+		campaign_end_box_handle_mouse_button(m1_down, x, y);
+	}
+	else if (mode == MODE_ASSET)
+	{
+		campaign_asset_handle_mouse_button(tool, m1_down, x, y);
 	}
 }
 
@@ -464,14 +471,9 @@ static void campaign_end_box_handle_mouse_move(bool m1_down, int x, int y)
 	screen_repaint();
 }
 
-static void campaign_handle_mouse_move(bool m1_down, int x, int y)
+static void campaign_asset_handle_mouse_move(info_tool_t tool, bool m1_down, int x, int y)
 {
-	info_tool_t tool = campaign_info_get_tool();
-	if (tool == TOOL_ENDBOX)
-	{
-		campaign_end_box_handle_mouse_move(m1_down, x, y);
-	}
-	else if (tool == TOOL_SELECT)
+	if (tool == TOOL_SELECT)
 	{
 		tool_select_handle_mouse_move(tool_select, m1_down, x, y, 0, y_pos);
 		screen_repaint();
@@ -483,6 +485,20 @@ static void campaign_handle_mouse_move(bool m1_down, int x, int y)
 	else if (tool == TOOL_ERASER)
 	{
 		campaign_brush_handle_mouse_move(asset_suite.tool_eraser, m1_down, x, y);
+	}
+}
+
+static void campaign_handle_mouse_move(bool m1_down, int x, int y)
+{
+	info_tool_t tool = campaign_info_get_tool();
+	campaign_mode_t mode = campaign_mode();
+	if (tool == TOOL_ENDBOX)
+	{
+		campaign_end_box_handle_mouse_move(m1_down, x, y);
+	}
+	else if (mode == MODE_ASSET)
+	{
+		campaign_asset_handle_mouse_move(tool, m1_down, x, y);
 	}
 }
 

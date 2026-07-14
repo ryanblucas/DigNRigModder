@@ -100,6 +100,7 @@ void campaign_info_initialize(info_internal_t* _internal)
 
 	mineral_palette_initialize();
 	child_windows[CWI_PALETTE] = CreateWindowExW(0, MINERAL_PALETTE_CLASS_NAME, NULL, WS_VISIBLE | WS_CHILD, 84, 124, 32 * 4, 32 * 2, internal.window, NULL, NULL, NULL);
+	MINERAL_PALETTE_SET_CELL_SIZE(child_windows[CWI_PALETTE], 4);
 
 	_internal->global_treeview = child_windows[CWI_TREEVIEW];
 	_internal->current_treeview = child_windows[CWI_CURRENT_TREEVIEW];
@@ -219,6 +220,30 @@ static void campaign_info_dispatch_command(WPARAM wparam, LPARAM lparam)
 	{
 		GetWindowTextA(wnd, campaign->name, sizeof campaign->name);
 	}
+	else if (wnd == child_windows[CWI_PALETTE] && HIWORD(wparam) == MINERAL_PALETTE_CONTROL_SET_SELECTED_CELL)
+	{
+		int index = MINERAL_PALETTE_GET_SELECTED_CELL(child_windows[CWI_PALETTE]);
+		if (index != -1)
+		{
+			asset_block_t block;
+			MINERAL_PALETTE_GET_CELL(child_windows[CWI_PALETTE], index, &block);
+			asset_palette[TOOL_BRUSH] = block;
+			if (current_tool == TOOL_BRUSH)
+			{
+				campaign_set_current_treeview_from_block(0);
+			}
+		}
+	}
+	else if (wnd == child_windows[CWI_BUTTON_FILE_SELECTER])
+	{
+		char path[MAX_PATH];
+		path_find_dnr_main(path, sizeof path, NULL);
+		if (!campaign_info_find_file(path, sizeof path))
+		{
+			return;
+		}
+		queue_add(internal.events->file_handler, queue_copy_data(path, sizeof path));
+	}
 	else if (wnd == child_windows[CWI_BUTTON_SHOW_BINARY_TOGGLE])
 	{
 		campaign_info_handle_toggle_button(wnd, "Show binary", "Hide binary", CPI_ENABLE_SHOW_BINARY_MODE, CPI_DISABLE_SHOW_BINARY_MODE);
@@ -324,7 +349,11 @@ static void campaign_info_set_internal(const void* unused)
 {
 	TreeView_DeleteAllItems(child_windows[CWI_TREEVIEW]);
 	TreeView_DeleteAllItems(child_windows[CWI_CURRENT_TREEVIEW]);
+
 	SetWindowTextA(child_windows[CWI_TEXTBOX_TITLE], campaign->name);
+
+	ListBox_ResetContent(child_windows[CWI_LISTBOX_LAYER_FILES]);
+	ListBox_ResetContent(child_windows[CWI_LISTBOX_LAYER_NAMES]);
 	for (int i = 0; i < 14; i++)
 	{
 		SendMessageA(child_windows[CWI_LISTBOX_LAYER_FILES], LB_ADDSTRING, 0, (LPARAM)campaign->layers[i].directory);
@@ -403,4 +432,22 @@ void campaign_set_current_region(region_t _region)
 {
 	region = region_is_invalid(_region) ? _region : region_validate(_region);
 	asset_set_current_treeview_from_region(child_windows[CWI_CURRENT_TREEVIEW], master_asset, region, &asset_palette[current_tool]);
+}
+
+void campaign_info_palette_save(asset_block_t* palette, size_t palette_size)
+{
+	int min = min((int)palette_size, MINERAL_PALETTE_GET_SIZE(child_windows[CWI_PALETTE]));
+	for (int i = 0; i < min; i++)
+	{
+		MINERAL_PALETTE_GET_CELL(child_windows[CWI_PALETTE], i, &palette[i]);
+	}
+}
+
+void campaign_info_palette_copy(const asset_block_t* palette, size_t palette_size)
+{
+	int min = min((int)palette_size, MINERAL_PALETTE_GET_SIZE(child_windows[CWI_PALETTE]));
+	for (int i = 0; i < min; i++)
+	{
+		MINERAL_PALETTE_SET_CELL(child_windows[CWI_PALETTE], i, &palette[i]);
+	}
 }

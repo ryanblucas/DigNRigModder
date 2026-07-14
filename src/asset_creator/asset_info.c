@@ -82,13 +82,6 @@ void asset_info_initialize(info_internal_t* _internal)
 	child_windows[CWI_ASSET_PALETTE] = CreateWindowExW(0, MINERAL_PALETTE_CLASS_NAME, NULL, WS_VISIBLE | WS_CHILD, 300, 50, 48, 24 * 4, internal.window, NULL, NULL, NULL);
 	MINERAL_PALETTE_SET_CELL_SIZE(child_windows[CWI_ASSET_PALETTE], 3);
 
-	asset_block_t block = { (CHAR_INFO){ .Attributes = CREATE_ATTRIBUTE(DARK_YELLOW, DARK_BLACK), .Char.AsciiChar = GAME_BRICK_CHAR }, TILE_TYPE_DEFAULT, 0};
-	MINERAL_PALETTE_SET_CELL(child_windows[CWI_ASSET_PALETTE], 0, &block);
-	block = (asset_block_t) { (CHAR_INFO) { .Attributes = CREATE_ATTRIBUTE(DARK_YELLOW, DARK_BLACK), .Char.AsciiChar = GAME_STONE_CHAR }, TILE_TYPE_DEFAULT, 0 };
-	MINERAL_PALETTE_SET_CELL(child_windows[CWI_ASSET_PALETTE], 1, &block);
-	block = (asset_block_t){ (CHAR_INFO) { .Attributes = CREATE_ATTRIBUTE(DARK_YELLOW, DARK_BLACK), .Char.AsciiChar = GAME_BLANK_CHAR }, TILE_TYPE_DEFAULT, 0 };
-	MINERAL_PALETTE_SET_CELL(child_windows[CWI_ASSET_PALETTE], 2, &block);
-
 	_internal->global_treeview = child_windows[CWI_ASSET_TREEVIEW];
 	_internal->current_treeview = child_windows[CWI_ASSET_CURRENT_TREEVIEW];
 

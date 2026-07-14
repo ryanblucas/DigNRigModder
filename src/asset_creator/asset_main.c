@@ -254,7 +254,10 @@ static void asset_do_action(action_t* act)
 	}
 	action_buffer_reverse_asset_block(suite.asset, act);
 	asset_invalidate();
-	asset_info_set_current(tool_select_region(suite.tool_select));
+	if (asset_info_get_current_tool() == TOOL_SELECT)
+	{
+		asset_info_set_current(tool_select_region(suite.tool_select));
+	}
 }
 
 static void asset_handle_keyboard(virtual_key_t key, keyboard_control_t ctrl)

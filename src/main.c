@@ -102,6 +102,9 @@ int main()
 		editor.current_save = 1;
 		editor.max_events_per_frame = 5;
 		editor.simulation_framerate = 30;
+		editor.asset_palette[0] = (asset_block_t){ .visual = { .Char.AsciiChar = 0xDB, .Attributes = CREATE_ATTRIBUTE(DARK_YELLOW, DARK_BLACK) } };
+		editor.asset_palette[1] = (asset_block_t){ .visual = { .Char.AsciiChar = 0xB0, .Attributes = CREATE_ATTRIBUTE(DARK_YELLOW, DARK_BLACK) } };
+		editor.asset_palette[2] = (asset_block_t){ .visual = { .Char.AsciiChar = 0xB1, .Attributes = CREATE_ATTRIBUTE(DARK_YELLOW, DARK_BLACK) } };
 	}
 
 	if (editor.simulation_framerate >= 0 && editor.max_events_per_frame <= 0)

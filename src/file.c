@@ -680,6 +680,11 @@ campaign_t* file_campaign_load(const char* directory)
 					file_next(&file, &curr);
 				}
 			}
+			for (int i = layer_count; i < 14; i++)
+			{
+				strncpy(result->layers[i].name, "Blank", 6);
+				strncpy(result->layers[i].directory, "blank.layer", 12);
+			}
 		}
 		while (curr.type == TOKEN_NEWLINE)
 		{

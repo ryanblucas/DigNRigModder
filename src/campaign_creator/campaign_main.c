@@ -63,8 +63,10 @@ static bool campaign_try_load(const char* directory)
 	}
 	if (!result)
 	{
-		debug_format("Failed to load campaign file (%s).\n", directory);
+		debug_format("Failed to load campaign file (%s), defaulting to a temp file.\n", directory);
 		current_campaign = file_campaign_blank();
+		char buf[MAX_PATH];
+		strncpy(editor_state->current_campaign_directory, path_find_dnr_main(buf, sizeof buf, "temp.campaign"), MAX_PATH);
 	}
 
 	file_campaign_load_layers(current_campaign, &master_asset, layers);
@@ -151,6 +153,7 @@ static void campaign_handle_file_change(const char* directory)
 		return;
 	}
 	campaign_try_load(directory);
+	screen_repaint();
 }
 
 static void campaign_handle_custom_event(const int* _id)
@@ -290,7 +293,10 @@ static void campaign_do_action(action_t* act)
 		}
 	}
 	screen_repaint();
-	campaign_set_current_region(tool_select_region(tool_select));
+	if (campaign_info_get_tool() == TOOL_SELECT)
+	{
+		campaign_set_current_region(tool_select_region(tool_select));
+	}
 }
 
 static void campaign_handle_save(void)
@@ -512,6 +518,7 @@ void campaign_start(void)
 	campaign_try_load(editor_state->current_campaign_directory);
 	screen_change_dirt_color(campaign_get_current_asset()->dirt_color);
 	screen_repaint();
+	campaign_info_palette_copy(editor_state->asset_palette, sizeof editor_state->asset_palette / sizeof * editor_state->asset_palette);
 }
 
 void campaign_end(void)
@@ -520,6 +527,7 @@ void campaign_end(void)
 	moving_flag = false;
 	weather_force_end();
 	tool_select_reset(tool_select);
+	campaign_info_palette_save(editor_state->asset_palette, sizeof editor_state->asset_palette / sizeof * editor_state->asset_palette);
 }
 
 bool campaign_can_change_field(const void* field)

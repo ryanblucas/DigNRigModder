@@ -33,3 +33,6 @@ campaign_mode_t campaign_mode(void);
 
 void campaign_set_current_layer(asset_t* asset);
 void campaign_set_current_region(region_t region);
+
+void campaign_info_palette_save(asset_block_t* palette, size_t palette_size);
+void campaign_info_palette_copy(const asset_block_t* palette, size_t palette_size);

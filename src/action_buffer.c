@@ -19,15 +19,29 @@ action_buffer_t action_buffer_initialize(void)
 	return result;
 }
 
+static void action_buffer_destroy_node(action_t* action)
+{
+	if (action->type == ACTION_BLOCK)
+	{
+		free(action->sub.block.previous);
+		free(action->sub.block.next);
+	}
+	else if (action->type == ACTION_ASSET_BLOCK)
+	{
+		free(action->sub.asset.previous);
+		free(action->sub.asset.next);
+	}
+	else if (action->type == ACTION_MEMORY)
+	{
+		free(action->sub.memory.previous);
+	}
+}
+
 void action_buffer_destroy(action_buffer_t buffer)
 {
 	for (int i = 0; i < buffer->size; i++)
 	{
-		if (buffer->buffer[i].type == ACTION_BLOCK)
-		{
-			free(buffer->buffer[i].sub.block.previous);
-			free(buffer->buffer[i].sub.block.next);
-		}
+		action_buffer_destroy_node(&buffer->buffer[i]);
 	}
 }
 
@@ -36,11 +50,7 @@ static void action_buffer_create_node(action_buffer_t buffer)
 	buffer->position++;
 	for (int i = buffer->position; i < buffer->size; i++)
 	{
-		if (buffer->buffer[i].type == ACTION_BLOCK)
-		{
-			free(buffer->buffer[i].sub.block.previous);
-			free(buffer->buffer[i].sub.block.next);
-		}
+		action_buffer_destroy_node(&buffer->buffer[i]);
 	}
 	buffer->size = buffer->position + 1;
 	if (buffer->size >= sizeof buffer->buffer / sizeof * buffer->buffer)
@@ -101,6 +111,20 @@ void action_buffer_add_field(action_buffer_t buffer, element_t element, field_t 
 		.previous = previous,
 		.element = element
 	};
+}
+
+void action_buffer_add_memory(action_buffer_t buffer, int type, size_t size, void* next, const void* prev)
+{
+	action_buffer_create_node(buffer);
+	buffer->buffer[buffer->position].type = ACTION_MEMORY;
+	action_memory_t* memory_action = &buffer->buffer[buffer->position].sub.memory;
+
+	memory_action->type = type;
+	memory_action->size = size;
+	memory_action->next = next;
+	memory_action->previous = dig_malloc(size);
+
+	memcpy(memory_action->previous, prev, size);
 }
 
 void action_buffer_pre_add_asset_block(action_buffer_t buffer, const asset_t* asset, region_t region)
@@ -188,4 +212,15 @@ void action_buffer_reverse_asset_block(asset_t* asset, action_t* action)
 	asset_block_t* temp = ba->previous;
 	ba->previous = ba->next;
 	ba->next = temp;
+}
+
+void action_buffer_reverse_memory(action_t* action)
+{
+	RUNTIME_ASSERT(action->type == ACTION_MEMORY);
+	action_memory_t* ma = &action->sub.memory;
+	void* temp = dig_malloc(ma->size);
+	memcpy(temp, ma->next, ma->size);
+	memcpy(ma->next, ma->previous, ma->size);
+	memcpy(ma->previous, temp, ma->size);
+	free(temp);
 }

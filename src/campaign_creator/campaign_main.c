@@ -23,6 +23,8 @@ static asset_t layers[LAYER_COUNT];
 static uint64_t layer_hashes[LAYER_COUNT];
 static bool dont_ask_save_asset;
 
+static int flag_pos[2];
+
 static bool render_start_and_end;
 static bool moving_flag;
 static bool dragging_end_box;
@@ -268,7 +270,6 @@ static void campaign_do_action(action_t* act)
 	{
 		action_buffer_reverse_field(act);
 		campaign_handle_global_field_change(serialize_element_get_value(act->sub.field.element));
-		return;
 	}
 	else if (act->type == ACTION_ASSET_BLOCK)
 	{
@@ -278,6 +279,15 @@ static void campaign_do_action(action_t* act)
 	else if (act->type == ACTION_BLOCK)
 	{
 		//action_buffer_reverse_block(, act);
+	}
+	else if (act->type == ACTION_MEMORY)
+	{
+		action_buffer_reverse_memory(act);
+		if (act->sub.memory.type == 0)
+		{
+			current_campaign->start_x = flag_pos[0];
+			current_campaign->start_y = flag_pos[1];
+		}
 	}
 	screen_repaint();
 	campaign_set_current_region(tool_select_region(tool_select));
@@ -344,11 +354,18 @@ static void campaign_end_box_handle_mouse_button(bool m1_down, int x, int y)
 {
 	if (!m1_down)
 	{
-		if (dragging_end_box)
+		if (moving_flag)
 		{
-			current_campaign->end_box = region_validate(temp_end_box);
+			int prev[2] = { flag_pos[0], flag_pos[1] };
+			flag_pos[0] = current_campaign->start_x;
+			flag_pos[1] = current_campaign->start_y;
+			action_buffer_add_memory(action_buffer, 0, sizeof flag_pos, flag_pos, prev);
+			moving_flag = false;
+			return;
 		}
-		moving_flag = false;
+		region_t prev = current_campaign->end_box;
+		current_campaign->end_box = region_validate(temp_end_box);
+		action_buffer_add_memory(action_buffer, 1, sizeof temp_end_box, &current_campaign->end_box, &prev);
 		dragging_end_box = false;
 		return;
 	}
@@ -356,6 +373,8 @@ static void campaign_end_box_handle_mouse_button(bool m1_down, int x, int y)
 	if (region_is_inside(flag_region, x, y + y_pos))
 	{
 		moving_flag = true;
+		flag_pos[0] = current_campaign->start_x;
+		flag_pos[1] = current_campaign->start_y;
 		return;
 	}
 	dragging_end_box = true;
@@ -497,7 +516,10 @@ void campaign_start(void)
 
 void campaign_end(void)
 {
-
+	dragging_end_box = false;
+	moving_flag = false;
+	weather_force_end();
+	tool_select_reset(tool_select);
 }
 
 bool campaign_can_change_field(const void* field)

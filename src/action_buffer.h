@@ -20,6 +20,7 @@ typedef enum action_type
 	ACTION_BLOCK,
 	ACTION_FIELD,
 	ACTION_ASSET_BLOCK,
+	ACTION_MEMORY
 } action_type_t;
 
 /* Dig-N-Rig is a 32-bit application, meaning all elementary fields (like CHAR_INFO 
@@ -47,6 +48,14 @@ typedef struct action_asset_block
 	asset_block_t* next;
 } action_asset_block_t;
 
+typedef struct action_memory
+{
+	int type;
+	size_t size;
+	void* previous;
+	void* next;
+} action_memory_t;
+
 typedef struct action
 {
 	action_type_t type;
@@ -55,6 +64,7 @@ typedef struct action
 		action_block_t block;
 		action_field_t field;
 		action_asset_block_t asset;
+		action_memory_t memory;
 	} sub;
 } action_t;
 
@@ -96,6 +106,9 @@ void action_buffer_add_block(action_buffer_t buffer, const complete_block_t* pre
    for the action_field_t struct. If this isn't the top of the buffer, it deletes everything in front of it */
 void action_buffer_add_field(action_buffer_t buffer, element_t element, field_t previous);
 
+/* Adds memory action to buffer */
+void action_buffer_add_memory(action_buffer_t buffer, int type, size_t size, void* next, const void* prev);
+
 /* Adds asset block action to buffer. The action created uses the region parameter passed in
    and creates the "previous" array with what is there currently. Therefore, call this
    before changing anything, then action_buffer_post_add_asset_block to create the next part.
@@ -118,3 +131,5 @@ void action_buffer_reverse_block(dnr_state_t* state, action_t* action);
 void action_buffer_reverse_field(action_t* action);
 /* Reverses a asset block action */
 void action_buffer_reverse_asset_block(asset_t* asset, action_t* action);
+/* Reverses a memory action */
+void action_buffer_reverse_memory(action_t* action);

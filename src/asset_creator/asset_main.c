@@ -262,6 +262,23 @@ static void asset_do_action(action_t* act)
 
 static void asset_handle_keyboard(virtual_key_t key, keyboard_control_t ctrl)
 {
+	if (key == VK_DELETE)
+	{
+		region_t region = tool_select_region(suite.tool_select);
+		if (region_is_invalid(region))
+		{
+			return;
+		}
+		action_buffer_pre_add_asset_block(suite.buffer, suite.asset, region);
+
+		game_asset_delete(suite.asset, region);
+
+		action_buffer_post_add_asset_block(suite.buffer, suite.asset);
+		tool_select_reset(suite.tool_select);
+		asset_invalidate();
+		return;
+	}
+
 	if (ctrl != CTRL_LEFT_PRESSED)
 	{
 		return;

@@ -37,8 +37,6 @@ static asset_suite_t asset_suite;
 
 static sprite_t flag;
 
-static dnr_state_t* binary;
-
 static inline asset_t* campaign_get_current_asset(void)
 {
 	return &layers[(y_pos + TARGET_HEIGHT / 2) / TARGET_HEIGHT];
@@ -336,6 +334,22 @@ static void campaign_handle_keyboard(virtual_key_t key, keyboard_control_t ctr)
 	{
 		y_pos += key - VK_DOWN + 1;
 	}
+	else if (key == VK_DELETE)
+	{
+		region_t region = tool_select_region(tool_select);
+		if (region_is_invalid(region))
+		{
+			return;
+		}
+		action_buffer_pre_add_asset_block(action_buffer, &master_asset, region);
+
+		game_asset_delete(&master_asset, region);
+
+		action_buffer_post_add_asset_block(action_buffer, &master_asset);
+		tool_select_reset(tool_select);
+		screen_repaint();
+		return;
+	}
 	if (!(ctr & CTRL_LEFT_PRESSED))
 	{
 		return;
@@ -354,6 +368,13 @@ static void campaign_handle_keyboard(virtual_key_t key, keyboard_control_t ctr)
 		break;
 	case 'Y':
 		campaign_do_action(action_buffer_forward(action_buffer));
+		break;
+	case 'C':
+		asset_handle_copy(&asset_suite);
+		break;
+	case 'V':
+		asset_handle_paste(&asset_suite);
+		screen_repaint();
 		break;
 	}
 }
@@ -551,4 +572,9 @@ void campaign_end(void)
 bool campaign_can_change_field(const void* field)
 {
 	return field != &campaign_get_current_asset()->width && field != &campaign_get_current_asset()->height;
+}
+
+const asset_t* campaign_get_layer(int index)
+{
+	return &layers[index];
 }

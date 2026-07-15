@@ -54,6 +54,11 @@ static action_buffer_t action_buffer;
 
 static inline void campaign_set_current_treeview_from_block(asset_info_current_field_t settings)
 {
+	if (current_tool == TOOL_ERASER || current_tool == TOOL_ENDBOX)
+	{
+		TreeView_DeleteAllItems(child_windows[CWI_CURRENT_TREEVIEW]);
+		return;
+	}
 	asset_set_current_treeview(child_windows[CWI_CURRENT_TREEVIEW], &asset_palette[current_tool], settings);
 }
 
@@ -141,7 +146,12 @@ static void campaign_info_handle_double_click_listbox(HWND list_box, int index)
 		if (!path_exists(layer_path_buf))
 		{
 			MessageBeep(MB_ICONERROR);
-			if (MessageBoxW(internal.window, L"That file doesn't exist.", L"Error", MB_ICONERROR | MB_OKCANCEL) != IDCANCEL)
+			int res = MessageBoxW(internal.window, L"That file doesn't exist. Do you want to create it and copy this current layer to it?", L"Error", MB_ICONERROR | MB_YESNO);
+			if (res == IDYES)
+			{
+				file_asset_save(buf, campaign_get_layer(index));
+			}
+			else if (res == IDNO)
 			{
 				campaign_info_handle_double_click_listbox(list_box, index);
 				return;

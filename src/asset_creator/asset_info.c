@@ -47,6 +47,11 @@ static char directory[MAX_PATH];
 
 static inline void asset_set_current_treeview_from_block(asset_info_current_field_t settings)
 {
+	if (current_tool == TOOL_ERASER)
+	{
+		TreeView_DeleteAllItems(child_windows[CWI_ASSET_CURRENT_TREEVIEW]);
+		return;
+	}
 	asset_set_current_treeview(child_windows[CWI_ASSET_CURRENT_TREEVIEW], &blocks[current_tool], settings);
 }
 
@@ -186,10 +191,7 @@ static void asset_info_handle_command(HWND window, WPARAM wparam)
 		EnableWindow(child_windows[CWI_ASSET_ERASER_BUTTON + current_tool], TRUE);
 		current_tool = index - CWI_ASSET_ERASER_BUTTON;
 		region = INVALID_REGION;
-		if (current_tool != TOOL_ERASER)
-		{
-			asset_set_current_treeview_from_block(0);
-		}
+		asset_set_current_treeview_from_block(0);
 		queue_add(internal.events->tool_handler, &current_tool);
 		EnableWindow(child_windows[CWI_ASSET_ERASER_BUTTON + current_tool], FALSE);
 	}

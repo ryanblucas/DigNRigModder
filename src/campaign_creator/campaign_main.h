@@ -28,5 +28,5 @@ void campaign_initialize(editor_state_t* state);
 void campaign_destroy(void);
 void campaign_start(void);
 void campaign_end(void);
-
 bool campaign_can_change_field(const void* field);
+const asset_t* campaign_get_layer(int index);

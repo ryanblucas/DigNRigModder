@@ -149,6 +149,12 @@ static void campaign_handle_file_change(const char* directory)
 		file_campaign_unload_layers(&master_asset, layers);
 		file_campaign_load_layers(current_campaign, &master_asset, layers);
 		asset_suite.asset = &master_asset;
+
+		asset_t* asset = campaign_get_current_asset();
+		screen_change_dirt_color(asset->dirt_color);
+		weather_force_end();
+		weather_start(asset->weather_type, asset->weather_particle_rate, asset->weather_speed);
+
 		screen_repaint();
 		return;
 	}

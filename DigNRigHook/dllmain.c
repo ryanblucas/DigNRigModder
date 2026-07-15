@@ -324,8 +324,20 @@ static void hook_load_existing_state(void)
 	ADDRESS_CALL_LOAD_STATE();
 }
 
+static bool is_terminal(void)
+{
+	return GetEnvironmentVariableW(L"WT_SESSION", NULL, 0) > 0;
+}
+
 static DWORD WINAPI hook_initialize(LPVOID param)
 {
+	if (is_terminal())
+	{
+		MessageBoxW(NULL, L"This application and Dig-N-Rig cannot be run on Windows' new terminal host. Change your command prompt back to conhost.exe and then try launching this again.", L"Error", MB_ICONERROR | MB_OK);
+		ExitProcess(0);
+		return 1;
+	}
+
 	default_campaign.mineral_end_box.x0 = default_campaign.mineral_end_box.x1 = 58;
 	default_campaign.mineral_end_box.y0 = default_campaign.mineral_end_box.y1 = 451;
 	default_campaign.end_box.x0 = 142;

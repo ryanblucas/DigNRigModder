@@ -7,6 +7,7 @@
 #include "campaign_creator/campaign_main.h"
 #include "screen.h"
 #include "info_box.h"
+#include "path.h"
 
 static editor_state_t editor;
 static bool already_cleaned_up;
@@ -91,8 +92,29 @@ static BOOL WINAPI ctrl_handler(DWORD ctrl_type)
 	return FALSE;
 }
 
+static bool is_terminal(void)
+{
+	return GetEnvironmentVariableW(L"WT_SESSION", NULL, 0) > 0;
+}
+
+static bool is_game_installed(void)
+{
+	char buf[MAX_PATH];
+	return path_exists(path_find_dnr_main(buf, sizeof buf, "Dig-N-Rig.exe"));
+}
+
 int main()
 {
+	if (is_terminal())
+	{
+		MessageBoxW(NULL, L"This application and Dig-N-Rig cannot be run on Windows' new terminal host. Change your command prompt back to conhost.exe and then try launching this again.", L"Error", MB_ICONERROR | MB_OK);
+		return;
+	}
+	if (!is_game_installed())
+	{
+		MessageBoxW(NULL, L"This application cannot be run if Dig-N-Rig is not installed. If you believe you have it installed, this application is looking for it in your Program Files (x86) under the folder DigiPen.", L"Error", MB_ICONERROR | MB_OK);
+		return;
+	}
 	queue_set_main_thread_id(GetCurrentThreadId());
 	SetConsoleCtrlHandler(ctrl_handler, TRUE);
 

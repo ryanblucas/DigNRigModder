@@ -24,6 +24,7 @@ enum child_window_index
 	CWI_BUTTON_SELECT,
 	CWI_BUTTON_BRUSH,
 	CWI_BUTTON_RECTANGLE,
+	CWI_BUTTON_MINERAL_ENDBOX,
 	CWI_THUMB_BRUSH_SIZE,
 
 	CWI_BUTTON_FILE_SELECTER,
@@ -54,7 +55,7 @@ static action_buffer_t action_buffer;
 
 static inline void campaign_set_current_treeview_from_block(asset_info_current_field_t settings)
 {
-	if (current_tool == TOOL_ERASER || current_tool == TOOL_ENDBOX)
+	if (current_tool == TOOL_ERASER || current_tool == TOOL_ENDBOX || current_tool == TOOL_MINERAL_ENDBOX)
 	{
 		TreeView_DeleteAllItems(child_windows[CWI_CURRENT_TREEVIEW]);
 		return;
@@ -85,11 +86,12 @@ void campaign_info_initialize(info_internal_t* _internal)
 	child_windows[CWI_BUTTON_BRUSH] = CreateWindowExW(0, L"BUTTON", L"Brush", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 3, 101, 72, 22, internal.window, NULL, NULL, NULL);
 	child_windows[CWI_THUMB_BRUSH_SIZE] = CreateWindowExW(0, TRACKBAR_CLASSW, L"Brush size", WS_VISIBLE | WS_CHILD | TBS_AUTOTICKS | TBS_ENABLESELRANGE, 3, 124, 72, 22, internal.window, NULL, NULL, NULL);
 	SendMessageW(child_windows[CWI_THUMB_BRUSH_SIZE], TBM_SETRANGE, TRUE, MAKELONG(INFO_BRUSH_MIN_SIZE, INFO_BRUSH_MAX_SIZE));
-	child_windows[CWI_BUTTON_RECTANGLE] = CreateWindowExW(0, L"BUTTON", L"Set end box", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 3, 147, 72, 22, internal.window, NULL, NULL, NULL);
+	child_windows[CWI_BUTTON_RECTANGLE] = CreateWindowExW(0, L"BUTTON", L"End box", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 3, 145, 72, 22, internal.window, NULL, NULL, NULL);
+	child_windows[CWI_BUTTON_MINERAL_ENDBOX] = CreateWindowExW(0, L"BUTTON", L"Mineral box", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 3, 168, 72, 22, internal.window, NULL, NULL, NULL);
 
 	child_windows[CWI_BUTTON_SHOW_ENDBOX_TOGGLE] = CreateWindowExW(0, L"BUTTON", L"Show start and end", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 82, 55, 132, 22, internal.window, NULL, NULL, NULL);
 
-	for (int i = CWI_BUTTON_SHOW_ENDBOX_TOGGLE; i <= CWI_BUTTON_RECTANGLE; i++)
+	for (int i = CWI_BUTTON_SHOW_ENDBOX_TOGGLE; i <= CWI_BUTTON_MINERAL_ENDBOX; i++)
 	{
 		SendMessageW(child_windows[i], WM_SETFONT, (WPARAM)internal.font_text, (LPARAM)FALSE);
 	}
@@ -254,17 +256,23 @@ static void campaign_info_dispatch_command(WPARAM wparam, LPARAM lparam)
 	{
 		campaign_info_handle_toggle_button(wnd, "Show start and end", "Hide start and end", CPI_ENABLE_END_BOX, CPI_DISABLE_END_BOX);
 	}
-	else if (index >= CWI_BUTTON_ERASER && index <= CWI_BUTTON_RECTANGLE)
+	else if (index >= CWI_BUTTON_ERASER && index <= CWI_BUTTON_MINERAL_ENDBOX)
 	{
+		/* not perfect but its good enough */
+		if (index == CWI_BUTTON_MINERAL_ENDBOX || index == CWI_BUTTON_RECTANGLE)
+		{
+			queue_add(internal.events->custom_event_handler, (const void*)CPI_ENABLE_END_BOX);
+		}
+		if (current_tool == TOOL_ENDBOX || current_tool == TOOL_MINERAL_ENDBOX)
+		{
+			queue_add(internal.events->custom_event_handler, (const void*)CPI_DISABLE_END_BOX);
+		}
 		EnableWindow(child_windows[CWI_BUTTON_ERASER + current_tool], TRUE);
 		current_tool = index - CWI_BUTTON_ERASER;
 		queue_add(internal.events->tool_handler, &current_tool);
 		EnableWindow(child_windows[CWI_BUTTON_ERASER + current_tool], FALSE);
 		TreeView_DeleteAllItems(child_windows[CWI_CURRENT_TREEVIEW]);
-		if (current_tool != TOOL_ERASER)
-		{
-			campaign_set_current_treeview_from_block(0);
-		}
+		campaign_set_current_treeview_from_block(0);
 	}
 }
 

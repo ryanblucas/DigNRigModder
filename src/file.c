@@ -601,7 +601,7 @@ campaign_t* file_campaign_blank(void)
 	campaign_t* result = dig_malloc(sizeof * result);
 
 	result->start_x = result->start_y = 0;
-	result->end_box = (region_t){ 0 };
+	result->end_box = result->mineral_end_box = (region_t){ 0 };
 	strcpy(result->name, "Blank");
 	for (int i = 0; i < 14; i++)
 	{
@@ -657,6 +657,19 @@ campaign_t* file_campaign_load(const char* directory)
 			result->end_box.x1 = curr.data.integer;
 			MATCH_AND_ADVANCE_TOKEN(&file, curr, TOKEN_INTEGER);
 			result->end_box.y1 = curr.data.integer;
+			MATCH_AND_ADVANCE_TOKEN(&file, curr, TOKEN_INTEGER);
+		}
+		else if (strncmp(curr.data.str, "MineralEndBox", DATA_STRING_MAX_SIZE) == 0)
+		{
+			file_next(&file, &curr);
+			MATCH_AND_ADVANCE_TOKEN(&file, curr, TOKEN_NEWLINE);
+			result->mineral_end_box.x0 = curr.data.integer;
+			MATCH_AND_ADVANCE_TOKEN(&file, curr, TOKEN_INTEGER);
+			result->mineral_end_box.y0 = curr.data.integer;
+			MATCH_AND_ADVANCE_TOKEN(&file, curr, TOKEN_INTEGER);
+			result->mineral_end_box.x1 = curr.data.integer;
+			MATCH_AND_ADVANCE_TOKEN(&file, curr, TOKEN_INTEGER);
+			result->mineral_end_box.y1 = curr.data.integer;
 			MATCH_AND_ADVANCE_TOKEN(&file, curr, TOKEN_INTEGER);
 		}
 		else if (strncmp(curr.data.str, "Layers", DATA_STRING_MAX_SIZE) == 0)
@@ -719,8 +732,13 @@ bool file_campaign_save(const char* directory, const campaign_t* campaign)
 		"#Title\n%s\n"
 		"#StartX\n%i\n"
 		"#StartY\n%i\n"
-		"#EndBox\n%i %i %i %i\n";
-	ENSURE_CONDITION(file, file_fprintf(file, fmt, campaign->name, campaign->start_x, campaign->start_y, campaign->end_box.x0, campaign->end_box.y0, campaign->end_box.x1, campaign->end_box.y1) > 0);
+		"#EndBox\n%i %i %i %i\n"
+		"#MineralEndBox\n%i %i %i %i\n";
+	ENSURE_CONDITION(file, file_fprintf(file, fmt, 
+		campaign->name,
+		campaign->start_x, campaign->start_y,
+		campaign->end_box.x0, campaign->end_box.y0, campaign->end_box.x1, campaign->end_box.y1,
+		campaign->mineral_end_box.x0, campaign->mineral_end_box.y0, campaign->mineral_end_box.x1, campaign->mineral_end_box.y1) > 0);
 	ENSURE_CONDITION(file, file_fprintf(file, "#Layers\n") > 0);
 	for (int i = 0; i < 14; i++)
 	{

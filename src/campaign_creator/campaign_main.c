@@ -13,6 +13,8 @@
 #include "../asset_creator/asset_util.h"
 #include <stdio.h>
 
+#define MAX_END_BOX_SIZE 80
+
 static void campaign_move_window(int addend);
 
 static editor_state_t* editor_state;
@@ -249,6 +251,25 @@ static void campaign_move_window(int addend)
 	screen_repaint();
 }
 
+static void campaign_render_end_box(bool is_mineral)
+{
+	info_tool_t current_tool = campaign_info_get_tool();
+	region_t normalized = is_mineral ? current_campaign->mineral_end_box : current_campaign->end_box;
+	if ((current_tool == TOOL_MINERAL_ENDBOX && is_mineral) 
+		|| (current_tool == TOOL_ENDBOX && !is_mineral))
+	{
+		normalized = dragging_end_box ? region_validate(temp_end_box) : normalized;
+	}
+	normalized.y0 -= y_pos;
+	normalized.y1 -= y_pos;
+	attribute_t temp[MAX_END_BOX_SIZE * MAX_END_BOX_SIZE];
+	for (int i = 0; i < MAX_END_BOX_SIZE * MAX_END_BOX_SIZE; i++)
+	{
+		temp[i] = is_mineral ? CREATE_ATTRIBUTE(LIGHT_RED, DARK_RED) : CREATE_ATTRIBUTE(LIGHT_BLUE, DARK_BLUE);
+	}
+	screen_set_attrib_region(temp, normalized);
+}
+
 static void campaign_handle_repaint(void)
 {
 	int top = y_pos / TARGET_HEIGHT;
@@ -261,10 +282,8 @@ static void campaign_handle_repaint(void)
 		{
 			screen_sprite_render(current_campaign->start_x, current_campaign->start_y - y_pos, flag);
 		}
-		region_t normalized = dragging_end_box ? region_validate(temp_end_box) : current_campaign->end_box;
-		normalized.y0 -= y_pos;
-		normalized.y1 -= y_pos;
-		screen_invert_region(normalized);
+		campaign_render_end_box(true);
+		campaign_render_end_box(false);
 	}
 	tool_select_render(tool_select, 0, y_pos);
 }
@@ -330,7 +349,8 @@ static void campaign_handle_save(void)
 			dont_ask_save_asset = true;
 		}
 		debug_format("Saving layer (%s, %i) to disk...\n", current_campaign->layers[i].directory, i);
-		file_asset_save(current_campaign->layers[i].directory, &layers[i]);
+		char buf[MAX_PATH];
+		file_asset_save(path_find_dnr_main_chain(buf, sizeof buf, "Layers", current_campaign->layers[i].directory), &layers[i]);
 	}
 }
 
@@ -385,7 +405,7 @@ static void campaign_handle_keyboard(virtual_key_t key, keyboard_control_t ctr)
 	}
 }
 
-static void campaign_end_box_handle_mouse_button(bool m1_down, int x, int y)
+static void campaign_end_box_handle_mouse_button(region_t* end_box, bool m1_down, int x, int y)
 {
 	if (!m1_down)
 	{
@@ -398,9 +418,9 @@ static void campaign_end_box_handle_mouse_button(bool m1_down, int x, int y)
 			moving_flag = false;
 			return;
 		}
-		region_t prev = current_campaign->end_box;
-		current_campaign->end_box = region_validate(temp_end_box);
-		action_buffer_add_memory(action_buffer, 1, sizeof temp_end_box, &current_campaign->end_box, &prev);
+		region_t prev = *end_box;
+		*end_box = region_validate(temp_end_box);
+		action_buffer_add_memory(action_buffer, 1, sizeof temp_end_box, end_box, &prev);
 		dragging_end_box = false;
 		return;
 	}
@@ -461,7 +481,11 @@ static void campaign_handle_mouse_button(bool m1_down, int x, int y)
 	campaign_mode_t mode = campaign_mode();
 	if (tool == TOOL_ENDBOX)
 	{
-		campaign_end_box_handle_mouse_button(m1_down, x, y);
+		campaign_end_box_handle_mouse_button(&current_campaign->end_box, m1_down, x, y);
+	}
+	else if (tool == TOOL_MINERAL_ENDBOX)
+	{
+		campaign_end_box_handle_mouse_button(&current_campaign->mineral_end_box, m1_down, x, y);
 	}
 	else if (mode == CAMPAIGN_MODE_ASSET)
 	{
@@ -492,10 +516,10 @@ static void campaign_end_box_handle_mouse_move(bool m1_down, int x, int y)
 		return;
 	}
 	int new_selected_y = y + y_pos;
-	temp_end_box.x1 = min(x, temp_end_box.x0 + 80 - 1);
-	temp_end_box.y1 = min(new_selected_y, temp_end_box.y0 + 80 - 1);
-	temp_end_box.x1 = max(temp_end_box.x1, temp_end_box.x0 - 80 + 1);
-	temp_end_box.y1 = max(temp_end_box.y1, temp_end_box.y0 - 80 + 1);
+	temp_end_box.x1 = min(x, temp_end_box.x0 + MAX_END_BOX_SIZE - 1);
+	temp_end_box.y1 = min(new_selected_y, temp_end_box.y0 + MAX_END_BOX_SIZE - 1);
+	temp_end_box.x1 = max(temp_end_box.x1, temp_end_box.x0 - MAX_END_BOX_SIZE + 1);
+	temp_end_box.y1 = max(temp_end_box.y1, temp_end_box.y0 - MAX_END_BOX_SIZE + 1);
 	temp_end_box = region_keep_inside((region_t) { 0, 0, WORLD_WIDTH, WORLD_HEIGHT }, temp_end_box);
 	screen_repaint();
 }
@@ -521,7 +545,7 @@ static void campaign_handle_mouse_move(bool m1_down, int x, int y)
 {
 	info_tool_t tool = campaign_info_get_tool();
 	campaign_mode_t mode = campaign_mode();
-	if (tool == TOOL_ENDBOX)
+	if (tool == TOOL_ENDBOX || tool == TOOL_MINERAL_ENDBOX)
 	{
 		campaign_end_box_handle_mouse_move(m1_down, x, y);
 	}

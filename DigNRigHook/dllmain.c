@@ -45,10 +45,10 @@ int hook_get_current_profile(void)
 static void hook_load_campaign(const campaign_t* camp)
 {
 	float* ptr = address_acquire_data(ADDRESS_FLOAT_START_X, sizeof * ptr);
-	*ptr = camp->start_x;
+	*ptr = (float)camp->start_x;
 	address_release_data(ptr);
 	ptr = address_acquire_data(ADDRESS_FLOAT_START_Y, sizeof * ptr);
-	*ptr = camp->start_y;
+	*ptr = (float)camp->start_y;
 	address_release_data(ptr);
 
 	for (int i = 0; i < 14; i++)
@@ -281,6 +281,39 @@ static void __declspec(naked) hook_write_state_code_cave(void)
 	}
 }
 
+static int __cdecl hook_check_mineral(int x, int y)
+{
+	return region_is_inside(campaigns[current_profile]->mineral_end_box, x, y);
+}
+
+static void __declspec(naked) hook_check_mineral_code_cave(void)
+{
+	__asm
+	{
+		mov ecx, eax
+		call address_base_pointer
+		push eax
+
+		push ecx
+		push esi 
+		call hook_check_mineral
+		add esp, 0x8
+
+		pop ecx
+		pop esi
+
+		test eax, eax
+		jz return_leave
+
+		add ecx, ADDRESS_TEXT_CHECK_MINERAL_FINISH_RETURN_JZ
+		jmp ecx
+
+	return_leave:
+		add ecx, ADDRESS_TEXT_CHECK_MINERAL_FINISH_RETURN_JNZ
+		jmp ecx
+	}
+}
+
 static void hook_load_existing_state(void)
 {
 	int profile = hook_get_current_profile();
@@ -293,6 +326,8 @@ static void hook_load_existing_state(void)
 
 static DWORD WINAPI hook_initialize(LPVOID param)
 {
+	default_campaign.mineral_end_box.x0 = default_campaign.mineral_end_box.x1 = 58;
+	default_campaign.mineral_end_box.y0 = default_campaign.mineral_end_box.y1 = 451;
 	default_campaign.end_box.x0 = 142;
 	default_campaign.end_box.y0 = 1392;
 	default_campaign.end_box.x1 = 150;
@@ -318,6 +353,7 @@ static DWORD WINAPI hook_initialize(LPVOID param)
 	address_text_inject_code_cave(ADDRESS_TEXT_RENDER_PROFILE_INFO, (uintptr_t)hook_profile_render_code_cave, ADDRESS_TEXT_RENDER_PROFILE_INFO_LENGTH);
 	address_text_inject_code_cave(ADDRESS_TEXT_LOAD_PROFILE, (uintptr_t)hook_load_profile_code_cave, ADDRESS_TEXT_LOAD_PROFILE_LENGTH);
 	address_text_inject_code_cave(ADDRESS_TEXT_WRITE_STATE, (uintptr_t)hook_write_state_code_cave, ADDRESS_TEXT_WRITE_STATE_LENGTH);
+	address_text_inject_code_cave(ADDRESS_TEXT_CHECK_MINERAL_FINISH, (uintptr_t)hook_check_mineral_code_cave, ADDRESS_TEXT_WRITE_STATE_LENGTH);
 	address_text_inject_call(ADDRESS_TEXT_GAME_START_SAVE, (uintptr_t)hook_load_existing_state);
 	return 0;
 }

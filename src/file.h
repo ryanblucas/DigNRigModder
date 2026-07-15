@@ -425,6 +425,7 @@ typedef struct campaign
 	char name[64];
 	int start_x, start_y;
 	region_t end_box;
+	region_t mineral_end_box;
 	layer_t layers[LAYER_COUNT];
 } campaign_t;
 

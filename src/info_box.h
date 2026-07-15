@@ -20,7 +20,8 @@ typedef enum info_tool
 	TOOL_ERASER,
 	TOOL_SELECT,
 	TOOL_BRUSH,
-	TOOL_ENDBOX
+	TOOL_ENDBOX,
+	TOOL_MINERAL_ENDBOX
 } info_tool_t;
 
 /* Every event must return void and take a single const pointer parameter, see handle_generic_t */
